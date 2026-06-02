@@ -27,7 +27,7 @@ function isAuthenticated(req: Request): boolean {
 }
 
 // Anti-inspect script injected into all HTML pages
-const ANTI_INSPECT = `<script>(function(){document.addEventListener('contextmenu',function(e){e.preventDefault()});document.addEventListener('keydown',function(e){if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'||e.key==='C'))||(e.ctrlKey&&e.key==='u')||(e.metaKey&&e.altKey&&(e.key==='i'||e.key==='j'||e.key==='c'))||(e.metaKey&&e.altKey&&e.key==='u'))e.preventDefault()});var d=new Image();Object.defineProperty(d,'id',{get:function(){window.location.href='/login'}});setInterval(function(){console.log(d);console.clear()},1000)})();</script>`;
+const ANTI_INSPECT = `<script>(function(){document.addEventListener('contextmenu',function(e){e.preventDefault()});document.addEventListener('keydown',function(e){if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'||e.key==='C'))||(e.ctrlKey&&e.key==='u')||(e.metaKey&&e.altKey&&(e.key==='i'||e.key==='j'||e.key==='c'))||(e.metaKey&&e.altKey&&e.key==='u'))e.preventDefault()})})();</script>`;
 
 const LOGIN_PAGE = `<!DOCTYPE html>
 <html lang="en">
@@ -73,7 +73,6 @@ const GAMES = [
   { id: "motox3m", name: "MotoX3M", desc: "extreme bike stunts", icon: true },
   { id: "ojjyclient", name: "ojjyclient", desc: "custom client made by jonas:)", icon: true },
   { id: "subwayssurfersny", name: "Subway Surfers NY", desc: "surf the subway", icon: true },
-  { id: "monkeymart", name: "Monkey Mart", desc: "run a monkey store", icon: true },
   { id: "ngon", name: "NGON", desc: "physics shooter", icon: true },
   { id: "ovo", name: "OvO", desc: "precision platformer", icon: true },
   { id: "fallguys", name: "Fall Guys", desc: "stumble and survive", icon: true },
