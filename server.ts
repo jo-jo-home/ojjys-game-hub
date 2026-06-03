@@ -76,6 +76,7 @@ const GAMES = [
   { id: "ngon", name: "NGON", desc: "physics shooter", icon: true },
   { id: "ovo", name: "OvO", desc: "precision platformer", icon: true },
   { id: "fallguys", name: "Fall Guys", desc: "stumble and survive", icon: true },
+  { id: "retrobowl", name: "Retro Bowl", desc: "retro football fun", icon: true },
 ];
 
 function buildHubPage(): string {
