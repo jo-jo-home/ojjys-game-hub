@@ -21,9 +21,17 @@ function getSessionFromCookie(req: Request): string | null {
   return match ? match[1] : null;
 }
 
+function getSessionToken(req: Request): string | null {
+  const cookie = getSessionFromCookie(req);
+  if (cookie && sessions.has(cookie)) return cookie;
+  const url = new URL(req.url);
+  const param = url.searchParams.get("token");
+  if (param && sessions.has(param)) return param;
+  return null;
+}
+
 function isAuthenticated(req: Request): boolean {
-  const token = getSessionFromCookie(req);
-  return token !== null && sessions.has(token);
+  return getSessionToken(req) !== null;
 }
 
 // Anti-inspect script injected into all HTML pages
@@ -79,7 +87,7 @@ const GAMES = [
   { id: "retrobowl", name: "Retro Bowl", desc: "retro football fun", icon: true },
 ];
 
-function buildHubPage(): string {
+function buildHubPage(token: string): string {
   const cards = GAMES.map(g => {
     const iconHtml = g.icon ? `<img src="/icons/${g.id}.png" alt="${g.name}">` : "";
     return `<a href="/${g.id}/" class="gc" data-n="${g.id}"><button class="sb" data-g="${g.id}">&#9734;</button>${iconHtml}<h2>${g.name}</h2><p>${g.desc}</p></a>`;
@@ -102,11 +110,12 @@ function buildHubPage(): string {
 <footer>made by Jonas Lee</footer>
 ${ANTI_INSPECT}
 <script>
+var _t='${token}';
 var _0x=[JSON.parse(localStorage.getItem('favorites')||'[]'),document.getElementById('g'),document.getElementById('s'),[].slice.call(document.querySelectorAll('.gc')).map(function(c){return c.dataset.n})];
 function _r(){document.querySelectorAll('.sb').forEach(function(b){var c=b.closest('.gc'),n=c.dataset.n;if(_0x[0].includes(n)){b.classList.add('a');b.innerHTML='\\u2605'}else{b.classList.remove('a');b.innerHTML='\\u2606'}})}
 function _s(){var c=[].slice.call(_0x[1].children);var o=_0x[3];c.sort(function(a,b){var af=_0x[0].includes(a.dataset.n)?0:1;var bf=_0x[0].includes(b.dataset.n)?0:1;if(af!==bf)return af-bf;return o.indexOf(a.dataset.n)-o.indexOf(b.dataset.n)});c.forEach(function(x){_0x[1].appendChild(x)})}
 document.querySelectorAll('.sb').forEach(function(b){b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var n=b.dataset.g,i=_0x[0].indexOf(n);if(i>=0)_0x[0].splice(i,1);else _0x[0].push(n);localStorage.setItem('favorites',JSON.stringify(_0x[0]));_r();_s()})});
-document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.sb'))return;e.preventDefault();var u=c.getAttribute('href'),w=window.open('about:blank','_blank');if(w){w.document.write('<!DOCTYPE html><html><head><title>ojjy\\'s game hub</title><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src=\"'+window.location.origin+u+'\" allowfullscreen></iframe></body></html>');w.document.close()}})});
+document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.sb'))return;e.preventDefault();var u=c.getAttribute('href')+'?token='+_t,w=window.open('about:blank','_blank');if(w){w.document.write('<!DOCTYPE html><html><head><title>ojjy\\'s game hub</title><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src=\"'+window.location.origin+u+'\" allowfullscreen></iframe></body></html>');w.document.close()}})});
 _0x[2].addEventListener('input',function(){var q=_0x[2].value.toLowerCase();document.querySelectorAll('.gc').forEach(function(c){c.style.display=c.dataset.n.includes(q)?'':'none'})});
 _r();_s();
 </script>
@@ -156,19 +165,21 @@ Deno.serve(async (req: Request) => {
 
   // Serve actual hub page at /hub
   if (url.pathname === "/hub") {
-    return new Response(buildHubPage(), {
+    const token = getSessionToken(req)!;
+    return new Response(buildHubPage(token), {
       headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
     });
   }
 
   // Landing page opens hub in about:blank
   if (url.pathname === "/" || url.pathname === "/index.html") {
+    const token = getSessionToken(req)!;
     const launcher = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>ojjy's game hub</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0a1628;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:1rem}button{padding:.8rem 2rem;border:1px solid #1e3a5f;border-radius:8px;background:#162a42;color:#e2e8f0;font-size:1.1rem;cursor:pointer;transition:background .2s,border-color .2s}button:hover{background:#1e3a5f;border-color:#2e6bbd}a{color:#2e6bbd;font-size:.9rem}</style>
 </head><body>
 <h1 style="font-weight:300;letter-spacing:.05em">ojjy's game hub</h1>
-<button onclick="var w=window.open('about:blank','_blank');if(w){w.document.write('<!DOCTYPE html><html><head><title>ojjy\\'s game hub</title><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src=&quot;'+window.location.origin+'/hub&quot; allowfullscreen></iframe></body></html>');w.document.close()}else{window.location.href='/hub'}">open in about:blank</button>
+<button onclick="var w=window.open('about:blank','_blank');if(w){w.document.write('<!DOCTYPE html><html><head><title>ojjy\\'s game hub</title><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src=&quot;'+window.location.origin+'/hub?token=${token}&quot; allowfullscreen></iframe></body></html>');w.document.close()}else{window.location.href='/hub'}">open in about:blank</button>
 <a href="/hub">or open normally</a>
 ${ANTI_INSPECT}
 </body></html>`;
