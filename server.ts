@@ -35,7 +35,7 @@ function isAuthenticated(req: Request): boolean {
 }
 
 // Anti-inspect script injected into all HTML pages
-const ANTI_INSPECT = `<script>(function(){document.addEventListener('contextmenu',function(e){e.preventDefault()});document.addEventListener('keydown',function(e){if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'||e.key==='C'))||(e.ctrlKey&&e.key==='u')||(e.metaKey&&e.altKey&&(e.key==='i'||e.key==='j'||e.key==='c'))||(e.metaKey&&e.altKey&&e.key==='u'))e.preventDefault()});window.addEventListener('beforeunload',function(e){e.preventDefault()})})();</script>`;
+const ANTI_INSPECT = `<script>(function(){document.addEventListener('contextmenu',function(e){e.preventDefault()});document.addEventListener('keydown',function(e){if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'||e.key==='C'))||(e.ctrlKey&&e.key==='u')||(e.metaKey&&e.altKey&&(e.key==='i'||e.key==='j'||e.key==='c'))||(e.metaKey&&e.altKey&&e.key==='u'))e.preventDefault()})})();</script>`;
 
 const LOGIN_PAGE = `<!DOCTYPE html>
 <html lang="en">
@@ -115,7 +115,7 @@ var _0x=[JSON.parse(localStorage.getItem('favorites')||'[]'),document.getElement
 function _r(){document.querySelectorAll('.sb').forEach(function(b){var c=b.closest('.gc'),n=c.dataset.n;if(_0x[0].includes(n)){b.classList.add('a');b.innerHTML='\\u2605'}else{b.classList.remove('a');b.innerHTML='\\u2606'}})}
 function _s(){var c=[].slice.call(_0x[1].children);var o=_0x[3];c.sort(function(a,b){var af=_0x[0].includes(a.dataset.n)?0:1;var bf=_0x[0].includes(b.dataset.n)?0:1;if(af!==bf)return af-bf;return o.indexOf(a.dataset.n)-o.indexOf(b.dataset.n)});c.forEach(function(x){_0x[1].appendChild(x)})}
 document.querySelectorAll('.sb').forEach(function(b){b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var n=b.dataset.g,i=_0x[0].indexOf(n);if(i>=0)_0x[0].splice(i,1);else _0x[0].push(n);localStorage.setItem('favorites',JSON.stringify(_0x[0]));_r();_s()})});
-document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.sb'))return;e.preventDefault();var u=c.getAttribute('href')+'?token='+_t,w=window.open('about:blank','_blank');if(w){w.document.write('<!DOCTYPE html><html><head><title>ojjy\\'s game hub</title><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src=\"'+window.location.origin+u+'\" allowfullscreen></iframe></body></html>');w.document.close()}})});
+document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.sb'))return;e.preventDefault();var u=c.getAttribute('href')+'?token='+_t,w=window.open('about:blank','_blank');if(w){w.document.write('<!DOCTYPE html><html><head><title>ojjy\\'s game hub</title><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src=\"'+window.location.origin+u+'\" allowfullscreen></iframe><script>window.addEventListener(\"beforeunload\",function(e){e.preventDefault()});<\\/script></body></html>');w.document.close()}})});
 _0x[2].addEventListener('input',function(){var q=_0x[2].value.toLowerCase();document.querySelectorAll('.gc').forEach(function(c){c.style.display=c.dataset.n.includes(q)?'':'none'})});
 _r();_s();
 </script>
