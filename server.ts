@@ -85,6 +85,9 @@ const GAMES = [
   { id: "ovo", name: "OvO", desc: "precision platformer", icon: true },
   { id: "fallguys", name: "Fall Guys", desc: "stumble and survive", icon: true },
   { id: "retrobowl", name: "Retro Bowl", desc: "retro football fun", icon: true },
+  { id: "gettingoverit", name: "Getting Over It", desc: "scratch edition", icon: true },
+  { id: "coreball", name: "Coreball", desc: "pin the pins", icon: true },
+  { id: "cookieclicker", name: "Cookie Clicker", desc: "click the cookie", icon: true },
 ];
 
 function buildHubPage(token: string): string {
