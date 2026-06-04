@@ -104,7 +104,7 @@ function buildHubPage(token: string): string {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ojjy's game hub</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background-color:#0a1628;color:#c8d6e5;min-height:100vh;display:flex;flex-direction:column}header{text-align:center;padding:3rem 1rem 2rem;position:relative}header h1{font-size:2.4rem;font-weight:300;color:#e2e8f0;letter-spacing:.05em}header p{margin-top:.5rem;font-size:.95rem;color:#64748b}.stg-btn{position:absolute;top:1.2rem;right:1.2rem;background:#111d2e;border:1px solid #1e3a5f;border-radius:8px;padding:6px 14px;color:#64748b;font-size:.8rem;cursor:pointer;transition:background .2s,border-color .2s,color .2s;text-decoration:none}.stg-btn:hover{background:#162a42;border-color:#2e6bbd;color:#c8d6e5}main{flex:1;max-width:900px;width:100%;margin:0 auto;padding:2rem 1.5rem}.sr{display:block;width:100%;max-width:400px;margin:0 auto 2rem;padding:.7rem 1rem;border:1px solid #1e3a5f;border-radius:8px;background:#111d2e;color:#e2e8f0;font-size:1rem;outline:none}.sr:focus{border-color:#2e6bbd}.sr::placeholder{color:#475569}.gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.2rem}.gc{background:#111d2e;border:1px solid #1e3a5f;border-radius:12px;padding:2rem 1.5rem;text-align:center;text-decoration:none;color:#c8d6e5;transition:background .2s,border-color .2s;position:relative}.gc:hover{background:#162a42;border-color:#2e6bbd}.gc img{width:64px;height:64px;object-fit:contain;margin-bottom:.8rem}.gc h2{font-size:1.15rem;font-weight:500;color:#e2e8f0}.gc p{margin-top:.4rem;font-size:.85rem;color:#64748b}.sb{position:absolute;top:8px;right:8px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#475569;line-height:1;padding:4px}.sb:hover{color:#f0c040}.sb.a{color:#f0c040}footer{text-align:center;padding:2rem 1rem;font-size:.85rem;color:#475569;border-top:1px solid #1e293b}footer a{color:#475569;margin-left:.5rem;text-decoration:none;cursor:pointer;transition:color .2s}footer a:hover{color:#64748b}.cm-ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,22,40,.95);z-index:900;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem}.cm-ov.open{display:flex}.cm{width:100%;max-width:520px;margin-top:2rem}.cm-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}.cm-hd h2{font-size:1.4rem;font-weight:300;color:#e2e8f0;letter-spacing:.03em}.cm-hd button{background:none;border:none;color:#64748b;font-size:1.5rem;cursor:pointer;padding:4px 8px;line-height:1}.cm-hd button:hover{color:#e2e8f0}.cm-sum{font-size:.85rem;color:#64748b;margin-bottom:1.2rem}.cm-it{background:#111d2e;border:1px solid #1e3a5f;border-radius:10px;padding:1rem 1.2rem;margin-bottom:.7rem;transition:border-color .2s}.cm-it:hover{border-color:#2e6bbd}.cm-it-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}.cm-it-name{font-size:.95rem;color:#e2e8f0;font-weight:500}.cm-it-btn{background:#162a42;border:1px solid #1e3a5f;border-radius:6px;padding:4px 12px;color:#c8d6e5;font-size:.78rem;cursor:pointer;transition:background .2s,border-color .2s}.cm-it-btn:hover{background:#1e3a5f;border-color:#2e6bbd}.cm-it-meta{display:flex;gap:.8rem;font-size:.78rem;color:#64748b;flex-wrap:wrap}.cm-it-meta span{display:flex;align-items:center;gap:3px}.cm-it-keys{margin-top:.5rem;font-size:.75rem;color:#475569;word-break:break-all}.cm-sep{border:none;border-top:1px solid #1e293b;margin:1.2rem 0}.cm-da{display:flex;justify-content:center;margin-top:.5rem}.cm-da button{background:#2a1a1a;border:1px solid #4a2020;border-radius:8px;padding:8px 24px;color:#e05555;font-size:.85rem;cursor:pointer;transition:background .2s}.cm-da button:hover{background:#3a2020}.cm-empty{text-align:center;color:#475569;padding:2rem;font-size:.9rem}.cm-tag{display:inline-block;font-size:.65rem;font-weight:400;color:#64748b;background:#1a2a3f;border:1px solid #1e3a5f;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle}</style>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background-color:#0a1628;color:#c8d6e5;min-height:100vh;display:flex;flex-direction:column}header{text-align:center;padding:3rem 1rem 2rem;position:relative}header h1{font-size:2.4rem;font-weight:300;color:#e2e8f0;letter-spacing:.05em}header p{margin-top:.5rem;font-size:.95rem;color:#64748b}.stg-btn{position:absolute;top:1.2rem;right:1.2rem;background:#111d2e;border:1px solid #1e3a5f;border-radius:8px;padding:6px 14px;color:#64748b;font-size:.8rem;cursor:pointer;transition:background .2s,border-color .2s,color .2s;text-decoration:none}.stg-btn:hover{background:#162a42;border-color:#2e6bbd;color:#c8d6e5}main{flex:1;max-width:900px;width:100%;margin:0 auto;padding:2rem 1.5rem}.sr{display:block;width:100%;max-width:400px;margin:0 auto 2rem;padding:.7rem 1rem;border:1px solid #1e3a5f;border-radius:8px;background:#111d2e;color:#e2e8f0;font-size:1rem;outline:none}.sr:focus{border-color:#2e6bbd}.sr::placeholder{color:#475569}.gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.2rem}.gc{background:#111d2e;border:1px solid #1e3a5f;border-radius:12px;padding:2rem 1.5rem;text-align:center;text-decoration:none;color:#c8d6e5;transition:background .2s,border-color .2s;position:relative}.gc:hover{background:#162a42;border-color:#2e6bbd}.gc img{width:64px;height:64px;object-fit:contain;margin-bottom:.8rem}.gc h2{font-size:1.15rem;font-weight:500;color:#e2e8f0}.gc p{margin-top:.4rem;font-size:.85rem;color:#64748b}.sb{position:absolute;top:8px;right:8px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#475569;line-height:1;padding:4px}.sb:hover{color:#f0c040}.sb.a{color:#f0c040}footer{text-align:center;padding:2rem 1rem;font-size:.85rem;color:#475569;border-top:1px solid #1e293b}footer a{color:#475569;margin-left:.5rem;text-decoration:none;cursor:pointer;transition:color .2s}footer a:hover{color:#64748b}.cm-ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,22,40,.95);z-index:900;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem}.cm-ov.open{display:flex}.cm{width:100%;max-width:520px;margin-top:2rem}.cm-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}.cm-hd h2{font-size:1.4rem;font-weight:300;color:#e2e8f0;letter-spacing:.03em}.cm-hd button{background:none;border:none;color:#64748b;font-size:1.5rem;cursor:pointer;padding:4px 8px;line-height:1}.cm-hd button:hover{color:#e2e8f0}.cm-sum{font-size:.85rem;color:#64748b;margin-bottom:1.2rem}.cm-it{background:#111d2e;border:1px solid #1e3a5f;border-radius:10px;padding:1rem 1.2rem;margin-bottom:.7rem;transition:border-color .2s}.cm-it:hover{border-color:#2e6bbd}.cm-it-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}.cm-it-name{font-size:.95rem;color:#e2e8f0;font-weight:500}.cm-it-btn{background:#162a42;border:1px solid #1e3a5f;border-radius:6px;padding:4px 12px;color:#c8d6e5;font-size:.78rem;cursor:pointer;transition:background .2s,border-color .2s}.cm-it-btn:hover{background:#1e3a5f;border-color:#2e6bbd}.cm-it-meta{display:flex;gap:.8rem;font-size:.78rem;color:#64748b;flex-wrap:wrap}.cm-it-meta span{display:flex;align-items:center;gap:3px}.cm-it-keys{margin-top:.5rem;font-size:.75rem;color:#475569;word-break:break-all}.cm-sep{border:none;border-top:1px solid #1e293b;margin:1.2rem 0}.cm-da{display:flex;justify-content:center;margin-top:.5rem}.cm-da button{background:#2a1a1a;border:1px solid #4a2020;border-radius:8px;padding:8px 24px;color:#e05555;font-size:.85rem;cursor:pointer;transition:background .2s}.cm-da button:hover{background:#3a2020}.cm-empty{text-align:center;color:#475569;padding:2rem;font-size:.9rem}.cm-it-tags{display:flex;gap:5px;margin-top:.4rem;flex-wrap:wrap}.cm-tag{display:inline-block;font-size:.65rem;font-weight:400;color:#64748b;background:#1a2a3f;border:1px solid #1e3a5f;border-radius:4px;padding:2px 7px}</style>
 </head>
 <body>
 <header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><a class="stg-btn" onclick="openCM()">manage storage</a></header>
@@ -124,19 +124,82 @@ document.querySelectorAll('.sb').forEach(function(b){b.addEventListener('click',
 document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.sb'))return;e.preventDefault();var u=c.getAttribute('href')+'?token='+_t,w=window.open('about:blank','_blank');if(w){w.document.write('<!DOCTYPE html><html><head><title>ojjy\\'s game hub</title><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src=\"'+window.location.origin+u+'\" allowfullscreen></iframe><script>window.addEventListener(\"beforeunload\",function(e){e.preventDefault()});<\\/script></body></html>');w.document.close()}})});
 _0x[2].addEventListener('input',function(){var q=_0x[2].value.toLowerCase();document.querySelectorAll('.gc').forEach(function(c){c.style.display=c.dataset.n.includes(q)?'':'none'})});
 _r();_s();
-var _km={'favorites':'hub favorites','ojjychess_token':'ojjyChess','CookieClickerGame':'Cookie Clicker','CookieClickerGameBeta':'Cookie Clicker','CookieClickerGameBetaDungeons':'Cookie Clicker','CookieClickerGameOld':'Cookie Clicker','CookieClickerGamev10466':'Cookie Clicker','startup-time':'Drive Mad','pokiMigrated':'Crossy Road Space','IDBFS':'Space Waves'};
-var _kp=[['CookieClicker','Cookie Clicker'],['ducklife','Duck Life'],['unity','Unity Game'],['poki','Poki Game']];
-function _gn(k){if(_km[k])return _km[k];if(k.startsWith('_ts_'))return null;for(var i=0;i<_kp.length;i++){if(k.toLowerCase().indexOf(_kp[i][0].toLowerCase())>=0)return _kp[i][1]}return k}
+var _km={
+'favorites':'hub favorites','ojjychess_token':'ojjyChess',
+'CookieClickerGame':'Cookie Clicker','CookieClickerGameBeta':'Cookie Clicker','CookieClickerGameBetaDungeons':'Cookie Clicker','CookieClickerGameOld':'Cookie Clicker','CookieClickerGamev10466':'Cookie Clicker',
+'startup-time':'Drive Mad',
+'pokiMigrated':'Crossy Road Space','crossyScore':'Crossy Road Space','currentWorld':'Crossy Road Space','selectedChar':'Crossy Road Space','hasPlayedBefore':'Crossy Road Space','giftsGiven':'Crossy Road Space','coins':'Crossy Road Space','first_round_finished':'Crossy Road Space','unlockedCharacters':'Crossy Road Space','highScore':'Crossy Road Space','totalCoins':'Crossy Road Space',
+'minilogSettings':'Geometry Dash','minilog':'Geometry Dash',
+'localSettings':'NGON',
+'__c2save':'OvO'
+};
+var _kp=[['CookieClicker','Cookie Clicker'],['subway.','Subway Surfers NY'],['subsurf','Subway Surfers NY']];
+function _gn(k){if(_km[k])return _km[k];if(k.startsWith('_ts_'))return null;for(var i=0;i<_kp.length;i++){if(k.indexOf(_kp[i][0])>=0)return _kp[i][1]}return null}
 function _sz(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(1)+' MB'}
 function _ago(ts){if(!ts)return'unknown';var d=Date.now()-ts,s=Math.floor(d/1000),m=Math.floor(s/60),h=Math.floor(m/60),dy=Math.floor(h/24);if(dy>0)return dy+'d ago';if(h>0)return h+'h ago';if(m>0)return m+'m ago';return'just now'}
-function _scan(){var items={},total=0;for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);var n=_gn(k);if(!n)continue;var v=localStorage.getItem(k)||'';var sz=k.length+v.length;var ts=localStorage.getItem('_ts_'+k);ts=ts?parseInt(ts):null;if(!items[n])items[n]={name:n,type:'localStorage',keys:[],size:0,lastSaved:null};items[n].keys.push(k);items[n].size+=sz;if(ts&&(!items[n].lastSaved||ts>items[n].lastSaved))items[n].lastSaved=ts;total+=sz}return{items:Object.values(items).sort(function(a,b){return b.size-a.size}),total:total}}
-var _cim={'_C2SaveStates':'OvO','c3offline-ojjygamehub':'Fall Guys','IDBFS':'Space Waves','localforage':'OvO','firebaseLocalStorageDb':'Rocket Goal IO'};
+var _cim={'_C2SaveStates':'OvO','localforage':'OvO','IDBFS':'Space Waves','firebaseLocalStorageDb':'Rocket Goal IO'};
 var _cip=[['eagler','ojjyClient'],['_EaS','ojjyClient'],['EaglerSP','ojjyClient'],['c3offline','Fall Guys'],['construct','Fall Guys']];
 function _cin(n){if(_cim[n])return _cim[n];for(var i=0;i<_cip.length;i++){if(n.indexOf(_cip[i][0])>=0)return _cip[i][1]}return null}
-function _scanCaches(cb){if(!window.caches){cb([]);return}caches.keys().then(function(names){cb(names.map(function(n){var game=_cin(n);return{name:game||n,game:game,rawName:n,type:'cache',keys:[n],size:0,lastSaved:null,isCache:true}}))}).catch(function(){cb([])})}
-function _scanIDB(cb){if(!indexedDB.databases){cb([]);return}indexedDB.databases().then(function(dbs){cb(dbs.map(function(db){var game=_cin(db.name);return{name:game||db.name,game:game,rawName:db.name,type:'database',keys:[db.name],size:0,lastSaved:null,isIDB:true}}))}).catch(function(){cb([])})}
-function renderCM(){var d=_scan();_scanCaches(function(caches){_scanIDB(function(idbs){var all=d.items.concat(caches).concat(idbs);var el=document.getElementById('cm');var h='<div class="cm-hd"><h2>storage manager</h2><button onclick="closeCM()">&times;</button></div>';h+='<div class="cm-sum">'+_sz(d.total)+' in localStorage across '+d.items.length+' items';if(caches.length)h+=' + '+caches.length+' browser cache'+(caches.length>1?'s':'');if(idbs.length)h+=' + '+idbs.length+' database'+(idbs.length>1?'s':'');h+='</div>';if(all.length===0){h+='<div class="cm-empty">no cached data found</div>';el.innerHTML=h;return}all.forEach(function(it,i){var typeTag=it.type==='cache'?'<span class="cm-tag">cache</span>':it.type==='database'?'<span class="cm-tag">database</span>':'<span class="cm-tag">local storage</span>';h+='<div class="cm-it"><div class="cm-it-hd"><span class="cm-it-name">'+it.name+' '+typeTag+'</span><button class="cm-it-btn" onclick="clearItem('+i+')">clear</button></div><div class="cm-it-meta">';if(!it.isCache&&!it.isIDB)h+='<span>'+_sz(it.size)+'</span>';h+='<span>'+_ago(it.lastSaved)+'</span>';if(it.keys.length>1)h+='<span>'+it.keys.length+' keys</span>';if(it.rawName)h+='<span>'+it.rawName+'</span>';h+='</div>';if(it.keys.length>0&&!it.isCache&&!it.isIDB){h+='<div class="cm-it-keys">'+it.keys.join(', ')+'</div>'}h+='</div>'});h+='<hr class="cm-sep"><div class="cm-da"><button onclick="clearAll()">clear all data</button></div>';el.innerHTML=h;window._cmItems=all})})}
-function clearItem(i){var it=window._cmItems[i];if(!it)return;if(it.isCache){caches.delete(it.keys[0]).then(function(){renderCM()})}else if(it.isIDB){it.keys.forEach(function(n){try{indexedDB.deleteDatabase(n)}catch(e){}});renderCM()}else{it.keys.forEach(function(k){localStorage.removeItem(k);localStorage.removeItem('_ts_'+k)});if(it.name==='hub favorites'){_0x[0]=[];_r();_s()}renderCM()}}
+function _buildGroups(cb){
+var groups={};
+function grp(name){if(!groups[name])groups[name]={name:name,ls:[],lsSize:0,lsKeys:[],caches:[],idbs:[],lastSaved:null};return groups[name]}
+var total=0;
+for(var i=0;i<localStorage.length;i++){
+var k=localStorage.key(i);if(k.startsWith('_ts_'))continue;
+var gname=_gn(k);
+var v=localStorage.getItem(k)||'';var sz=k.length+v.length;
+var ts=localStorage.getItem('_ts_'+k);ts=ts?parseInt(ts):null;
+var g=grp(gname||'other');
+g.ls.push(k);g.lsSize+=sz;g.lsKeys.push(k);
+if(ts&&(!g.lastSaved||ts>g.lastSaved))g.lastSaved=ts;
+total+=sz;
+}
+var scanC=new Promise(function(res){
+if(!window.caches){res([]);return}
+caches.keys().then(function(names){res(names)}).catch(function(){res([])});
+});
+var scanI=new Promise(function(res){
+if(!indexedDB.databases){res([]);return}
+indexedDB.databases().then(function(dbs){res(dbs)}).catch(function(){res([])});
+});
+Promise.all([scanC,scanI]).then(function(r){
+var cNames=r[0],iDbs=r[1];
+cNames.forEach(function(n){var gname=_cin(n);var g=grp(gname||n);g.caches.push(n)});
+iDbs.forEach(function(db){var gname=_cin(db.name);var g=grp(gname||db.name);g.idbs.push(db.name)});
+var sorted=Object.values(groups).sort(function(a,b){return b.lsSize-a.lsSize});
+cb(sorted,total);
+});
+}
+function renderCM(){_buildGroups(function(groups,total){
+var el=document.getElementById('cm');
+var h='<div class="cm-hd"><h2>storage manager</h2><button onclick="closeCM()">&times;</button></div>';
+h+='<div class="cm-sum">'+_sz(total)+' total across '+groups.length+' items</div>';
+if(groups.length===0){h+='<div class="cm-empty">no cached data found</div>';el.innerHTML=h;return}
+window._cmGroups=groups;
+groups.forEach(function(g,i){
+h+='<div class="cm-it"><div class="cm-it-hd"><span class="cm-it-name">'+g.name+'</span><button class="cm-it-btn" onclick="clearGroup('+i+')">clear</button></div>';
+h+='<div class="cm-it-meta">';
+if(g.lsSize>0)h+='<span>'+_sz(g.lsSize)+'</span>';
+h+='<span>'+_ago(g.lastSaved)+'</span>';
+h+='</div>';
+var tags=[];
+if(g.ls.length>0)tags.push(g.ls.length+' local storage key'+(g.ls.length>1?'s':''));
+if(g.caches.length>0)tags.push(g.caches.length+' cache'+(g.caches.length>1?'s':''));
+if(g.idbs.length>0)tags.push(g.idbs.length+' database'+(g.idbs.length>1?'s':''));
+h+='<div class="cm-it-tags">'+tags.map(function(t){return'<span class="cm-tag">'+t+'</span>'}).join('')+'</div>';
+var allKeys=g.lsKeys.concat(g.caches.map(function(c){return'cache: '+c})).concat(g.idbs.map(function(d){return'db: '+d}));
+if(allKeys.length>0)h+='<div class="cm-it-keys">'+allKeys.join(', ')+'</div>';
+h+='</div>';
+});
+h+='<hr class="cm-sep"><div class="cm-da"><button onclick="clearAll()">clear all data</button></div>';
+el.innerHTML=h;
+})}
+function clearGroup(i){var g=window._cmGroups[i];if(!g)return;
+g.ls.forEach(function(k){localStorage.removeItem(k);localStorage.removeItem('_ts_'+k)});
+g.caches.forEach(function(n){caches.delete(n)});
+g.idbs.forEach(function(n){try{indexedDB.deleteDatabase(n)}catch(e){}});
+if(g.name==='hub favorites'){_0x[0]=[];_r();_s()}
+renderCM();}
 function clearAll(){for(var i=localStorage.length-1;i>=0;i--)localStorage.removeItem(localStorage.key(i));_0x[0]=[];_r();_s();if(window.caches)caches.keys().then(function(n){n.forEach(function(k){caches.delete(k)})});if(indexedDB.databases)indexedDB.databases().then(function(dbs){dbs.forEach(function(db){try{indexedDB.deleteDatabase(db.name)}catch(e){}})});renderCM()}
 function openCM(){document.getElementById('cm-ov').classList.add('open');renderCM()}
 function closeCM(){document.getElementById('cm-ov').classList.remove('open')}
