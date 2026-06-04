@@ -3,6 +3,42 @@ const BOT_PROFILES = {
   easy: { name: 'Marvin', rating: 250, desc: 'I just learned the rules!', color: '#7ab648' },
   medium: { name: 'Elena', rating: 1200, desc: "Let's play a solid game.", color: '#e6912e' },
   hard: { name: 'Magnus', rating: 2500, desc: 'Prepare yourself.', color: '#e04040' },
+  custom: { name: 'Custom', rating: 800, desc: 'Set your own challenge.', color: '#5b8bb4' },
+};
+
+// Custom bot with adjustable depth
+const CustomBot = {
+  maxDepth: 2,
+  getMove(chess) {
+    const moves = chess.moves({ verbose: true });
+    if (moves.length === 0) return null;
+    const isMaximizing = chess.turn() === 'w';
+    let bestMove = null;
+    let bestScore = isMaximizing ? -Infinity : Infinity;
+    moves.sort((a, b) => (b.captured ? 1 : 0) - (a.captured ? 1 : 0));
+    for (const move of moves) {
+      chess.move(move);
+      const score = this._minimax(chess, this.maxDepth - 1, -Infinity, Infinity, !isMaximizing);
+      chess.undo();
+      if (isMaximizing) { if (score > bestScore) { bestScore = score; bestMove = move; } }
+      else { if (score < bestScore) { bestScore = score; bestMove = move; } }
+    }
+    return bestMove;
+  },
+  _minimax(chess, depth, alpha, beta, isMaximizing) {
+    if (depth === 0 || chess.game_over()) return evaluate(chess);
+    const moves = chess.moves({ verbose: true });
+    moves.sort((a, b) => (b.captured ? 1 : 0) - (a.captured ? 1 : 0));
+    if (isMaximizing) {
+      let maxEval = -Infinity;
+      for (const move of moves) { chess.move(move); const e = this._minimax(chess, depth - 1, alpha, beta, false); chess.undo(); maxEval = Math.max(maxEval, e); alpha = Math.max(alpha, e); if (beta <= alpha) break; }
+      return maxEval;
+    } else {
+      let minEval = Infinity;
+      for (const move of moves) { chess.move(move); const e = this._minimax(chess, depth - 1, alpha, beta, true); chess.undo(); minEval = Math.min(minEval, e); beta = Math.min(beta, e); if (beta <= alpha) break; }
+      return minEval;
+    }
+  }
 };
 
 // Main app controller
@@ -15,6 +51,7 @@ const App = {
   moveHistory: [],
 
   async init() {
+    Settings.load();
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
 
@@ -121,10 +158,24 @@ const App = {
     document.querySelector(`#color-options [data-color="${color}"]`).classList.add('selected');
   },
 
+  customRating: 800,
+
   selectDifficulty(diff) {
     this.difficulty = diff;
     document.querySelectorAll('#diff-options button').forEach(b => b.classList.remove('selected'));
     document.querySelector(`#diff-options [data-diff="${diff}"]`).classList.add('selected');
+    // Show/hide custom slider
+    const slider = document.getElementById('custom-slider-group');
+    if (slider) slider.style.display = diff === 'custom' ? 'flex' : 'none';
+    this.updateBotPreview();
+  },
+
+  setCustomRating(val) {
+    this.customRating = parseInt(val);
+    BOT_PROFILES.custom.rating = this.customRating;
+    // Map rating to depth: 200->1, 800->2, 1500->3, 2200->4, 2800->5
+    CustomBot.maxDepth = Math.max(1, Math.min(5, Math.round((this.customRating - 200) / 500) + 1));
+    document.getElementById('custom-rating-val').textContent = this.customRating;
     this.updateBotPreview();
   },
 
@@ -157,11 +208,15 @@ const App = {
     this.updatePlayerBars();
 
     // Create bot
-    this.bot = createBot(this.difficulty);
-    if (this.difficulty === 'hard' && StockfishBot.init) {
-      try { await StockfishBot.init(); } catch (e) {
-        console.warn('Stockfish failed to load, falling back to medium');
-        this.bot = MinimaxBot;
+    if (this.difficulty === 'custom') {
+      this.bot = CustomBot;
+    } else {
+      this.bot = createBot(this.difficulty);
+      if (this.difficulty === 'hard' && StockfishBot.init) {
+        try { await StockfishBot.init(); } catch (e) {
+          console.warn('Stockfish failed to load, falling back to medium');
+          this.bot = MinimaxBot;
+        }
       }
     }
 
@@ -207,7 +262,9 @@ const App = {
 
   afterMove(move) {
     Board.render(ChessGame.board());
-    Board.setLastMove(move.from, move.to);
+    if (Settings.current.highlightMoves) {
+      Board.setLastMove(move.from, move.to);
+    }
 
     // Check highlight
     if (ChessGame.inCheck()) {
@@ -307,7 +364,7 @@ const App = {
     const el = document.getElementById(elId);
     let html = '';
     pieces.forEach(p => {
-      html += `<img src="assets/pieces/${p.color}${p.type.toUpperCase()}.png" alt="">`;
+      html += `<img src="${(typeof Settings !== 'undefined') ? Settings.getPiecePath(p.color, p.type) : 'assets/pieces/neo/' + p.color + p.type.toUpperCase() + '.png'}" alt="">`;
     });
     if (scoreDiff > 0) html += `<span class="score-diff">+${Math.round(scoreDiff / 100)}</span>`;
     el.innerHTML = html;

@@ -47,6 +47,11 @@
             <button data-diff="easy" onclick="App.selectDifficulty('easy')">easy</button>
             <button data-diff="medium" class="selected" onclick="App.selectDifficulty('medium')">medium</button>
             <button data-diff="hard" onclick="App.selectDifficulty('hard')">hard</button>
+            <button data-diff="custom" onclick="App.selectDifficulty('custom')">custom</button>
+          </div>
+          <div class="custom-slider-group" id="custom-slider-group" style="display:none">
+            <label>rating: <span id="custom-rating-val">800</span></label>
+            <input type="range" min="100" max="3000" step="50" value="800" oninput="App.setCustomRating(this.value)">
           </div>
         </div>
         <div class="bot-preview" id="bot-preview" style="display:none">
@@ -57,6 +62,7 @@
           </div>
         </div>
         <button class="start-btn" onclick="App.startGame()">play</button>
+        <a class="settings-link" onclick="Settings.open()">settings</a>
       </div>
 
       <!-- Game sidebar (shown during game) -->
@@ -65,6 +71,7 @@
         <div class="controls">
           <button onclick="App.newGame()">new game</button>
           <button onclick="Board.flip();Board.render(ChessGame.board());App.updatePlayerBars();">flip</button>
+          <button onclick="Settings.open()">settings</button>
           <button class="danger" onclick="App.resign()">resign</button>
         </div>
       </div>
@@ -110,10 +117,50 @@
     </div>
   </div>
 
+  <!-- Settings overlay -->
+  <div id="settings-overlay" class="settings-overlay">
+    <div class="settings-panel">
+      <div class="settings-hd">
+        <h2>Board & Pieces</h2>
+        <button class="settings-close" onclick="Settings.close()">&times;</button>
+      </div>
+      <p class="settings-sub">Customize the look and feel of your chess set.</p>
+
+      <div class="settings-section">
+        <h3>Boards</h3>
+        <div class="theme-grid" id="settings-boards"></div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Pieces</h3>
+        <div class="theme-grid" id="settings-pieces"></div>
+      </div>
+
+      <hr class="settings-sep">
+
+      <div class="settings-toggle">
+        <label class="toggle-row">
+          <input type="checkbox" id="toggle-coords" checked onchange="Settings.toggleCoords(this.checked)">
+          <span class="toggle-switch"></span>
+          <span>Show Board Coordinates</span>
+        </label>
+      </div>
+
+      <div class="settings-toggle">
+        <label class="toggle-row">
+          <input type="checkbox" id="toggle-highlight" checked onchange="Settings.toggleHighlight(this.checked)">
+          <span class="toggle-switch"></span>
+          <span>Highlight Moves</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
   <script src="lib/chess.min.js"></script>
   <script src="js/game.js"></script>
   <script src="js/board.js"></script>
   <script src="js/bot.js"></script>
+  <script src="js/settings.js"></script>
   <script src="js/account.js"></script>
   <script src="js/app.js"></script>
 </body>

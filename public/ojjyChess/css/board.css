@@ -29,11 +29,11 @@
 }
 
 .square.light {
-  background-color: #ebecd0;
+  background-color: var(--sq-light, #ebecd0);
 }
 
 .square.dark {
-  background-color: #779556;
+  background-color: var(--sq-dark, #779556);
 }
 
 /* Coordinate labels */
@@ -59,12 +59,12 @@
 
 .square.light .coord-file,
 .square.light .coord-rank {
-  color: #779556;
+  color: var(--sq-dark, #779556);
 }
 
 .square.dark .coord-file,
 .square.dark .coord-rank {
-  color: #ebecd0;
+  color: var(--sq-light, #ebecd0);
 }
 
 /* Piece images */
