@@ -54,10 +54,13 @@ const App = {
   gameActive: false,
   moveHistory: [],
   customRating: 800,
+  // Track which board element is active
+  activeBoardId: 'board',
 
   async init() {
     try { Settings.load(); } catch(e) { console.warn('Settings load failed', e); }
 
+    // Initialize the home board
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
 
@@ -75,7 +78,6 @@ const App = {
         if (profile) {
           this.updateUserBar();
           this.hideAuth();
-          this.showSetup();
           return;
         }
       } catch(e) {
@@ -83,6 +85,38 @@ const App = {
       }
     }
     this.showAuth();
+  },
+
+  // --- Mode switching ---
+  enterHomeMode() {
+    document.body.className = 'home-mode';
+    document.getElementById('nav-bar').style.display = 'flex';
+    document.getElementById('home-page').style.display = 'block';
+    document.getElementById('game-layout').style.display = 'none';
+    document.getElementById('setup-panel').style.display = 'flex';
+
+    // Re-init board in home container
+    Board.init('board');
+    Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
+    this.activeBoardId = 'board';
+
+    ChessGame.newGame();
+    if (Board.flipped) Board.flip();
+    Board.render(ChessGame.board());
+    Board.clearSelection();
+    Board.setCheck(null);
+  },
+
+  enterGameMode() {
+    document.body.className = 'game-mode';
+    document.getElementById('nav-bar').style.display = 'none';
+    document.getElementById('home-page').style.display = 'none';
+    document.getElementById('game-layout').style.display = 'flex';
+
+    // Re-init board in game container
+    Board.init('game-board');
+    Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
+    this.activeBoardId = 'game-board';
   },
 
   // --- Auth ---
@@ -110,7 +144,6 @@ const App = {
       await Account.register(username, password);
       this.updateUserBar();
       this.hideAuth();
-      this.showSetup();
     } catch (err) {
       errEl.textContent = err.message;
     }
@@ -128,7 +161,6 @@ const App = {
       await Account.login(username, password);
       this.updateUserBar();
       this.hideAuth();
-      this.showSetup();
     } catch (err) {
       errEl.textContent = err.message;
     }
@@ -136,7 +168,6 @@ const App = {
 
   skipAuth() {
     this.hideAuth();
-    this.showSetup();
   },
 
   updateUserBar() {
@@ -152,22 +183,6 @@ const App = {
   },
 
   // --- Setup ---
-  showSetup() {
-    document.getElementById('setup-panel').style.display = 'flex';
-    document.getElementById('game-sidebar').style.display = 'none';
-    // Re-render starting position
-    ChessGame.newGame();
-    if (Board.flipped) Board.flip();
-    Board.render(ChessGame.board());
-    Board.clearSelection();
-    Board.setCheck(null);
-  },
-
-  hideSetup() {
-    document.getElementById('setup-panel').style.display = 'none';
-    document.getElementById('game-sidebar').style.display = 'flex';
-  },
-
   selectColor(color) {
     this.playerColor = color === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : color;
     document.querySelectorAll('#color-options button').forEach(b => b.classList.remove('selected'));
@@ -186,7 +201,6 @@ const App = {
   setCustomRating(val) {
     this.customRating = parseInt(val);
     BOT_PROFILES.custom.rating = this.customRating;
-    // Map rating to depth: 100->1, 600->1, 1000->2, 1500->3, 2000->3, 2500->4, 3000->4
     CustomBot.maxDepth = Math.max(1, Math.min(4, Math.floor(this.customRating / 750) + 1));
     document.getElementById('custom-rating-val').textContent = this.customRating;
     this.updateBotPreview();
@@ -205,7 +219,7 @@ const App = {
   },
 
   async startGame() {
-    this.hideSetup();
+    this.enterGameMode();
     this.moveHistory = [];
     this.gameActive = true;
 
@@ -258,10 +272,9 @@ const App = {
   async botMove() {
     if (!this.gameActive || ChessGame.isGameOver()) return;
 
-    Board.playerColor = '__none__'; // Disable player clicks during bot turn
+    Board.playerColor = '__none__';
     let move;
     try {
-      // All bots can be async now (CustomBot returns a Promise)
       move = await Promise.resolve(this.bot.getMove(ChessGame.engine));
     } catch(e) {
       console.warn('Bot move error', e);
@@ -280,7 +293,6 @@ const App = {
       Board.setLastMove(move.from, move.to);
     }
 
-    // Check highlight
     if (ChessGame.inCheck()) {
       const kingSquare = Board.findKing(ChessGame.turn(), ChessGame.board());
       Board.setCheck(kingSquare);
@@ -351,9 +363,15 @@ const App = {
     const topColor = Board.flipped ? 'w' : 'b';
     const bottomColor = Board.flipped ? 'b' : 'w';
 
-    this._renderPlayerBar('top-captured', captured[topColor === 'w' ? 'w' : 'b'], topColor === 'w' ? 'b' : 'w',
+    // Use game-mode player bar IDs
+    const topNameId = this.activeBoardId === 'game-board' ? 'game-top-name' : 'top-name';
+    const bottomNameId = this.activeBoardId === 'game-board' ? 'game-bottom-name' : 'bottom-name';
+    const topCapId = this.activeBoardId === 'game-board' ? 'game-top-captured' : 'top-captured';
+    const bottomCapId = this.activeBoardId === 'game-board' ? 'game-bottom-captured' : 'bottom-captured';
+
+    this._renderPlayerBar(topCapId, captured[topColor === 'w' ? 'w' : 'b'], topColor === 'w' ? 'b' : 'w',
       topColor === 'w' ? wScore - bScore : bScore - wScore);
-    this._renderPlayerBar('bottom-captured', captured[bottomColor === 'w' ? 'w' : 'b'], bottomColor === 'w' ? 'b' : 'w',
+    this._renderPlayerBar(bottomCapId, captured[bottomColor === 'w' ? 'w' : 'b'], bottomColor === 'w' ? 'b' : 'w',
       bottomColor === 'w' ? wScore - bScore : bScore - wScore);
 
     // Names & avatars
@@ -363,16 +381,23 @@ const App = {
 
     const botIsTop = !Board.flipped;
 
-    document.getElementById('top-name').innerHTML = botIsTop
-      ? `<span class="bar-avatar" style="background:${bot.color}">${bot.name[0]}</span>${bot.name} <span class="bar-rating">(${bot.rating})</span>`
-      : `<span class="bar-avatar" style="background:#666">${playerLetter}</span>${playerName}`;
-    document.getElementById('bottom-name').innerHTML = botIsTop
-      ? `<span class="bar-avatar" style="background:#666">${playerLetter}</span>${playerName}`
-      : `<span class="bar-avatar" style="background:${bot.color}">${bot.name[0]}</span>${bot.name} <span class="bar-rating">(${bot.rating})</span>`;
+    const topNameEl = document.getElementById(topNameId);
+    const bottomNameEl = document.getElementById(bottomNameId);
+    if (topNameEl) {
+      topNameEl.innerHTML = botIsTop
+        ? `<span class="bar-avatar" style="background:${bot.color}">${bot.name[0]}</span>${bot.name} <span class="bar-rating">(${bot.rating})</span>`
+        : `<span class="bar-avatar" style="background:#666">${playerLetter}</span>${playerName}`;
+    }
+    if (bottomNameEl) {
+      bottomNameEl.innerHTML = botIsTop
+        ? `<span class="bar-avatar" style="background:#666">${playerLetter}</span>${playerName}`
+        : `<span class="bar-avatar" style="background:${bot.color}">${bot.name[0]}</span>${bot.name} <span class="bar-rating">(${bot.rating})</span>`;
+    }
   },
 
   _renderPlayerBar(elId, pieces, capturedByColor, scoreDiff) {
     const el = document.getElementById(elId);
+    if (!el) return;
     let html = '';
     pieces.forEach(p => {
       const src = (typeof Settings !== 'undefined' && Settings.getPiecePath) ? Settings.getPiecePath(p.color, p.type) : 'assets/pieces/neo/' + p.color + p.type.toUpperCase() + '.png';
@@ -412,7 +437,6 @@ const App = {
   closeGameOver() {
     document.getElementById('gameover-overlay').classList.remove('active');
     this.gameActive = false;
-    // Clear board highlights
     if (Board.el) {
       Board.clearSelection();
       Board.setCheck(null);
@@ -430,7 +454,7 @@ const App = {
 
   newGame() {
     this.closeGameOver();
-    this.showSetup();
+    this.enterHomeMode();
   }
 };
 

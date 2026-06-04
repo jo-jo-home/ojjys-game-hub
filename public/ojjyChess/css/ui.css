@@ -9,10 +9,120 @@ body {
   background-color: #302e2b;
   color: #bababa;
   min-height: 100vh;
+}
+
+body.home-mode {
+  overflow-y: auto;
+}
+
+body.game-mode {
   overflow: hidden;
 }
 
-/* Layout */
+/* ========== Nav bar ========== */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 50px;
+  padding: 0 24px;
+  background: #262421;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.nav-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #e0e0e0;
+  letter-spacing: 0.02em;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ========== Home page layout ========== */
+.home-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 24px 60px;
+}
+
+.home-main {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  margin-bottom: 40px;
+}
+
+.home-board-col {
+  flex-shrink: 0;
+}
+
+.home-board-col .board-wrapper {
+  width: 440px;
+}
+
+.home-play-col {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Play card (setup panel in home mode) */
+.play-card {
+  background: #262421;
+  border-radius: 12px;
+  border: 1px solid #3a3a3a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1.5rem;
+  gap: 1.2rem;
+}
+
+.play-card h2 {
+  font-size: 1.4rem;
+  color: #e0e0e0;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+/* Feature cards grid */
+.home-features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.feature-card {
+  background: #262421;
+  border: 1px solid #3a3a3a;
+  border-radius: 12px;
+  padding: 24px 20px;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: default;
+}
+
+.feature-card:hover {
+  border-color: #4a4845;
+  background: #2b2926;
+}
+
+.feature-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin-bottom: 6px;
+}
+
+.feature-card p {
+  font-size: 0.85rem;
+  color: #6a6865;
+}
+
+/* ========== Game mode layout ========== */
 .app {
   display: flex;
   height: 100vh;
@@ -36,7 +146,7 @@ body {
   overflow: hidden;
 }
 
-/* Player info bars */
+/* ========== Player info bars ========== */
 .player-bar {
   display: flex;
   align-items: center;
@@ -59,6 +169,8 @@ body {
   font-size: 0.95rem;
   font-weight: 600;
   color: #e0e0e0;
+  display: flex;
+  align-items: center;
 }
 
 .player-bar .captured {
@@ -80,7 +192,31 @@ body {
   margin-left: 4px;
 }
 
-/* Move history */
+/* Player bar avatars */
+.bar-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #666;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-right: 8px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.bar-rating {
+  font-size: 0.8rem;
+  color: #8b8987;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* ========== Move history ========== */
 .move-list {
   flex: 1;
   overflow-y: auto;
@@ -128,7 +264,7 @@ body {
   color: #fff;
 }
 
-/* Game controls (chess.com style) */
+/* ========== Game controls ========== */
 .controls {
   display: flex;
   gap: 8px;
@@ -179,29 +315,13 @@ body {
   background: #6fa33e;
 }
 
-/* Setup panel (new game) */
-.setup-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  gap: 1.5rem;
-  flex: 1;
-}
-
-.setup-panel h2 {
-  font-size: 1.3rem;
-  color: #e0e0e0;
-  font-weight: 500;
-}
-
+/* ========== Setup panel / Play card ========== */
 .setup-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
 }
 
 .setup-group label {
@@ -241,13 +361,13 @@ body {
   color: #e0e0e0;
 }
 
-/* Bot preview in setup */
+/* Bot preview */
 .bot-preview {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
   padding: 12px;
   background: #1a1917;
   border-radius: 8px;
@@ -298,36 +418,8 @@ body {
   font-style: italic;
 }
 
-/* Player bar avatars */
-.bar-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #666;
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 700;
-  margin-right: 8px;
-  flex-shrink: 0;
-  vertical-align: middle;
-}
-
-.bar-rating {
-  font-size: 0.8rem;
-  color: #8b8987;
-  font-weight: 400;
-  margin-left: 4px;
-}
-
-.player-bar .name {
-  display: flex;
-  align-items: center;
-}
-
-.setup-panel .start-btn {
+/* Start / Play button */
+.start-btn {
   padding: 14px 60px;
   border: none;
   border-radius: 8px;
@@ -339,18 +431,51 @@ body {
   transition: background 0.15s;
   letter-spacing: 0.02em;
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
 }
 
-.setup-panel .start-btn:active {
+.start-btn:active {
   background: #5f9333;
 }
 
-.setup-panel .start-btn:hover {
+.start-btn:hover {
   background: #6fa33e;
 }
 
-/* Login/Register modal */
+/* Settings link in setup */
+.settings-link {
+  font-size: 0.85rem;
+  color: #8b8987;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.settings-link:hover {
+  color: #bababa;
+}
+
+/* Custom bot slider */
+.custom-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.custom-slider-group label {
+  font-size: 0.85rem;
+  color: #8b8987;
+}
+
+.custom-slider-group input[type="range"] {
+  width: 100%;
+  accent-color: #81b64c;
+  height: 6px;
+  cursor: pointer;
+}
+
+/* ========== Auth overlay ========== */
 .auth-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -474,7 +599,7 @@ body {
   color: #bababa;
 }
 
-/* Game over modal */
+/* ========== Game over overlay ========== */
 .gameover-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -529,14 +654,11 @@ body {
   background: #5f9333;
 }
 
-/* User info in sidebar header */
+/* ========== User bar ========== */
 .user-bar {
-  padding: 10px 16px;
-  background: #1a1917;
-  border-bottom: 1px solid #3a3a3a;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   font-size: 0.85rem;
 }
 
@@ -549,40 +671,7 @@ body {
   color: #8b8987;
 }
 
-/* Settings link in setup */
-.settings-link {
-  font-size: 0.85rem;
-  color: #8b8987;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.settings-link:hover {
-  color: #bababa;
-}
-
-/* Custom bot slider */
-.custom-slider-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  max-width: 260px;
-}
-
-.custom-slider-group label {
-  font-size: 0.85rem;
-  color: #8b8987;
-}
-
-.custom-slider-group input[type="range"] {
-  width: 100%;
-  accent-color: #81b64c;
-  height: 6px;
-  cursor: pointer;
-}
-
-/* Settings overlay */
+/* ========== Settings overlay ========== */
 .settings-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -771,7 +860,24 @@ body {
   transform: translateX(18px);
 }
 
-/* Responsive */
+/* ========== Responsive ========== */
+@media (max-width: 900px) {
+  .home-main {
+    flex-direction: column;
+    align-items: center;
+  }
+  .home-board-col .board-wrapper {
+    width: min(90vw, 440px);
+  }
+  .home-play-col {
+    width: 100%;
+    max-width: 440px;
+  }
+  .home-features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .app {
     flex-direction: column;
@@ -785,5 +891,20 @@ body {
   .board {
     width: min(95vw, 95vmin);
     height: min(95vw, 95vmin);
+  }
+  .home-features {
+    grid-template-columns: 1fr 1fr;
+  }
+  .nav-bar {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-features {
+    grid-template-columns: 1fr;
+  }
+  .home-page {
+    padding: 24px 16px 40px;
   }
 }

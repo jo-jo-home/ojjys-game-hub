@@ -7,11 +7,19 @@
   <link rel="stylesheet" href="css/board.css">
   <link rel="stylesheet" href="css/ui.css">
 </head>
-<body>
-  <div class="app">
-    <!-- Game area (board) -->
-    <div class="game-area">
-      <div class="board-container">
+<body class="home-mode">
+  <!-- Nav bar (visible in home mode) -->
+  <nav class="nav-bar" id="nav-bar">
+    <span class="nav-logo">ojjyChess</span>
+    <div class="nav-right">
+      <div class="user-bar" id="user-bar" style="display:none"></div>
+    </div>
+  </nav>
+
+  <!-- Home page content (visible in home mode) -->
+  <div class="home-page" id="home-page">
+    <div class="home-main">
+      <div class="home-board-col">
         <div class="board-wrapper">
           <div class="player-bar top">
             <span class="name" id="top-name">Bot</span>
@@ -24,49 +32,81 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Sidebar -->
-    <div class="sidebar">
-      <div class="user-bar" id="user-bar" style="display:none"></div>
-
-      <!-- Setup panel (shown before game) -->
-      <div class="setup-panel" id="setup-panel">
-        <h2>new game</h2>
-        <div class="setup-group">
-          <label>play as</label>
-          <div class="setup-options" id="color-options">
-            <button data-color="w" class="selected" onclick="App.selectColor('w')">white</button>
-            <button data-color="b" onclick="App.selectColor('b')">black</button>
-            <button data-color="random" onclick="App.selectColor('random')">random</button>
+      <div class="home-play-col">
+        <div class="play-card" id="setup-panel">
+          <h2>Play</h2>
+          <div class="setup-group">
+            <label>play as</label>
+            <div class="setup-options" id="color-options">
+              <button data-color="w" class="selected" onclick="App.selectColor('w')">white</button>
+              <button data-color="b" onclick="App.selectColor('b')">black</button>
+              <button data-color="random" onclick="App.selectColor('random')">random</button>
+            </div>
           </div>
+          <div class="setup-group">
+            <label>difficulty</label>
+            <div class="setup-options" id="diff-options">
+              <button data-diff="easy" onclick="App.selectDifficulty('easy')">easy</button>
+              <button data-diff="medium" class="selected" onclick="App.selectDifficulty('medium')">medium</button>
+              <button data-diff="hard" onclick="App.selectDifficulty('hard')">hard</button>
+              <button data-diff="custom" onclick="App.selectDifficulty('custom')">custom</button>
+            </div>
+            <div class="custom-slider-group" id="custom-slider-group" style="display:none">
+              <label>rating: <span id="custom-rating-val">800</span></label>
+              <input type="range" min="100" max="3000" step="50" value="800" oninput="App.setCustomRating(this.value)">
+            </div>
+          </div>
+          <div class="bot-preview" id="bot-preview" style="display:none">
+            <div class="bot-avatar" id="bot-avatar">E</div>
+            <div class="bot-info">
+              <div class="bot-name-row"><span class="bot-name" id="bot-pv-name">Elena</span><span class="bot-rating" id="bot-pv-rating">(1200)</span></div>
+              <span class="bot-desc" id="bot-pv-desc">Let's play a solid game.</span>
+            </div>
+          </div>
+          <button class="start-btn" onclick="App.startGame()">Play</button>
+          <a class="settings-link" onclick="Settings.open()">settings</a>
         </div>
-        <div class="setup-group">
-          <label>difficulty</label>
-          <div class="setup-options" id="diff-options">
-            <button data-diff="easy" onclick="App.selectDifficulty('easy')">easy</button>
-            <button data-diff="medium" class="selected" onclick="App.selectDifficulty('medium')">medium</button>
-            <button data-diff="hard" onclick="App.selectDifficulty('hard')">hard</button>
-            <button data-diff="custom" onclick="App.selectDifficulty('custom')">custom</button>
-          </div>
-          <div class="custom-slider-group" id="custom-slider-group" style="display:none">
-            <label>rating: <span id="custom-rating-val">800</span></label>
-            <input type="range" min="100" max="3000" step="50" value="800" oninput="App.setCustomRating(this.value)">
-          </div>
-        </div>
-        <div class="bot-preview" id="bot-preview" style="display:none">
-          <div class="bot-avatar" id="bot-avatar">E</div>
-          <div class="bot-info">
-            <div class="bot-name-row"><span class="bot-name" id="bot-pv-name">Elena</span><span class="bot-rating" id="bot-pv-rating">(1200)</span></div>
-            <span class="bot-desc" id="bot-pv-desc">Let's play a solid game.</span>
-          </div>
-        </div>
-        <button class="start-btn" onclick="App.startGame()">play</button>
-        <a class="settings-link" onclick="Settings.open()">settings</a>
       </div>
+    </div>
+    <div class="home-features">
+      <div class="feature-card">
+        <h3>Puzzles</h3>
+        <p>placeholder</p>
+      </div>
+      <div class="feature-card">
+        <h3>Learn</h3>
+        <p>placeholder</p>
+      </div>
+      <div class="feature-card">
+        <h3>Watch</h3>
+        <p>placeholder</p>
+      </div>
+      <div class="feature-card">
+        <h3>News</h3>
+        <p>placeholder</p>
+      </div>
+    </div>
+  </div>
 
-      <!-- Game sidebar (shown during game) -->
-      <div id="game-sidebar" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+  <!-- Game layout (visible in game mode) -->
+  <div class="app" id="game-layout" style="display:none">
+    <div class="game-area">
+      <div class="board-container">
+        <div class="board-wrapper">
+          <div class="player-bar top">
+            <span class="name" id="game-top-name">Bot</span>
+            <div class="captured" id="game-top-captured"></div>
+          </div>
+          <div id="game-board"></div>
+          <div class="player-bar bottom">
+            <span class="name" id="game-bottom-name">You</span>
+            <div class="captured" id="game-bottom-captured"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar">
+      <div id="game-sidebar" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
         <div class="move-list" id="move-list"></div>
         <div class="controls">
           <button onclick="App.newGame()">new game</button>
