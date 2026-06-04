@@ -362,6 +362,8 @@ const App = {
   // --- Undo ---
   undoMove() {
     if (!this.gameActive) return;
+    const takebacksOn = document.getElementById('opt-takebacks');
+    if (!takebacksOn || !takebacksOn.checked) return;
     // Undo bot's last move and player's last move
     const undo1 = ChessGame.undo();
     const undo2 = ChessGame.undo();
