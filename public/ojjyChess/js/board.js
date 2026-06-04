@@ -167,7 +167,7 @@ const Board = {
       box.innerHTML = '';
       pieces.forEach(p => {
         const img = document.createElement('img');
-        img.src = `assets/pieces/${color === 'w' ? 'w' : 'b'}${p.toUpperCase()}.svg`;
+        img.src = `assets/pieces/${color === 'w' ? 'w' : 'b'}${p.toUpperCase()}.png`;
         img.addEventListener('click', () => {
           overlay.classList.remove('active');
           resolve(p);
@@ -256,7 +256,7 @@ const Board = {
         const img = document.createElement('img');
         img.className = 'piece';
         img.dataset.color = piece.color;
-        img.src = `assets/pieces/${piece.color}${piece.type.toUpperCase()}.svg`;
+        img.src = `assets/pieces/${piece.color}${piece.type.toUpperCase()}.png`;
         img.draggable = false;
         sqEl.appendChild(img);
       }

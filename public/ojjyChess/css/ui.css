@@ -229,6 +229,92 @@ body {
   color: #e0e0e0;
 }
 
+/* Bot preview in setup */
+.bot-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 260px;
+  padding: 12px;
+  background: #1a1917;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+}
+
+.bot-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #e6912e;
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bot-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.bot-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.bot-rating {
+  font-size: 0.8rem;
+  color: #8b8987;
+}
+
+.bot-desc {
+  font-size: 0.8rem;
+  color: #8b8987;
+  font-style: italic;
+}
+
+/* Player bar avatars */
+.bar-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #666;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-right: 8px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.bar-rating {
+  font-size: 0.8rem;
+  color: #8b8987;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.player-bar .name {
+  display: flex;
+  align-items: center;
+}
+
 .setup-panel .start-btn {
   padding: 12px 40px;
   border: none;

@@ -1,3 +1,10 @@
+// Bot profiles (chess.com style)
+const BOT_PROFILES = {
+  easy: { name: 'Marvin', rating: 250, desc: 'I just learned the rules!', color: '#7ab648' },
+  medium: { name: 'Elena', rating: 1200, desc: "Let's play a solid game.", color: '#e6912e' },
+  hard: { name: 'Magnus', rating: 2500, desc: 'Prepare yourself.', color: '#e04040' },
+};
+
 // Main app controller
 const App = {
   bot: null,
@@ -10,6 +17,13 @@ const App = {
   async init() {
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
+
+    // Show starting position immediately
+    ChessGame.newGame();
+    Board.render(ChessGame.board());
+
+    // Show default bot preview
+    this.updateBotPreview();
 
     // Try to restore session
     if (Account.isLoggedIn()) {
@@ -111,6 +125,19 @@ const App = {
     this.difficulty = diff;
     document.querySelectorAll('#diff-options button').forEach(b => b.classList.remove('selected'));
     document.querySelector(`#diff-options [data-diff="${diff}"]`).classList.add('selected');
+    this.updateBotPreview();
+  },
+
+  updateBotPreview() {
+    const bot = BOT_PROFILES[this.difficulty];
+    const preview = document.getElementById('bot-preview');
+    if (!preview || !bot) return;
+    preview.style.display = 'flex';
+    document.getElementById('bot-avatar').textContent = bot.name[0];
+    document.getElementById('bot-avatar').style.background = bot.color;
+    document.getElementById('bot-pv-name').textContent = bot.name;
+    document.getElementById('bot-pv-rating').textContent = '(' + bot.rating + ')';
+    document.getElementById('bot-pv-desc').textContent = bot.desc;
   },
 
   async startGame() {
@@ -260,18 +287,27 @@ const App = {
     this._renderPlayerBar('bottom-captured', captured[bottomColor === 'w' ? 'w' : 'b'], bottomColor === 'w' ? 'b' : 'w',
       bottomColor === 'w' ? wScore - bScore : bScore - wScore);
 
-    // Names
-    const botName = this.difficulty.charAt(0).toUpperCase() + this.difficulty.slice(1) + ' Bot';
+    // Names & avatars
+    const bot = BOT_PROFILES[this.difficulty] || BOT_PROFILES.medium;
     const playerName = Account.user ? Account.user.username : 'You';
-    document.getElementById('top-name').textContent = Board.flipped ? playerName : botName;
-    document.getElementById('bottom-name').textContent = Board.flipped ? botName : playerName;
+    const playerLetter = Account.user ? Account.user.username[0].toUpperCase() : 'Y';
+
+    const topIsBot = !Board.flipped;
+    const botIsTop = topIsBot;
+
+    document.getElementById('top-name').innerHTML = botIsTop
+      ? `<span class="bar-avatar" style="background:${bot.color}">${bot.name[0]}</span>${bot.name} <span class="bar-rating">(${bot.rating})</span>`
+      : `<span class="bar-avatar" style="background:#666">${playerLetter}</span>${playerName}`;
+    document.getElementById('bottom-name').innerHTML = botIsTop
+      ? `<span class="bar-avatar" style="background:#666">${playerLetter}</span>${playerName}`
+      : `<span class="bar-avatar" style="background:${bot.color}">${bot.name[0]}</span>${bot.name} <span class="bar-rating">(${bot.rating})</span>`;
   },
 
   _renderPlayerBar(elId, pieces, capturedByColor, scoreDiff) {
     const el = document.getElementById(elId);
     let html = '';
     pieces.forEach(p => {
-      html += `<img src="assets/pieces/${p.color}${p.type.toUpperCase()}.svg" alt="">`;
+      html += `<img src="assets/pieces/${p.color}${p.type.toUpperCase()}.png" alt="">`;
     });
     if (scoreDiff > 0) html += `<span class="score-diff">+${Math.round(scoreDiff / 100)}</span>`;
     el.innerHTML = html;
