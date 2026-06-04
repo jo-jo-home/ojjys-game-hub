@@ -8,82 +8,143 @@
   <link rel="stylesheet" href="css/ui.css">
 </head>
 <body class="home-mode">
-  <!-- Nav bar (visible in home mode) -->
-  <nav class="nav-bar" id="nav-bar">
-    <span class="nav-logo">ojjyChess</span>
-    <div class="nav-right">
-      <div class="user-bar" id="user-bar" style="display:none"></div>
+
+  <!-- Left sidebar nav (chess.com style) -->
+  <nav class="left-nav" id="left-nav">
+    <div class="left-nav-logo">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2C10.5 2 9 3 9 5c0 1.5 1 2.5 1 2.5L8 10H6l-1 3h3l-1.5 7h11L16 13h3l-1-3h-2l-2-2.5S15 6.5 15 5c0-2-1.5-3-3-3z"/>
+      </svg>
+    </div>
+    <div class="left-nav-items">
+      <a class="left-nav-item active" href="#" onclick="return false">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07l-2.83 2.83M9.76 14.24l-2.83 2.83m11.14 0l-2.83-2.83M9.76 9.76L6.93 6.93" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+        <span>Play</span>
+      </a>
+      <a class="left-nav-item" href="#" onclick="return false">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.828 14.828a4 4 0 10-5.656-5.656 4 4 0 005.656 5.656z"/><path d="M9.172 14.828L4 20m10.828-5.172L20 20M9.172 9.172L4 4m10.828 5.172L20 4"/></svg>
+        <span>Puzzles</span>
+      </a>
+      <a class="left-nav-item" href="#" onclick="return false">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422A12.083 12.083 0 0121 14.07V17l-9 5-9-5v-2.93c0-1.18.34-2.34.98-3.34L12 14z"/></svg>
+        <span>Learn</span>
+      </a>
+      <a class="left-nav-item" href="#" onclick="return false">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 8h12v8H3z" stroke-linejoin="round"/></svg>
+        <span>Watch</span>
+      </a>
+      <a class="left-nav-item" href="#" onclick="return false">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2zM3 8h18m-5 4h2"/></svg>
+        <span>News</span>
+      </a>
+    </div>
+    <div class="left-nav-bottom">
+      <a class="left-nav-item" href="#" onclick="Settings.open(); return false">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 8.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <span>Settings</span>
+      </a>
     </div>
   </nav>
 
-  <!-- Home page content (visible in home mode) -->
+  <!-- Home page content -->
   <div class="home-page" id="home-page">
-    <div class="home-main">
-      <div class="home-board-col">
-        <div class="board-wrapper">
-          <div class="player-bar top">
-            <span class="name" id="top-name">Bot</span>
-            <div class="captured" id="top-captured"></div>
-          </div>
-          <div id="board"></div>
-          <div class="player-bar bottom">
-            <span class="name" id="bottom-name">You</span>
-            <div class="captured" id="bottom-captured"></div>
-          </div>
-        </div>
-      </div>
-      <div class="home-play-col">
-        <div class="play-card" id="setup-panel">
-          <h2>Play</h2>
-          <div class="setup-group">
-            <label>play as</label>
-            <div class="setup-options" id="color-options">
-              <button data-color="w" class="selected" onclick="App.selectColor('w')">white</button>
-              <button data-color="b" onclick="App.selectColor('b')">black</button>
-              <button data-color="random" onclick="App.selectColor('random')">random</button>
-            </div>
-          </div>
-          <div class="setup-group">
-            <label>difficulty</label>
-            <div class="setup-options" id="diff-options">
-              <button data-diff="easy" onclick="App.selectDifficulty('easy')">easy</button>
-              <button data-diff="medium" class="selected" onclick="App.selectDifficulty('medium')">medium</button>
-              <button data-diff="hard" onclick="App.selectDifficulty('hard')">hard</button>
-              <button data-diff="custom" onclick="App.selectDifficulty('custom')">custom</button>
-            </div>
-            <div class="custom-slider-group" id="custom-slider-group" style="display:none">
-              <label>rating: <span id="custom-rating-val">800</span></label>
-              <input type="range" min="100" max="3000" step="50" value="800" oninput="App.setCustomRating(this.value)">
-            </div>
-          </div>
-          <div class="bot-preview" id="bot-preview" style="display:none">
-            <div class="bot-avatar" id="bot-avatar">E</div>
-            <div class="bot-info">
-              <div class="bot-name-row"><span class="bot-name" id="bot-pv-name">Elena</span><span class="bot-rating" id="bot-pv-rating">(1200)</span></div>
-              <span class="bot-desc" id="bot-pv-desc">Let's play a solid game.</span>
-            </div>
-          </div>
-          <button class="start-btn" onclick="App.startGame()">Play</button>
-          <a class="settings-link" onclick="Settings.open()">settings</a>
-        </div>
-      </div>
+    <!-- Top bar -->
+    <div class="home-topbar">
+      <span class="home-title">ojjyChess</span>
+      <div class="user-bar" id="user-bar" style="display:none"></div>
     </div>
-    <div class="home-features">
-      <div class="feature-card">
-        <h3>Puzzles</h3>
-        <p>placeholder</p>
+
+    <div class="home-content">
+      <!-- Main area: board + play card -->
+      <div class="home-main">
+        <div class="home-board-col">
+          <div class="board-wrapper">
+            <div class="player-bar top">
+              <span class="name" id="top-name">Bot</span>
+              <div class="captured" id="top-captured"></div>
+            </div>
+            <div id="board"></div>
+            <div class="player-bar bottom">
+              <span class="name" id="bottom-name">You</span>
+              <div class="captured" id="bottom-captured"></div>
+            </div>
+          </div>
+        </div>
+        <div class="home-play-col">
+          <div class="play-card" id="setup-panel">
+            <h2>Play</h2>
+            <div class="setup-group">
+              <label>play as</label>
+              <div class="setup-options" id="color-options">
+                <button data-color="w" class="selected" onclick="App.selectColor('w')">white</button>
+                <button data-color="b" onclick="App.selectColor('b')">black</button>
+                <button data-color="random" onclick="App.selectColor('random')">random</button>
+              </div>
+            </div>
+            <div class="setup-group">
+              <label>difficulty</label>
+              <div class="setup-options" id="diff-options">
+                <button data-diff="easy" onclick="App.selectDifficulty('easy')">easy</button>
+                <button data-diff="medium" class="selected" onclick="App.selectDifficulty('medium')">medium</button>
+                <button data-diff="hard" onclick="App.selectDifficulty('hard')">hard</button>
+                <button data-diff="custom" onclick="App.selectDifficulty('custom')">custom</button>
+              </div>
+              <div class="custom-slider-group" id="custom-slider-group" style="display:none">
+                <label>rating: <span id="custom-rating-val">800</span></label>
+                <input type="range" min="100" max="3000" step="50" value="800" oninput="App.setCustomRating(this.value)">
+              </div>
+            </div>
+            <div class="bot-preview" id="bot-preview" style="display:none">
+              <div class="bot-avatar" id="bot-avatar">E</div>
+              <div class="bot-info">
+                <div class="bot-name-row"><span class="bot-name" id="bot-pv-name">Elena</span><span class="bot-rating" id="bot-pv-rating">(1200)</span></div>
+                <span class="bot-desc" id="bot-pv-desc">Let's play a solid game.</span>
+              </div>
+            </div>
+            <button class="start-btn" onclick="App.startGame()">Play</button>
+            <a class="settings-link" onclick="Settings.open()">settings</a>
+          </div>
+        </div>
       </div>
-      <div class="feature-card">
-        <h3>Learn</h3>
-        <p>placeholder</p>
-      </div>
-      <div class="feature-card">
-        <h3>Watch</h3>
-        <p>placeholder</p>
-      </div>
-      <div class="feature-card">
-        <h3>News</h3>
-        <p>placeholder</p>
+
+      <!-- Feature cards -->
+      <div class="home-features">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.828 14.828a4 4 0 10-5.656-5.656 4 4 0 005.656 5.656z"/><path d="M9.172 14.828L4 20m10.828-5.172L20 20M9.172 9.172L4 4m10.828 5.172L20 4"/></svg>
+          </div>
+          <div class="feature-text">
+            <h3>Puzzles</h3>
+            <p>placeholder</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422A12.083 12.083 0 0121 14.07V17l-9 5-9-5v-2.93c0-1.18.34-2.34.98-3.34L12 14z"/></svg>
+          </div>
+          <div class="feature-text">
+            <h3>Learn</h3>
+            <p>placeholder</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 8h12v8H3z" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="feature-text">
+            <h3>Watch</h3>
+            <p>placeholder</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2zM3 8h18m-5 4h2"/></svg>
+          </div>
+          <div class="feature-text">
+            <h3>News</h3>
+            <p>placeholder</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -90,8 +90,8 @@ const App = {
   // --- Mode switching ---
   enterHomeMode() {
     document.body.className = 'home-mode';
-    document.getElementById('nav-bar').style.display = 'flex';
-    document.getElementById('home-page').style.display = 'block';
+    document.getElementById('left-nav').style.display = 'flex';
+    document.getElementById('home-page').style.display = 'flex';
     document.getElementById('game-layout').style.display = 'none';
     document.getElementById('setup-panel').style.display = 'flex';
 
@@ -109,7 +109,7 @@ const App = {
 
   enterGameMode() {
     document.body.className = 'game-mode';
-    document.getElementById('nav-bar').style.display = 'none';
+    document.getElementById('left-nav').style.display = 'none';
     document.getElementById('home-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
