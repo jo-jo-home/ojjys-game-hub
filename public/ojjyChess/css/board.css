@@ -1,0 +1,168 @@
+.board-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-wrapper {
+  position: relative;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: min(80vmin, 560px);
+  height: min(80vmin, 560px);
+  border: 2px solid #3a3a3a;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.square {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.square.light {
+  background-color: #ebecd0;
+}
+
+.square.dark {
+  background-color: #779556;
+}
+
+/* Coordinate labels */
+.square .coord-file {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+  line-height: 1;
+}
+
+.square .coord-rank {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+  line-height: 1;
+}
+
+.square.light .coord-file,
+.square.light .coord-rank {
+  color: #779556;
+}
+
+.square.dark .coord-file,
+.square.dark .coord-rank {
+  color: #ebecd0;
+}
+
+/* Piece images */
+.piece {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+  cursor: grab;
+  z-index: 2;
+  transition: none;
+  pointer-events: auto;
+}
+
+.piece.dragging {
+  opacity: 0.4;
+}
+
+/* Ghost piece that follows cursor during drag */
+.drag-ghost {
+  position: fixed;
+  width: calc(min(80vmin, 560px) / 8);
+  height: calc(min(80vmin, 560px) / 8);
+  pointer-events: none;
+  z-index: 1000;
+  transform: translate(-50%, -50%);
+}
+
+/* Square highlights */
+.square.selected {
+  background-color: #f6f669 !important;
+}
+
+.square.last-move-light {
+  background-color: #f2f27a !important;
+}
+
+.square.last-move-dark {
+  background-color: #baca44 !important;
+}
+
+.square.check {
+  background: radial-gradient(ellipse at center, #ff0000 0%, #e70000 25%, rgba(169,0,0,0) 89%) !important;
+}
+
+/* Legal move indicators */
+.move-dot {
+  position: absolute;
+  width: 28%;
+  height: 28%;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.1);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.capture-ring {
+  position: absolute;
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  border: 6px solid rgba(0, 0, 0, 0.1);
+  z-index: 1;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* Pawn promotion modal */
+.promo-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.promo-overlay.active {
+  display: flex;
+}
+
+.promo-box {
+  background: #312e2b;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.promo-box img {
+  width: 64px;
+  height: 64px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 4px;
+  transition: background 0.15s;
+}
+
+.promo-box img:hover {
+  background: rgba(255,255,255,0.15);
+}

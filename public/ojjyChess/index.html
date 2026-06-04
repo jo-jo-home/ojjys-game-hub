@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>ojjyChess</title>
+  <link rel="stylesheet" href="css/board.css">
+  <link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Game area (board) -->
+    <div class="game-area">
+      <div class="board-container">
+        <div class="board-wrapper">
+          <div class="player-bar top">
+            <span class="name" id="top-name">Bot</span>
+            <div class="captured" id="top-captured"></div>
+          </div>
+          <div id="board"></div>
+          <div class="player-bar bottom">
+            <span class="name" id="bottom-name">You</span>
+            <div class="captured" id="bottom-captured"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="user-bar" id="user-bar" style="display:none"></div>
+
+      <!-- Setup panel (shown before game) -->
+      <div class="setup-panel" id="setup-panel">
+        <h2>new game</h2>
+        <div class="setup-group">
+          <label>play as</label>
+          <div class="setup-options" id="color-options">
+            <button data-color="w" class="selected" onclick="App.selectColor('w')">white</button>
+            <button data-color="b" onclick="App.selectColor('b')">black</button>
+            <button data-color="random" onclick="App.selectColor('random')">random</button>
+          </div>
+        </div>
+        <div class="setup-group">
+          <label>difficulty</label>
+          <div class="setup-options" id="diff-options">
+            <button data-diff="easy" onclick="App.selectDifficulty('easy')">easy</button>
+            <button data-diff="medium" class="selected" onclick="App.selectDifficulty('medium')">medium</button>
+            <button data-diff="hard" onclick="App.selectDifficulty('hard')">hard</button>
+          </div>
+        </div>
+        <button class="start-btn" onclick="App.startGame()">play</button>
+      </div>
+
+      <!-- Game sidebar (shown during game) -->
+      <div id="game-sidebar" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+        <div class="move-list" id="move-list"></div>
+        <div class="controls">
+          <button onclick="App.newGame()">new game</button>
+          <button onclick="Board.flip();Board.render(ChessGame.board());App.updatePlayerBars();">flip</button>
+          <button class="danger" onclick="App.resign()">resign</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pawn promotion overlay -->
+  <div id="promo-overlay" class="promo-overlay">
+    <div class="promo-box"></div>
+  </div>
+
+  <!-- Game over overlay -->
+  <div id="gameover-overlay" class="gameover-overlay">
+    <div class="gameover-box">
+      <h2 id="gameover-title">Game Over</h2>
+      <p id="gameover-desc"></p>
+      <button onclick="App.closeGameOver()">new game</button>
+    </div>
+  </div>
+
+  <!-- Auth overlay -->
+  <div id="auth-overlay" class="auth-overlay hidden">
+    <div class="auth-box">
+      <h2>ojjyChess</h2>
+      <div class="auth-tabs">
+        <button class="active" onclick="document.getElementById('login-form').style.display='flex';document.getElementById('register-form').style.display='none';this.classList.add('active');this.nextElementSibling.classList.remove('active');document.getElementById('auth-error').textContent=''">login</button>
+        <button onclick="document.getElementById('register-form').style.display='flex';document.getElementById('login-form').style.display='none';this.classList.add('active');this.previousElementSibling.classList.remove('active');document.getElementById('auth-error').textContent=''">register</button>
+      </div>
+      <p class="auth-error" id="auth-error"></p>
+      <form class="auth-form" id="login-form" onsubmit="App.handleLogin(event)">
+        <input type="text" name="username" placeholder="username" autocomplete="username">
+        <input type="password" name="password" placeholder="password" autocomplete="current-password">
+        <button type="submit">login</button>
+      </form>
+      <form class="auth-form" id="register-form" style="display:none" onsubmit="App.handleRegister(event)">
+        <input type="text" name="username" placeholder="username" autocomplete="username">
+        <input type="password" name="password" placeholder="password" autocomplete="new-password">
+        <button type="submit">register</button>
+      </form>
+      <div class="auth-skip">
+        <a onclick="App.skipAuth()">play as guest</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/chess.min.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/bot.js"></script>
+  <script src="js/account.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

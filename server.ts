@@ -2,6 +2,7 @@ import { serveDir } from "https://deno.land/std@0.224.0/http/file_server.ts";
 
 const PASSWORD_HASH = "1779c0ce5c9ca5c69110d3853843a70e797bf3264fbeafa6c65de398fb423b4c";
 const sessions = new Set<string>();
+const kv = await Deno.openKv();
 
 async function sha256(str: string): Promise<string> {
   const data = new TextEncoder().encode(str);
@@ -88,6 +89,7 @@ const GAMES = [
   { id: "gettingoverit", name: "Getting Over It", desc: "scratch edition", icon: true },
   { id: "coreball", name: "Coreball", desc: "pin the pins", icon: true },
   { id: "cookieclicker", name: "Cookie Clicker", desc: "click the cookie", icon: true },
+  { id: "ojjyChess", name: "ojjyChess", desc: "chess.com-style chess", icon: true },
 ];
 
 function buildHubPage(token: string): string {
@@ -164,6 +166,90 @@ Deno.serve(async (req: Request) => {
       status: 302,
       headers: { "Location": "/login" },
     });
+  }
+
+  // --- ojjyChess API routes ---
+  if (url.pathname === "/api/ojjychess/register" && req.method === "POST") {
+    try {
+      const { username, password } = await req.json();
+      if (!username || !password) return new Response(JSON.stringify({ error: "missing fields" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (username.length < 3) return new Response(JSON.stringify({ error: "username must be 3+ characters" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (password.length < 4) return new Response(JSON.stringify({ error: "password must be 4+ characters" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) return new Response(JSON.stringify({ error: "username: letters, numbers, underscores only" }), { status: 400, headers: { "Content-Type": "application/json" } });
+
+      const existing = await kv.get(["chess_users", username.toLowerCase()]);
+      if (existing.value) return new Response(JSON.stringify({ error: "username taken" }), { status: 409, headers: { "Content-Type": "application/json" } });
+
+      const passwordHash = await sha256(password);
+      const user = { username, passwordHash, createdAt: Date.now(), stats: { wins: 0, losses: 0, draws: 0 } };
+      await kv.set(["chess_users", username.toLowerCase()], user);
+
+      const token = generateToken();
+      await kv.set(["chess_sessions", token], { username, createdAt: Date.now() }, { expireIn: 86400000 });
+
+      return new Response(JSON.stringify({ token, user: { username, stats: user.stats } }), { headers: { "Content-Type": "application/json" } });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: { "Content-Type": "application/json" } }); }
+  }
+
+  if (url.pathname === "/api/ojjychess/login" && req.method === "POST") {
+    try {
+      const { username, password } = await req.json();
+      if (!username || !password) return new Response(JSON.stringify({ error: "missing fields" }), { status: 400, headers: { "Content-Type": "application/json" } });
+
+      const entry = await kv.get(["chess_users", username.toLowerCase()]);
+      if (!entry.value) return new Response(JSON.stringify({ error: "invalid username or password" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+      const passwordHash = await sha256(password);
+      if (entry.value.passwordHash !== passwordHash) return new Response(JSON.stringify({ error: "invalid username or password" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+      const token = generateToken();
+      await kv.set(["chess_sessions", token], { username: entry.value.username, createdAt: Date.now() }, { expireIn: 86400000 });
+
+      return new Response(JSON.stringify({ token, user: { username: entry.value.username, stats: entry.value.stats } }), { headers: { "Content-Type": "application/json" } });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: { "Content-Type": "application/json" } }); }
+  }
+
+  if (url.pathname === "/api/ojjychess/me" && req.method === "GET") {
+    const authHeader = req.headers.get("Authorization") || "";
+    const chessToken = authHeader.replace("Bearer ", "");
+    const session = await kv.get(["chess_sessions", chessToken]);
+    if (!session.value) return new Response(JSON.stringify({ error: "not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+    const user = await kv.get(["chess_users", session.value.username.toLowerCase()]);
+    if (!user.value) return new Response(JSON.stringify({ error: "user not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+
+    return new Response(JSON.stringify({ username: user.value.username, stats: user.value.stats }), { headers: { "Content-Type": "application/json" } });
+  }
+
+  if (url.pathname === "/api/ojjychess/stats" && req.method === "POST") {
+    const authHeader = req.headers.get("Authorization") || "";
+    const chessToken = authHeader.replace("Bearer ", "");
+    const session = await kv.get(["chess_sessions", chessToken]);
+    if (!session.value) return new Response(JSON.stringify({ error: "not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+    try {
+      const { result } = await req.json();
+      if (!["win", "loss", "draw"].includes(result)) return new Response(JSON.stringify({ error: "invalid result" }), { status: 400, headers: { "Content-Type": "application/json" } });
+
+      const userKey = ["chess_users", session.value.username.toLowerCase()];
+      const user = await kv.get(userKey);
+      if (!user.value) return new Response(JSON.stringify({ error: "user not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+
+      const stats = user.value.stats || { wins: 0, losses: 0, draws: 0 };
+      if (result === "win") stats.wins++;
+      else if (result === "loss") stats.losses++;
+      else stats.draws++;
+
+      await kv.set(userKey, { ...user.value, stats });
+      return new Response(JSON.stringify({ stats }), { headers: { "Content-Type": "application/json" } });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: { "Content-Type": "application/json" } }); }
+  }
+
+  if (url.pathname === "/api/ojjychess/logout" && req.method === "POST") {
+    const authHeader = req.headers.get("Authorization") || "";
+    const chessToken = authHeader.replace("Bearer ", "");
+    await kv.delete(["chess_sessions", chessToken]);
+    return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
   }
 
   // Serve actual hub page at /hub
