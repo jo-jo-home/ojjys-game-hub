@@ -128,37 +128,46 @@ body {
   color: #fff;
 }
 
-/* Game controls */
+/* Game controls (chess.com style) */
 .controls {
   display: flex;
-  gap: 6px;
-  padding: 10px 16px;
-  background: #1a1917;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #262421;
   border-top: 1px solid #3a3a3a;
   justify-content: center;
 }
 
 .controls button {
-  padding: 8px 16px;
+  padding: 10px 18px;
   border: none;
-  border-radius: 4px;
-  background: #4a4845;
-  color: #e0e0e0;
+  border-radius: 6px;
+  background: #3c3b39;
+  color: #c5c5c3;
   font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.01em;
 }
 
 .controls button:hover {
-  background: #5a5855;
+  background: #4a4946;
+  color: #fff;
+}
+
+.controls button:active {
+  background: #555;
 }
 
 .controls button.danger {
-  background: #7b2d2d;
+  background: #5c2323;
+  color: #e8a0a0;
 }
 
 .controls button.danger:hover {
-  background: #9b3d3d;
+  background: #7b2d2d;
+  color: #ffbdbd;
 }
 
 .controls button.primary {
@@ -210,22 +219,25 @@ body {
 .setup-options button {
   flex: 1;
   padding: 10px 8px;
-  border: 2px solid #4a4845;
+  border: 2px solid #3c3b39;
   border-radius: 6px;
-  background: #312e2b;
-  color: #bababa;
-  font-size: 0.9rem;
+  background: #272522;
+  color: #9e9e9c;
+  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .setup-options button:hover {
-  border-color: #6a6865;
+  border-color: #5a5855;
+  color: #e0e0e0;
+  background: #312e2b;
 }
 
 .setup-options button.selected {
   border-color: #81b64c;
-  background: rgba(129, 182, 76, 0.1);
+  background: rgba(129, 182, 76, 0.12);
   color: #e0e0e0;
 }
 
@@ -316,15 +328,22 @@ body {
 }
 
 .setup-panel .start-btn {
-  padding: 12px 40px;
+  padding: 14px 60px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #81b64c;
   color: #fff;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
   cursor: pointer;
   transition: background 0.15s;
+  letter-spacing: 0.02em;
+  width: 100%;
+  max-width: 260px;
+}
+
+.setup-panel .start-btn:active {
+  background: #5f9333;
 }
 
 .setup-panel .start-btn:hover {
@@ -414,17 +433,22 @@ body {
 .auth-form button[type="submit"] {
   padding: 12px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #81b64c;
   color: #fff;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: background 0.15s;
+  letter-spacing: 0.02em;
 }
 
 .auth-form button[type="submit"]:hover {
   background: #6fa33e;
+}
+
+.auth-form button[type="submit"]:active {
+  background: #5f9333;
 }
 
 .auth-error {
@@ -485,18 +509,24 @@ body {
 }
 
 .gameover-box button {
-  padding: 10px 30px;
+  padding: 12px 40px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #81b64c;
   color: #fff;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  transition: background 0.15s;
+  letter-spacing: 0.02em;
 }
 
 .gameover-box button:hover {
   background: #6fa33e;
+}
+
+.gameover-box button:active {
+  background: #5f9333;
 }
 
 /* User info in sidebar header */

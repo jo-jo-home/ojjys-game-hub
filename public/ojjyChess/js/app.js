@@ -6,24 +6,28 @@ const BOT_PROFILES = {
   custom: { name: 'Custom', rating: 800, desc: 'Set your own challenge.', color: '#5b8bb4' },
 };
 
-// Custom bot with adjustable depth
+// Custom bot with adjustable depth (runs in setTimeout to avoid blocking UI)
 const CustomBot = {
   maxDepth: 2,
   getMove(chess) {
-    const moves = chess.moves({ verbose: true });
-    if (moves.length === 0) return null;
-    const isMaximizing = chess.turn() === 'w';
-    let bestMove = null;
-    let bestScore = isMaximizing ? -Infinity : Infinity;
-    moves.sort((a, b) => (b.captured ? 1 : 0) - (a.captured ? 1 : 0));
-    for (const move of moves) {
-      chess.move(move);
-      const score = this._minimax(chess, this.maxDepth - 1, -Infinity, Infinity, !isMaximizing);
-      chess.undo();
-      if (isMaximizing) { if (score > bestScore) { bestScore = score; bestMove = move; } }
-      else { if (score < bestScore) { bestScore = score; bestMove = move; } }
-    }
-    return bestMove;
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const moves = chess.moves({ verbose: true });
+        if (moves.length === 0) { resolve(null); return; }
+        const isMaximizing = chess.turn() === 'w';
+        let bestMove = null;
+        let bestScore = isMaximizing ? -Infinity : Infinity;
+        moves.sort((a, b) => (b.captured ? 1 : 0) - (a.captured ? 1 : 0));
+        for (const move of moves) {
+          chess.move(move);
+          const score = CustomBot._minimax(chess, CustomBot.maxDepth - 1, -Infinity, Infinity, !isMaximizing);
+          chess.undo();
+          if (isMaximizing) { if (score > bestScore) { bestScore = score; bestMove = move; } }
+          else { if (score < bestScore) { bestScore = score; bestMove = move; } }
+        }
+        resolve(bestMove);
+      }, 50);
+    });
   },
   _minimax(chess, depth, alpha, beta, isMaximizing) {
     if (depth === 0 || chess.game_over()) return evaluate(chess);
@@ -31,11 +35,11 @@ const CustomBot = {
     moves.sort((a, b) => (b.captured ? 1 : 0) - (a.captured ? 1 : 0));
     if (isMaximizing) {
       let maxEval = -Infinity;
-      for (const move of moves) { chess.move(move); const e = this._minimax(chess, depth - 1, alpha, beta, false); chess.undo(); maxEval = Math.max(maxEval, e); alpha = Math.max(alpha, e); if (beta <= alpha) break; }
+      for (const move of moves) { chess.move(move); const e = CustomBot._minimax(chess, depth - 1, alpha, beta, false); chess.undo(); maxEval = Math.max(maxEval, e); alpha = Math.max(alpha, e); if (beta <= alpha) break; }
       return maxEval;
     } else {
       let minEval = Infinity;
-      for (const move of moves) { chess.move(move); const e = this._minimax(chess, depth - 1, alpha, beta, true); chess.undo(); minEval = Math.min(minEval, e); beta = Math.min(beta, e); if (beta <= alpha) break; }
+      for (const move of moves) { chess.move(move); const e = CustomBot._minimax(chess, depth - 1, alpha, beta, true); chess.undo(); minEval = Math.min(minEval, e); beta = Math.min(beta, e); if (beta <= alpha) break; }
       return minEval;
     }
   }
@@ -49,9 +53,11 @@ const App = {
   playerColor: 'w',
   gameActive: false,
   moveHistory: [],
+  customRating: 800,
 
   async init() {
-    Settings.load();
+    try { Settings.load(); } catch(e) { console.warn('Settings load failed', e); }
+
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
 
@@ -64,12 +70,16 @@ const App = {
 
     // Try to restore session
     if (Account.isLoggedIn()) {
-      const profile = await Account.getProfile();
-      if (profile) {
-        this.updateUserBar();
-        this.hideAuth();
-        this.showSetup();
-        return;
+      try {
+        const profile = await Account.getProfile();
+        if (profile) {
+          this.updateUserBar();
+          this.hideAuth();
+          this.showSetup();
+          return;
+        }
+      } catch(e) {
+        console.warn('Profile fetch failed', e);
       }
     }
     this.showAuth();
@@ -145,6 +155,12 @@ const App = {
   showSetup() {
     document.getElementById('setup-panel').style.display = 'flex';
     document.getElementById('game-sidebar').style.display = 'none';
+    // Re-render starting position
+    ChessGame.newGame();
+    if (Board.flipped) Board.flip();
+    Board.render(ChessGame.board());
+    Board.clearSelection();
+    Board.setCheck(null);
   },
 
   hideSetup() {
@@ -158,13 +174,10 @@ const App = {
     document.querySelector(`#color-options [data-color="${color}"]`).classList.add('selected');
   },
 
-  customRating: 800,
-
   selectDifficulty(diff) {
     this.difficulty = diff;
     document.querySelectorAll('#diff-options button').forEach(b => b.classList.remove('selected'));
     document.querySelector(`#diff-options [data-diff="${diff}"]`).classList.add('selected');
-    // Show/hide custom slider
     const slider = document.getElementById('custom-slider-group');
     if (slider) slider.style.display = diff === 'custom' ? 'flex' : 'none';
     this.updateBotPreview();
@@ -173,8 +186,8 @@ const App = {
   setCustomRating(val) {
     this.customRating = parseInt(val);
     BOT_PROFILES.custom.rating = this.customRating;
-    // Map rating to depth: 200->1, 800->2, 1500->3, 2200->4, 2800->5
-    CustomBot.maxDepth = Math.max(1, Math.min(5, Math.round((this.customRating - 200) / 500) + 1));
+    // Map rating to depth: 100->1, 600->1, 1000->2, 1500->3, 2000->3, 2500->4, 3000->4
+    CustomBot.maxDepth = Math.max(1, Math.min(4, Math.floor(this.customRating / 750) + 1));
     document.getElementById('custom-rating-val').textContent = this.customRating;
     this.updateBotPreview();
   },
@@ -247,10 +260,11 @@ const App = {
 
     Board.playerColor = '__none__'; // Disable player clicks during bot turn
     let move;
-    if (this.bot.getMove.constructor.name === 'AsyncFunction' || this.bot === StockfishBot) {
-      move = await this.bot.getMove(ChessGame.engine);
-    } else {
-      move = this.bot.getMove(ChessGame.engine);
+    try {
+      // All bots can be async now (CustomBot returns a Promise)
+      move = await Promise.resolve(this.bot.getMove(ChessGame.engine));
+    } catch(e) {
+      console.warn('Bot move error', e);
     }
 
     if (move) {
@@ -262,7 +276,7 @@ const App = {
 
   afterMove(move) {
     Board.render(ChessGame.board());
-    if (Settings.current.highlightMoves) {
+    if (typeof Settings !== 'undefined' && Settings.current && Settings.current.highlightMoves) {
       Board.setLastMove(move.from, move.to);
     }
 
@@ -325,13 +339,11 @@ const App = {
       for (const type of ['q', 'r', 'b', 'n', 'p']) {
         const diff = allPieces[color][type] - currentPieces[color][type];
         for (let i = 0; i < diff; i++) {
-          // Captured by the OTHER player
           captured[color === 'w' ? 'b' : 'w'].push({ color, type });
         }
       }
     }
 
-    // Score advantage
     const materialScore = (pieces) => pieces.reduce((s, p) => s + (PIECE_VALUES[p.type] || 0), 0);
     const wScore = materialScore(captured.w);
     const bScore = materialScore(captured.b);
@@ -349,8 +361,7 @@ const App = {
     const playerName = Account.user ? Account.user.username : 'You';
     const playerLetter = Account.user ? Account.user.username[0].toUpperCase() : 'Y';
 
-    const topIsBot = !Board.flipped;
-    const botIsTop = topIsBot;
+    const botIsTop = !Board.flipped;
 
     document.getElementById('top-name').innerHTML = botIsTop
       ? `<span class="bar-avatar" style="background:${bot.color}">${bot.name[0]}</span>${bot.name} <span class="bar-rating">(${bot.rating})</span>`
@@ -364,7 +375,8 @@ const App = {
     const el = document.getElementById(elId);
     let html = '';
     pieces.forEach(p => {
-      html += `<img src="${(typeof Settings !== 'undefined') ? Settings.getPiecePath(p.color, p.type) : 'assets/pieces/neo/' + p.color + p.type.toUpperCase() + '.png'}" alt="">`;
+      const src = (typeof Settings !== 'undefined' && Settings.getPiecePath) ? Settings.getPiecePath(p.color, p.type) : 'assets/pieces/neo/' + p.color + p.type.toUpperCase() + '.png';
+      html += `<img src="${src}" alt="">`;
     });
     if (scoreDiff > 0) html += `<span class="score-diff">+${Math.round(scoreDiff / 100)}</span>`;
     el.innerHTML = html;
@@ -399,12 +411,15 @@ const App = {
 
   closeGameOver() {
     document.getElementById('gameover-overlay').classList.remove('active');
-    this.showSetup();
-    Board.clearSelection();
-    Board.setCheck(null);
-    Board.el.querySelectorAll('.last-move-light, .last-move-dark').forEach(el => {
-      el.classList.remove('last-move-light', 'last-move-dark');
-    });
+    this.gameActive = false;
+    // Clear board highlights
+    if (Board.el) {
+      Board.clearSelection();
+      Board.setCheck(null);
+      Board.el.querySelectorAll('.last-move-light, .last-move-dark').forEach(el => {
+        el.classList.remove('last-move-light', 'last-move-dark');
+      });
+    }
   },
 
   resign() {
@@ -415,6 +430,7 @@ const App = {
 
   newGame() {
     this.closeGameOver();
+    this.showSetup();
   }
 };
 

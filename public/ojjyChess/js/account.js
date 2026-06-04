@@ -3,14 +3,32 @@ const Account = {
   token: localStorage.getItem('ojjychess_token') || null,
   user: null,
 
+  // Get the base URL for API calls (handles about:blank iframe context)
+  _apiBase() {
+    // If we're in an iframe, use the iframe's src origin
+    try {
+      if (window.location.protocol === 'about:') {
+        // We're in about:blank, find the iframe src
+        return '';
+      }
+      return '';
+    } catch(e) {
+      return '';
+    }
+  },
+
   async register(username, password) {
     const resp = await fetch('/api/ojjychess/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
+    if (!resp.ok) {
+      let msg = 'Registration failed';
+      try { const data = await resp.json(); msg = data.error || msg; } catch(e) {}
+      throw new Error(msg);
+    }
     const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Registration failed');
     this.token = data.token;
     localStorage.setItem('ojjychess_token', this.token);
     this.user = data.user;
@@ -23,8 +41,12 @@ const Account = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
+    if (!resp.ok) {
+      let msg = 'Login failed';
+      try { const data = await resp.json(); msg = data.error || msg; } catch(e) {}
+      throw new Error(msg);
+    }
     const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Login failed');
     this.token = data.token;
     localStorage.setItem('ojjychess_token', this.token);
     this.user = data.user;
@@ -33,30 +55,38 @@ const Account = {
 
   async getProfile() {
     if (!this.token) return null;
-    const resp = await fetch('/api/ojjychess/me', {
-      headers: { 'Authorization': 'Bearer ' + this.token },
-    });
-    if (!resp.ok) {
-      this.logout();
+    try {
+      const resp = await fetch('/api/ojjychess/me', {
+        headers: { 'Authorization': 'Bearer ' + this.token },
+      });
+      if (!resp.ok) {
+        this.logout();
+        return null;
+      }
+      const data = await resp.json();
+      this.user = data;
+      return data;
+    } catch(e) {
+      console.warn('getProfile failed', e);
       return null;
     }
-    const data = await resp.json();
-    this.user = data;
-    return data;
   },
 
   async updateStats(result) {
     if (!this.token) return;
-    await fetch('/api/ojjychess/stats', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + this.token,
-      },
-      body: JSON.stringify({ result }),
-    });
-    // Refresh profile
-    await this.getProfile();
+    try {
+      await fetch('/api/ojjychess/stats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + this.token,
+        },
+        body: JSON.stringify({ result }),
+      });
+      await this.getProfile();
+    } catch(e) {
+      console.warn('updateStats failed', e);
+    }
   },
 
   logout() {
