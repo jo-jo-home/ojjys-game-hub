@@ -70,12 +70,16 @@ const App = {
 
     this.updateBotPreview();
 
+    this.loadStreak();
+
     if (Account.isLoggedIn()) {
       try {
         const profile = await Account.getProfile();
         if (profile) {
           this.updateUserBar();
           this.hideAuth();
+          this._initSocial();
+          this.loadStreak();
           return;
         }
       } catch(e) {
@@ -90,8 +94,13 @@ const App = {
     document.body.className = 'home-mode';
     document.getElementById('left-nav').style.display = 'flex';
     document.getElementById('home-page').style.display = 'flex';
+    document.getElementById('friends-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'none';
     document.getElementById('setup-panel').style.display = 'flex';
+
+    // Update nav active state
+    document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
+    document.querySelector('.left-nav-items .left-nav-item').classList.add('active');
 
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
@@ -104,15 +113,48 @@ const App = {
     Board.setCheck(null);
   },
 
+  enterFriendsMode() {
+    document.body.className = 'home-mode';
+    document.getElementById('left-nav').style.display = 'flex';
+    document.getElementById('home-page').style.display = 'none';
+    document.getElementById('friends-page').style.display = 'flex';
+    document.getElementById('game-layout').style.display = 'none';
+
+    // Update nav active state
+    document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
+    // Find the Friends nav item by its text content
+    document.querySelectorAll('.left-nav-item span').forEach(sp => {
+      if (sp.textContent === 'Friends') sp.parentElement.classList.add('active');
+    });
+
+    if (Account.isGuest) {
+      document.getElementById('friends-guest-prompt').style.display = 'block';
+      document.querySelector('.friend-search').style.display = 'none';
+      document.querySelectorAll('.friends-section').forEach(el => el.style.display = 'none');
+    } else {
+      document.getElementById('friends-guest-prompt').style.display = 'none';
+      document.querySelector('.friend-search').style.display = 'block';
+      document.querySelectorAll('.friends-section').forEach(el => el.style.display = 'block');
+      Friends.loadFriends();
+      Friends.loadRequests();
+    }
+  },
+
   enterGameMode() {
     document.body.className = 'game-mode';
     document.getElementById('left-nav').style.display = 'none';
     document.getElementById('home-page').style.display = 'none';
+    document.getElementById('friends-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
     Board.init('game-board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
     this.activeBoardId = 'game-board';
+  },
+
+  _initSocial() {
+    if (typeof Friends !== 'undefined') Friends.init();
+    if (typeof Notifications !== 'undefined') Notifications.init();
   },
 
   // --- Auth ---
@@ -138,6 +180,7 @@ const App = {
       await Account.register(username, password);
       this.updateUserBar();
       this.hideAuth();
+      this._initSocial();
     } catch (err) {
       errEl.textContent = err.message;
     }
@@ -154,13 +197,49 @@ const App = {
       await Account.login(username, password);
       this.updateUserBar();
       this.hideAuth();
+      this._initSocial();
+    } catch (err) {
+      errEl.textContent = err.message;
+    }
+  },
+
+  showGuestForm() {
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('register-form').style.display = 'none';
+    document.querySelector('.auth-tabs').style.display = 'none';
+    document.querySelector('.auth-skip').style.display = 'none';
+    document.getElementById('auth-error').textContent = '';
+    document.getElementById('guest-form').style.display = 'block';
+  },
+
+  showLoginForm() {
+    document.getElementById('guest-form').style.display = 'none';
+    document.querySelector('.auth-tabs').style.display = 'flex';
+    document.querySelector('.auth-skip').style.display = 'block';
+    document.getElementById('login-form').style.display = 'flex';
+    document.getElementById('register-form').style.display = 'none';
+    document.querySelector('.auth-tabs').children[0].classList.add('active');
+    document.querySelector('.auth-tabs').children[1].classList.remove('active');
+  },
+
+  async handleGuestName(e) {
+    e.preventDefault();
+    const input = e.target.querySelector('[name="guestname"]');
+    const name = input.value.trim();
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = '';
+    if (!name || name.length < 2) { errEl.textContent = 'name must be at least 2 characters'; document.getElementById('guest-form').insertBefore(errEl, e.target); return; }
+    try {
+      await Account.loginAsGuest(name);
+      this.updateUserBar();
+      this.hideAuth();
     } catch (err) {
       errEl.textContent = err.message;
     }
   },
 
   skipAuth() {
-    this.hideAuth();
+    this.showGuestForm();
   },
 
   updateUserBar() {
@@ -168,7 +247,8 @@ const App = {
     if (!bar) return;
     if (Account.user) {
       const letter = Account.user.username[0].toUpperCase();
-      bar.innerHTML = `<div class="nav-user-avatar">${letter}</div><span class="nav-user-name">${Account.user.username}</span>`;
+      const suffix = Account.isGuest ? ' <span class="nav-user-guest">(guest)</span>' : '';
+      bar.innerHTML = `<div class="nav-user-avatar${Account.isGuest ? ' guest' : ''}">${letter}</div><span class="nav-user-name">${Account.user.username}${suffix}</span>`;
       bar.style.display = 'flex';
     } else {
       bar.style.display = 'none';
@@ -509,6 +589,9 @@ const App = {
     }
 
     overlay.classList.add('active');
+
+    // Record streak (any completed game counts)
+    this.recordStreak();
   },
 
   closeGameOver() {
@@ -533,6 +616,96 @@ const App = {
   newGame() {
     this.closeGameOver();
     this.enterHomeMode();
+  },
+
+  // --- Streak ---
+  async loadStreak() {
+    if (!Account.isLoggedIn() || Account.isGuest) {
+      this._renderStreak(0, false, []);
+      return;
+    }
+    try {
+      const resp = await fetch('/api/ojjychess/streak', {
+        headers: { 'Authorization': 'Bearer ' + Account.token },
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      this._renderStreak(data.streak || 0, data.todayPlayed || false, data.weekDays || []);
+    } catch(e) { console.warn('loadStreak failed', e); }
+  },
+
+  async recordStreak() {
+    if (!Account.isLoggedIn() || Account.isGuest) return;
+    try {
+      const resp = await fetch('/api/ojjychess/streak', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + Account.token },
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      this._renderStreak(data.streak || 0, true, data.weekDays || []);
+    } catch(e) {}
+  },
+
+  _renderStreak(count, todayPlayed, weekDays) {
+    const countEl = document.getElementById('streak-count');
+    const weekEl = document.getElementById('streak-week');
+    const flameEl = document.getElementById('streak-flame');
+    if (!countEl || !weekEl || !flameEl) return;
+
+    countEl.textContent = count + (count === 1 ? ' Day' : ' Days');
+
+    // Flame SVG and level based on streak count
+    let level = 0;
+    if (count >= 30) level = 4;
+    else if (count >= 14) level = 3;
+    else if (count >= 7) level = 2;
+    else if (count >= 1) level = 1;
+
+    flameEl.className = 'streak-flame level-' + level;
+
+    // Fire colors get more intense with level
+    const colors = [
+      ['#c0c0c0', '#888888', '#666666'], // level 0 (grey, inactive)
+      ['#ffa500', '#ff6600', '#ff3300'],  // level 1 (small orange fire)
+      ['#ff8c00', '#ff4500', '#cc0000'],  // level 2 (medium fire)
+      ['#ff6600', '#ff2200', '#aa0000'],  // level 3 (big fire)
+      ['#ffcc00', '#ff4400', '#cc0000'],  // level 4 (biggest, yellow-orange)
+    ];
+    const c = colors[level];
+
+    flameEl.innerHTML = `
+      <defs>
+        <linearGradient id="fireGrad" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stop-color="${c[2]}"/>
+          <stop offset="40%" stop-color="${c[1]}"/>
+          <stop offset="100%" stop-color="${c[0]}"/>
+        </linearGradient>
+      </defs>
+      <path d="M32 4 C32 4 18 22 18 36 C18 48 24 56 32 58 C40 56 46 48 46 36 C46 22 32 4 32 4Z" fill="url(#fireGrad)"/>
+      ${level >= 2 ? '<path d="M32 20 C32 20 24 30 24 40 C24 48 28 52 32 54 C36 52 40 48 40 40 C40 30 32 20 32 20Z" fill="' + c[0] + '" opacity="0.5"/>' : ''}
+      ${level >= 3 ? '<path d="M32 30 C32 30 27 36 27 43 C27 48 30 50 32 51 C34 50 37 48 37 43 C37 36 32 30 32 30Z" fill="#ffdd44" opacity="0.6"/>' : ''}
+      ${level >= 4 ? '<path d="M32 36 C32 36 29 40 29 44 C29 47 31 48 32 49 C33 48 35 47 35 44 C35 40 32 36 32 36Z" fill="#ffffff" opacity="0.5"/>' : ''}
+    `;
+
+    // Render week days
+    const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    let html = '';
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayIndex = d.getDay();
+      const filled = weekDays.includes(dateStr);
+      const isToday = dateStr === todayStr;
+      html += `<div class="streak-day">
+        <span class="streak-day-label">${dayNames[dayIndex]}</span>
+        <div class="streak-day-box${filled ? ' filled' : ''}${isToday ? ' today' : ''}"></div>
+      </div>`;
+    }
+    weekEl.innerHTML = html;
   }
 };
 

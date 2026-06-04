@@ -245,6 +245,20 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // --- ojjyChess auth helper ---
+  async function getChessUser(req: Request): Promise<{ username: string; isGuest: boolean } | null> {
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    if (!token) return null;
+    const session = await (await getKv()).get(["chess_sessions", token]);
+    if (session.value) return { username: (session.value as any).username, isGuest: false };
+    const guest = await (await getKv()).get(["chess_guest_sessions", token]);
+    if (guest.value) return { username: (guest.value as any).guestName, isGuest: true };
+    return null;
+  }
+
+  const JSON_HEADERS = { "Content-Type": "application/json" };
+
   // --- ojjyChess API routes (before auth check — these use their own auth) ---
   if (url.pathname === "/api/ojjychess/register" && req.method === "POST") {
     try {
@@ -277,48 +291,78 @@ Deno.serve(async (req: Request) => {
       if (!entry.value) return new Response(JSON.stringify({ error: "invalid username or password" }), { status: 401, headers: { "Content-Type": "application/json" } });
 
       const passwordHash = await sha256(password);
-      if (entry.value.passwordHash !== passwordHash) return new Response(JSON.stringify({ error: "invalid username or password" }), { status: 401, headers: { "Content-Type": "application/json" } });
+      const ev = entry.value as any;
+      if (ev.passwordHash !== passwordHash) return new Response(JSON.stringify({ error: "invalid username or password" }), { status: 401, headers: { "Content-Type": "application/json" } });
 
       const token = generateToken();
-      await (await getKv()).set(["chess_sessions", token], { username: entry.value.username, createdAt: Date.now() }, { expireIn: 86400000 });
+      await (await getKv()).set(["chess_sessions", token], { username: ev.username, createdAt: Date.now() }, { expireIn: 86400000 });
 
-      return new Response(JSON.stringify({ token, user: { username: entry.value.username, stats: entry.value.stats } }), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ token, user: { username: ev.username, stats: ev.stats } }), { headers: { "Content-Type": "application/json" } });
     } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: { "Content-Type": "application/json" } }); }
   }
 
   if (url.pathname === "/api/ojjychess/me" && req.method === "GET") {
     const authHeader = req.headers.get("Authorization") || "";
     const chessToken = authHeader.replace("Bearer ", "");
+
+    // Check registered session first
     const session = await (await getKv()).get(["chess_sessions", chessToken]);
-    if (!session.value) return new Response(JSON.stringify({ error: "not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    if (session.value) {
+      const sv = session.value as any;
+      const user = await (await getKv()).get(["chess_users", sv.username.toLowerCase()]);
+      if (!user.value) return new Response(JSON.stringify({ error: "user not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+      const uv = user.value as any;
+      return new Response(JSON.stringify({ username: uv.username, stats: uv.stats, isGuest: false }), { headers: { "Content-Type": "application/json" } });
+    }
 
-    const user = await (await getKv()).get(["chess_users", session.value.username.toLowerCase()]);
-    if (!user.value) return new Response(JSON.stringify({ error: "user not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+    // Check guest session
+    const guest = await (await getKv()).get(["chess_guest_sessions", chessToken]);
+    if (guest.value) {
+      return new Response(JSON.stringify({ username: (guest.value as any).guestName, isGuest: true }), { headers: { "Content-Type": "application/json" } });
+    }
 
-    return new Response(JSON.stringify({ username: user.value.username, stats: user.value.stats }), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
   }
 
   if (url.pathname === "/api/ojjychess/stats" && req.method === "POST") {
     const authHeader = req.headers.get("Authorization") || "";
     const chessToken = authHeader.replace("Bearer ", "");
-    const session = await (await getKv()).get(["chess_sessions", chessToken]);
-    if (!session.value) return new Response(JSON.stringify({ error: "not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    const statSession = await (await getKv()).get(["chess_sessions", chessToken]);
+    if (!statSession.value) return new Response(JSON.stringify({ error: "not logged in" }), { status: 401, headers: { "Content-Type": "application/json" } });
 
     try {
       const { result } = await req.json();
       if (!["win", "loss", "draw"].includes(result)) return new Response(JSON.stringify({ error: "invalid result" }), { status: 400, headers: { "Content-Type": "application/json" } });
 
-      const userKey = ["chess_users", session.value.username.toLowerCase()];
+      const ssv = statSession.value as any;
+      const userKey = ["chess_users", ssv.username.toLowerCase()];
       const user = await (await getKv()).get(userKey);
       if (!user.value) return new Response(JSON.stringify({ error: "user not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
 
-      const stats = user.value.stats || { wins: 0, losses: 0, draws: 0 };
+      const uv = user.value as any;
+      const stats = uv.stats || { wins: 0, losses: 0, draws: 0 };
       if (result === "win") stats.wins++;
       else if (result === "loss") stats.losses++;
       else stats.draws++;
 
-      await (await getKv()).set(userKey, { ...user.value, stats });
+      await (await getKv()).set(userKey, { ...uv, stats });
       return new Response(JSON.stringify({ stats }), { headers: { "Content-Type": "application/json" } });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: { "Content-Type": "application/json" } }); }
+  }
+
+  // --- Guest session ---
+  if (url.pathname === "/api/ojjychess/guest" && req.method === "POST") {
+    try {
+      const { name } = await req.json();
+      if (!name || typeof name !== "string") return new Response(JSON.stringify({ error: "name is required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      const trimmed = name.trim();
+      if (trimmed.length < 2 || trimmed.length > 20) return new Response(JSON.stringify({ error: "name must be 2-20 characters" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (!/^[a-zA-Z0-9_ ]+$/.test(trimmed)) return new Response(JSON.stringify({ error: "letters, numbers, spaces, underscores only" }), { status: 400, headers: { "Content-Type": "application/json" } });
+
+      const token = generateToken();
+      await (await getKv()).set(["chess_guest_sessions", token], { guestName: trimmed, createdAt: Date.now() }, { expireIn: 86400000 });
+
+      return new Response(JSON.stringify({ token, guestName: trimmed }), { headers: { "Content-Type": "application/json" } });
     } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: { "Content-Type": "application/json" } }); }
   }
 
@@ -327,6 +371,355 @@ Deno.serve(async (req: Request) => {
     const chessToken = authHeader.replace("Bearer ", "");
     await (await getKv()).delete(["chess_sessions", chessToken]);
     return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
+  }
+
+  // --- ojjyChess Social API routes ---
+
+  // User search
+  if (url.pathname === "/api/ojjychess/users/search" && req.method === "GET") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    const q = (url.searchParams.get("q") || "").toLowerCase().trim();
+    if (!q) return new Response(JSON.stringify({ users: [] }), { headers: JSON_HEADERS });
+    const kv = await getKv();
+    const results: { username: string }[] = [];
+    const iter = kv.list({ start: ["chess_users", q], end: ["chess_users", q + "\xff"] });
+    for await (const entry of iter) {
+      const u = (entry.value as any).username;
+      if (u.toLowerCase() !== user.username.toLowerCase()) results.push({ username: u });
+      if (results.length >= 10) break;
+    }
+    return new Response(JSON.stringify({ users: results }), { headers: JSON_HEADERS });
+  }
+
+  // Get friends list
+  if (url.pathname === "/api/ojjychess/friends" && req.method === "GET") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    const kv = await getKv();
+    const friends: { username: string; online: boolean; since: number }[] = [];
+    const iter = kv.list({ prefix: ["chess_friends", user.username.toLowerCase()] });
+    for await (const entry of iter) {
+      const friendKey = entry.key[2] as string;
+      const data = entry.value as any;
+      // Get display name from user record
+      const friendUser = await kv.get(["chess_users", friendKey]);
+      const displayName = friendUser.value ? (friendUser.value as any).username : friendKey;
+      // Check online status
+      const online = await kv.get(["chess_online", friendKey]);
+      friends.push({ username: displayName, online: !!online.value, since: data.since });
+    }
+    return new Response(JSON.stringify({ friends }), { headers: JSON_HEADERS });
+  }
+
+  // Send friend request
+  if (url.pathname === "/api/ojjychess/friends/request" && req.method === "POST") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    try {
+      const { username } = await req.json();
+      if (!username) return new Response(JSON.stringify({ error: "username required" }), { status: 400, headers: JSON_HEADERS });
+      const targetKey = username.toLowerCase();
+      const selfKey = user.username.toLowerCase();
+      if (targetKey === selfKey) return new Response(JSON.stringify({ error: "cannot friend yourself" }), { status: 400, headers: JSON_HEADERS });
+      const kv = await getKv();
+      // Check target exists
+      const targetUser = await kv.get(["chess_users", targetKey]);
+      if (!targetUser.value) return new Response(JSON.stringify({ error: "user not found" }), { status: 404, headers: JSON_HEADERS });
+      // Check not already friends
+      const existing = await kv.get(["chess_friends", selfKey, targetKey]);
+      if (existing.value) return new Response(JSON.stringify({ error: "already friends" }), { status: 400, headers: JSON_HEADERS });
+      // Check if they already sent us a request — auto-accept
+      const theirRequest = await kv.get(["chess_friend_requests", selfKey, targetKey]);
+      if (theirRequest.value) {
+        await kv.atomic()
+          .delete(["chess_friend_requests", selfKey, targetKey])
+          .delete(["chess_friend_requests_sent", targetKey, selfKey])
+          .set(["chess_friends", selfKey, targetKey], { since: Date.now() })
+          .set(["chess_friends", targetKey, selfKey], { since: Date.now() })
+          .commit();
+        return new Response(JSON.stringify({ ok: true, autoAccepted: true }), { headers: JSON_HEADERS });
+      }
+      // Check not already sent
+      const alreadySent = await kv.get(["chess_friend_requests_sent", selfKey, targetKey]);
+      if (alreadySent.value) return new Response(JSON.stringify({ error: "request already sent" }), { status: 400, headers: JSON_HEADERS });
+      // Send request
+      await kv.atomic()
+        .set(["chess_friend_requests", targetKey, selfKey], { sentAt: Date.now(), senderUsername: user.username })
+        .set(["chess_friend_requests_sent", selfKey, targetKey], { sentAt: Date.now() })
+        .commit();
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
+  }
+
+  // Get pending friend requests
+  if (url.pathname === "/api/ojjychess/friends/requests" && req.method === "GET") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    const kv = await getKv();
+    const requests: { from: string; sentAt: number }[] = [];
+    const iter = kv.list({ prefix: ["chess_friend_requests", user.username.toLowerCase()] });
+    for await (const entry of iter) {
+      const data = entry.value as any;
+      requests.push({ from: data.senderUsername, sentAt: data.sentAt });
+    }
+    return new Response(JSON.stringify({ requests }), { headers: JSON_HEADERS });
+  }
+
+  // Accept friend request
+  if (url.pathname === "/api/ojjychess/friends/accept" && req.method === "POST") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    try {
+      const { username } = await req.json();
+      if (!username) return new Response(JSON.stringify({ error: "username required" }), { status: 400, headers: JSON_HEADERS });
+      const senderKey = username.toLowerCase();
+      const selfKey = user.username.toLowerCase();
+      const kv = await getKv();
+      const request = await kv.get(["chess_friend_requests", selfKey, senderKey]);
+      if (!request.value) return new Response(JSON.stringify({ error: "no pending request" }), { status: 404, headers: JSON_HEADERS });
+      await kv.atomic()
+        .delete(["chess_friend_requests", selfKey, senderKey])
+        .delete(["chess_friend_requests_sent", senderKey, selfKey])
+        .set(["chess_friends", selfKey, senderKey], { since: Date.now() })
+        .set(["chess_friends", senderKey, selfKey], { since: Date.now() })
+        .commit();
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
+  }
+
+  // Decline friend request
+  if (url.pathname === "/api/ojjychess/friends/decline" && req.method === "POST") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    try {
+      const { username } = await req.json();
+      if (!username) return new Response(JSON.stringify({ error: "username required" }), { status: 400, headers: JSON_HEADERS });
+      const senderKey = username.toLowerCase();
+      const selfKey = user.username.toLowerCase();
+      const kv = await getKv();
+      await kv.atomic()
+        .delete(["chess_friend_requests", selfKey, senderKey])
+        .delete(["chess_friend_requests_sent", senderKey, selfKey])
+        .commit();
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
+  }
+
+  // Remove friend
+  if (url.pathname === "/api/ojjychess/friends/remove" && req.method === "POST") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    try {
+      const { username } = await req.json();
+      if (!username) return new Response(JSON.stringify({ error: "username required" }), { status: 400, headers: JSON_HEADERS });
+      const friendKey = username.toLowerCase();
+      const selfKey = user.username.toLowerCase();
+      const kv = await getKv();
+      await kv.atomic()
+        .delete(["chess_friends", selfKey, friendKey])
+        .delete(["chess_friends", friendKey, selfKey])
+        .commit();
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
+  }
+
+  // --- Messaging API routes ---
+
+  // Helper: build conversation ID from two usernames
+  function getConversationId(a: string, b: string): string {
+    return [a.toLowerCase(), b.toLowerCase()].sort().join("::");
+  }
+
+  // Get all conversations
+  if (url.pathname === "/api/ojjychess/messages/conversations" && req.method === "GET") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    const kv = await getKv();
+    const conversations: any[] = [];
+    const iter = kv.list({ prefix: ["chess_conversations", user.username.toLowerCase()] });
+    for await (const entry of iter) {
+      conversations.push(entry.value);
+    }
+    conversations.sort((a: any, b: any) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+    return new Response(JSON.stringify({ conversations }), { headers: JSON_HEADERS });
+  }
+
+  // Get messages with a user / Send message / Mark read
+  if (url.pathname.startsWith("/api/ojjychess/messages/") && url.pathname !== "/api/ojjychess/messages/conversations") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+
+    const parts = url.pathname.split("/");
+    const targetUsername = decodeURIComponent(parts[4] || "");
+    if (!targetUsername) return new Response(JSON.stringify({ error: "username required" }), { status: 400, headers: JSON_HEADERS });
+
+    const kv = await getKv();
+    const selfKey = user.username.toLowerCase();
+    const targetKey = targetUsername.toLowerCase();
+    const convId = getConversationId(selfKey, targetKey);
+
+    // Mark read
+    if (parts[5] === "read" && req.method === "POST") {
+      const convEntry = await kv.get(["chess_conversations", selfKey, convId]);
+      if (convEntry.value) {
+        await kv.set(["chess_conversations", selfKey, convId], { ...(convEntry.value as any), unreadCount: 0 });
+      }
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
+    }
+
+    // Get messages
+    if (req.method === "GET") {
+      const limit = parseInt(url.searchParams.get("limit") || "50");
+      const before = url.searchParams.get("before");
+      const messages: any[] = [];
+      const listOpts: any = { prefix: ["chess_messages", convId], limit, reverse: true };
+      if (before) listOpts.end = ["chess_messages", convId, parseInt(before)];
+      const iter = kv.list(listOpts);
+      for await (const entry of iter) {
+        messages.push(entry.value);
+      }
+      messages.reverse();
+      return new Response(JSON.stringify({ messages }), { headers: JSON_HEADERS });
+    }
+
+    // Send message
+    if (req.method === "POST") {
+      try {
+        const { text } = await req.json();
+        if (!text || typeof text !== "string") return new Response(JSON.stringify({ error: "text required" }), { status: 400, headers: JSON_HEADERS });
+        const trimmed = text.trim();
+        if (!trimmed || trimmed.length > 500) return new Response(JSON.stringify({ error: "message must be 1-500 characters" }), { status: 400, headers: JSON_HEADERS });
+
+        // Verify target user exists
+        const targetUser = await kv.get(["chess_users", targetKey]);
+        if (!targetUser.value) return new Response(JSON.stringify({ error: "user not found" }), { status: 404, headers: JSON_HEADERS });
+
+        const now = Date.now();
+        const message = { from: user.username, text: trimmed, sentAt: now };
+        const targetDisplayName = (targetUser.value as any).username;
+        const preview = trimmed.length > 40 ? trimmed.slice(0, 40) + "..." : trimmed;
+
+        // Get current unread count for recipient
+        const recipientConv = await kv.get(["chess_conversations", targetKey, convId]);
+        const currentUnread = recipientConv.value ? (recipientConv.value as any).unreadCount || 0 : 0;
+
+        await kv.atomic()
+          .set(["chess_messages", convId, now], message)
+          .set(["chess_conversations", selfKey, convId], { otherUser: targetDisplayName, lastMessage: preview, lastMessageAt: now, unreadCount: 0 })
+          .set(["chess_conversations", targetKey, convId], { otherUser: user.username, lastMessage: preview, lastMessageAt: now, unreadCount: currentUnread + 1 })
+          .commit();
+
+        return new Response(JSON.stringify({ message }), { headers: JSON_HEADERS });
+      } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
+    }
+  }
+
+  // --- Streak ---
+  if (url.pathname === "/api/ojjychess/streak" && req.method === "GET") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ streak: 0, todayPlayed: false, weekDays: [] }), { headers: JSON_HEADERS });
+    const kv = await getKv();
+    const streakData = await kv.get(["chess_streaks", user.username.toLowerCase()]);
+    if (!streakData.value) return new Response(JSON.stringify({ streak: 0, todayPlayed: false, weekDays: [] }), { headers: JSON_HEADERS });
+    const data = streakData.value as any;
+    // Check if streak is still valid (last activity within 48 hours to account for timezone)
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const lastDate = data.lastDate || '';
+    const isValid = lastDate === today || lastDate === yesterday;
+    const todayPlayed = lastDate === today;
+    return new Response(JSON.stringify({
+      streak: isValid ? (data.streak || 0) : 0,
+      todayPlayed,
+      weekDays: data.weekDays || [],
+    }), { headers: JSON_HEADERS });
+  }
+
+  if (url.pathname === "/api/ojjychess/streak" && req.method === "POST") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ streak: 0 }), { headers: JSON_HEADERS });
+    const kv = await getKv();
+    const key = ["chess_streaks", user.username.toLowerCase()];
+    const existing = await kv.get(key);
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+    let data = existing.value as any || { streak: 0, lastDate: '', weekDays: [] };
+    if (data.lastDate === today) {
+      // Already recorded today
+      return new Response(JSON.stringify({ streak: data.streak, todayPlayed: true, weekDays: data.weekDays }), { headers: JSON_HEADERS });
+    }
+
+    if (data.lastDate === yesterday) {
+      data.streak = (data.streak || 0) + 1;
+    } else {
+      data.streak = 1;
+    }
+    data.lastDate = today;
+
+    // Track last 7 days
+    if (!Array.isArray(data.weekDays)) data.weekDays = [];
+    data.weekDays.push(today);
+    if (data.weekDays.length > 7) data.weekDays = data.weekDays.slice(-7);
+
+    await kv.set(key, data);
+    return new Response(JSON.stringify({ streak: data.streak, todayPlayed: true, weekDays: data.weekDays }), { headers: JSON_HEADERS });
+  }
+
+  // --- Notification Settings ---
+  if (url.pathname === "/api/ojjychess/settings/notifications" && req.method === "GET") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    const kv = await getKv();
+    const userData = await kv.get(["chess_users", user.username.toLowerCase()]);
+    const settings = (userData.value as any)?.notificationSettings || { friendRequests: true, messages: true, sounds: true };
+    return new Response(JSON.stringify(settings), { headers: JSON_HEADERS });
+  }
+
+  if (url.pathname === "/api/ojjychess/settings/notifications" && req.method === "POST") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    try {
+      const settings = await req.json();
+      const kv = await getKv();
+      const userKey = ["chess_users", user.username.toLowerCase()];
+      const userData = await kv.get(userKey);
+      if (!userData.value) return new Response(JSON.stringify({ error: "user not found" }), { status: 404, headers: JSON_HEADERS });
+      await kv.set(userKey, { ...(userData.value as any), notificationSettings: {
+        friendRequests: !!settings.friendRequests,
+        messages: !!settings.messages,
+        sounds: !!settings.sounds,
+      }});
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
+  }
+
+  // --- Poll endpoint ---
+  if (url.pathname === "/api/ojjychess/poll" && req.method === "GET") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    const kv = await getKv();
+    const selfKey = user.username.toLowerCase();
+
+    // Update online presence (60s TTL)
+    await kv.set(["chess_online", selfKey], { lastSeen: Date.now() }, { expireIn: 60000 });
+
+    // Count unread messages
+    let unreadMessages = 0;
+    const convIter = kv.list({ prefix: ["chess_conversations", selfKey] });
+    for await (const entry of convIter) {
+      unreadMessages += (entry.value as any).unreadCount || 0;
+    }
+
+    // Count pending friend requests
+    let pendingFriendRequests = 0;
+    const reqIter = kv.list({ prefix: ["chess_friend_requests", selfKey] });
+    for await (const entry of reqIter) {
+      pendingFriendRequests++;
+    }
+
+    return new Response(JSON.stringify({ unreadMessages, pendingFriendRequests }), { headers: JSON_HEADERS });
   }
 
   // Check auth for everything else
