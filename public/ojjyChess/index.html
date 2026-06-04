@@ -48,14 +48,12 @@
 
   <!-- Home page content -->
   <div class="home-page" id="home-page">
-    <!-- Top bar -->
     <div class="home-topbar">
       <span class="home-title">ojjyChess</span>
       <div class="user-bar" id="user-bar" style="display:none"></div>
     </div>
 
     <div class="home-content">
-      <!-- Main area: board + play card -->
       <div class="home-main">
         <div class="home-board-col">
           <div class="board-wrapper">
@@ -72,37 +70,120 @@
         </div>
         <div class="home-play-col">
           <div class="play-card" id="setup-panel">
-            <h2>Play</h2>
-            <div class="setup-group">
-              <label>play as</label>
-              <div class="setup-options" id="color-options">
-                <button data-color="w" class="selected" onclick="App.selectColor('w')">white</button>
-                <button data-color="b" onclick="App.selectColor('b')">black</button>
-                <button data-color="random" onclick="App.selectColor('random')">random</button>
+            <h2>Play Bots</h2>
+
+            <!-- Bot preview with speech bubble -->
+            <div class="bot-card" id="bot-preview" style="display:none">
+              <div class="bot-card-top">
+                <div class="bot-avatar" id="bot-avatar">E</div>
+                <div class="bot-speech" id="bot-speech">Let's play a solid game.</div>
+              </div>
+              <div class="bot-card-info">
+                <span class="bot-name" id="bot-pv-name">Elena</span>
+                <span class="bot-rating" id="bot-pv-rating">1200</span>
               </div>
             </div>
-            <div class="setup-group">
-              <label>difficulty</label>
-              <div class="setup-options" id="diff-options">
-                <button data-diff="easy" onclick="App.selectDifficulty('easy')">easy</button>
-                <button data-diff="medium" class="selected" onclick="App.selectDifficulty('medium')">medium</button>
-                <button data-diff="hard" onclick="App.selectDifficulty('hard')">hard</button>
-                <button data-diff="custom" onclick="App.selectDifficulty('custom')">custom</button>
-              </div>
-              <div class="custom-slider-group" id="custom-slider-group" style="display:none">
-                <label>rating: <span id="custom-rating-val">800</span></label>
-                <input type="range" min="100" max="3000" step="50" value="800" oninput="App.setCustomRating(this.value)">
+
+            <!-- Options collapsible -->
+            <div class="options-section">
+              <button class="options-toggle" onclick="App.toggleOptions()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 8.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                Options
+                <span class="options-arrow" id="options-arrow">&#9650;</span>
+              </button>
+              <div class="options-body" id="options-body">
+                <!-- Color selection icons -->
+                <div class="color-icon-row" id="color-options">
+                  <button class="color-icon-btn selected" data-color="w" onclick="App.selectColor('w')" title="Play as White">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><rect x="2" y="2" width="20" height="20" rx="3" fill="#eee" stroke="#888" stroke-width="1.5"/></svg>
+                  </button>
+                  <button class="color-icon-btn" data-color="b" onclick="App.selectColor('b')" title="Play as Black">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><rect x="2" y="2" width="20" height="20" rx="3" fill="#333" stroke="#888" stroke-width="1.5"/></svg>
+                  </button>
+                  <button class="color-icon-btn" data-color="random" onclick="App.selectColor('random')" title="Random Color">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><rect x="2" y="2" width="10" height="20" rx="2" fill="#eee"/><rect x="12" y="2" width="10" height="20" rx="2" fill="#333"/><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="#888" stroke-width="1.5"/></svg>
+                  </button>
+                </div>
+
+                <!-- Time controls -->
+                <div class="time-section">
+                  <div class="time-row">
+                    <button class="time-btn selected" data-time="none" onclick="App.selectTime(this)">No Timer</button>
+                  </div>
+                  <span class="time-cat">Bullet</span>
+                  <div class="time-row">
+                    <button class="time-btn" data-time="1+0" onclick="App.selectTime(this)">1 min</button>
+                    <button class="time-btn" data-time="1+1" onclick="App.selectTime(this)">1 | 1</button>
+                    <button class="time-btn" data-time="2+1" onclick="App.selectTime(this)">2 | 1</button>
+                  </div>
+                  <span class="time-cat">Blitz</span>
+                  <div class="time-row">
+                    <button class="time-btn" data-time="3+2" onclick="App.selectTime(this)">3 | 2</button>
+                    <button class="time-btn" data-time="5+0" onclick="App.selectTime(this)">5 min</button>
+                    <button class="time-btn" data-time="5+5" onclick="App.selectTime(this)">5 | 5</button>
+                  </div>
+                  <span class="time-cat">Rapid</span>
+                  <div class="time-row">
+                    <button class="time-btn" data-time="10+0" onclick="App.selectTime(this)">10 min</button>
+                    <button class="time-btn" data-time="15+10" onclick="App.selectTime(this)">15 | 10</button>
+                    <button class="time-btn" data-time="30+0" onclick="App.selectTime(this)">30 min</button>
+                  </div>
+                  <div class="time-row">
+                    <button class="time-btn" data-time="10+5" onclick="App.selectTime(this)">10 | 5</button>
+                    <button class="time-btn" data-time="20+0" onclick="App.selectTime(this)">20 min</button>
+                    <button class="time-btn" data-time="60+0" onclick="App.selectTime(this)">60 min</button>
+                  </div>
+                </div>
+
+                <!-- Variant -->
+                <button class="variant-btn">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                  Standard
+                  <span class="variant-arrow">&#9660;</span>
+                </button>
+
+                <!-- Difficulty -->
+                <div class="setup-group">
+                  <label>difficulty</label>
+                  <div class="setup-options" id="diff-options">
+                    <button data-diff="easy" onclick="App.selectDifficulty('easy')">easy</button>
+                    <button data-diff="medium" class="selected" onclick="App.selectDifficulty('medium')">medium</button>
+                    <button data-diff="hard" onclick="App.selectDifficulty('hard')">hard</button>
+                    <button data-diff="custom" onclick="App.selectDifficulty('custom')">custom</button>
+                  </div>
+                  <div class="custom-slider-group" id="custom-slider-group" style="display:none">
+                    <label>rating: <span id="custom-rating-val">800</span></label>
+                    <input type="range" min="100" max="3000" step="50" value="800" oninput="App.setCustomRating(this.value)">
+                  </div>
+                </div>
+
+                <!-- Game toggles -->
+                <div class="game-toggles">
+                  <label class="opt-toggle">
+                    <span>Evaluation Bar</span>
+                    <input type="checkbox" id="opt-eval">
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <label class="opt-toggle">
+                    <span>Threat Arrows</span>
+                    <input type="checkbox" id="opt-threat">
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <label class="opt-toggle">
+                    <span>Suggestion Arrows</span>
+                    <input type="checkbox" id="opt-suggest">
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <label class="opt-toggle">
+                    <span>Move Feedback</span>
+                    <input type="checkbox" id="opt-feedback">
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
               </div>
             </div>
-            <div class="bot-preview" id="bot-preview" style="display:none">
-              <div class="bot-avatar" id="bot-avatar">E</div>
-              <div class="bot-info">
-                <div class="bot-name-row"><span class="bot-name" id="bot-pv-name">Elena</span><span class="bot-rating" id="bot-pv-rating">(1200)</span></div>
-                <span class="bot-desc" id="bot-pv-desc">Let's play a solid game.</span>
-              </div>
-            </div>
+
             <button class="start-btn" onclick="App.startGame()">Play</button>
-            <a class="settings-link" onclick="Settings.open()">settings</a>
           </div>
         </div>
       </div>
@@ -113,37 +194,25 @@
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.828 14.828a4 4 0 10-5.656-5.656 4 4 0 005.656 5.656z"/><path d="M9.172 14.828L4 20m10.828-5.172L20 20M9.172 9.172L4 4m10.828 5.172L20 4"/></svg>
           </div>
-          <div class="feature-text">
-            <h3>Puzzles</h3>
-            <p>placeholder</p>
-          </div>
+          <div class="feature-text"><h3>Puzzles</h3><p>placeholder</p></div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422A12.083 12.083 0 0121 14.07V17l-9 5-9-5v-2.93c0-1.18.34-2.34.98-3.34L12 14z"/></svg>
           </div>
-          <div class="feature-text">
-            <h3>Learn</h3>
-            <p>placeholder</p>
-          </div>
+          <div class="feature-text"><h3>Learn</h3><p>placeholder</p></div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 8h12v8H3z" stroke-linejoin="round"/></svg>
           </div>
-          <div class="feature-text">
-            <h3>Watch</h3>
-            <p>placeholder</p>
-          </div>
+          <div class="feature-text"><h3>Watch</h3><p>placeholder</p></div>
         </div>
         <div class="feature-card">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2zM3 8h18m-5 4h2"/></svg>
           </div>
-          <div class="feature-text">
-            <h3>News</h3>
-            <p>placeholder</p>
-          </div>
+          <div class="feature-text"><h3>News</h3><p>placeholder</p></div>
         </div>
       </div>
     </div>
@@ -168,12 +237,45 @@
     </div>
     <div class="sidebar">
       <div id="game-sidebar" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+        <!-- Sidebar header -->
+        <div class="sidebar-header">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>Play Bots</span>
+        </div>
+
+        <!-- Bot card in sidebar -->
+        <div class="sidebar-bot" id="sidebar-bot"></div>
+
+        <!-- Opening name -->
+        <div class="opening-bar" id="opening-bar"></div>
+
+        <!-- Move list -->
         <div class="move-list" id="move-list"></div>
-        <div class="controls">
-          <button onclick="App.newGame()">new game</button>
-          <button onclick="Board.flip();Board.render(ChessGame.board());App.updatePlayerBars();">flip</button>
-          <button onclick="Settings.open()">settings</button>
-          <button class="danger" onclick="App.resign()">resign</button>
+
+        <!-- Primary icon controls (resign, undo, hint) -->
+        <div class="game-icon-controls">
+          <button class="icon-btn" onclick="App.resign()" title="Resign">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21V4h10l2 3H22v9H12l-2-3H6v8"/></svg>
+          </button>
+          <button class="icon-btn" onclick="App.undoMove()" title="Undo">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 015 5v2M3 10l5-5M3 10l5 5"/></svg>
+          </button>
+          <button class="icon-btn" onclick="App.showHint()" title="Hint">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6m-5 3h4M12 2a7 7 0 00-3 13.33V17h6v-1.67A7 7 0 0012 2z"/></svg>
+          </button>
+        </div>
+
+        <!-- Secondary controls -->
+        <div class="game-sec-controls">
+          <button class="sec-btn" onclick="App.newGame()" title="New Game">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14m-7-7h14"/></svg>
+          </button>
+          <button class="sec-btn" onclick="Board.flip();Board.render(ChessGame.board());App.updatePlayerBars();" title="Flip Board">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4"/></svg>
+          </button>
+          <button class="sec-btn" onclick="Settings.open()" title="Settings">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 8.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </button>
         </div>
       </div>
     </div>
@@ -226,19 +328,15 @@
         <button class="settings-close" onclick="Settings.close()">&times;</button>
       </div>
       <p class="settings-sub">Customize the look and feel of your chess set.</p>
-
       <div class="settings-section">
         <h3>Boards</h3>
         <div class="theme-grid" id="settings-boards"></div>
       </div>
-
       <div class="settings-section">
         <h3>Pieces</h3>
         <div class="theme-grid" id="settings-pieces"></div>
       </div>
-
       <hr class="settings-sep">
-
       <div class="settings-toggle">
         <label class="toggle-row">
           <input type="checkbox" id="toggle-coords" checked onchange="Settings.toggleCoords(this.checked)">
@@ -246,7 +344,6 @@
           <span>Show Board Coordinates</span>
         </label>
       </div>
-
       <div class="settings-toggle">
         <label class="toggle-row">
           <input type="checkbox" id="toggle-highlight" checked onchange="Settings.toggleHighlight(this.checked)">
@@ -261,6 +358,7 @@
   <script src="js/game.js"></script>
   <script src="js/board.js"></script>
   <script src="js/bot.js"></script>
+  <script src="js/openings.js"></script>
   <script src="js/settings.js"></script>
   <script src="js/account.js"></script>
   <script src="js/app.js"></script>

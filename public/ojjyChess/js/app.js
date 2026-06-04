@@ -54,24 +54,22 @@ const App = {
   gameActive: false,
   moveHistory: [],
   customRating: 800,
-  // Track which board element is active
+  timeControl: 'none',
+  optionsOpen: true,
   activeBoardId: 'board',
+  hintTimeout: null,
 
   async init() {
     try { Settings.load(); } catch(e) { console.warn('Settings load failed', e); }
 
-    // Initialize the home board
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
 
-    // Show starting position immediately
     ChessGame.newGame();
     Board.render(ChessGame.board());
 
-    // Show default bot preview
     this.updateBotPreview();
 
-    // Try to restore session
     if (Account.isLoggedIn()) {
       try {
         const profile = await Account.getProfile();
@@ -95,7 +93,6 @@ const App = {
     document.getElementById('game-layout').style.display = 'none';
     document.getElementById('setup-panel').style.display = 'flex';
 
-    // Re-init board in home container
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
     this.activeBoardId = 'board';
@@ -113,7 +110,6 @@ const App = {
     document.getElementById('home-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
-    // Re-init board in game container
     Board.init('game-board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
     this.activeBoardId = 'game-board';
@@ -135,11 +131,9 @@ const App = {
     const password = form.querySelector('[name="password"]').value;
     const errEl = document.getElementById('auth-error');
     errEl.textContent = '';
-
     if (!username || !password) { errEl.textContent = 'fill in all fields'; return; }
     if (username.length < 3) { errEl.textContent = 'username must be 3+ characters'; return; }
     if (password.length < 4) { errEl.textContent = 'password must be 4+ characters'; return; }
-
     try {
       await Account.register(username, password);
       this.updateUserBar();
@@ -156,7 +150,6 @@ const App = {
     const password = form.querySelector('[name="password"]').value;
     const errEl = document.getElementById('auth-error');
     errEl.textContent = '';
-
     try {
       await Account.login(username, password);
       this.updateUserBar();
@@ -183,9 +176,17 @@ const App = {
   },
 
   // --- Setup ---
+  toggleOptions() {
+    this.optionsOpen = !this.optionsOpen;
+    const body = document.getElementById('options-body');
+    const arrow = document.getElementById('options-arrow');
+    body.style.display = this.optionsOpen ? 'flex' : 'none';
+    arrow.innerHTML = this.optionsOpen ? '&#9650;' : '&#9660;';
+  },
+
   selectColor(color) {
     this.playerColor = color === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : color;
-    document.querySelectorAll('#color-options button').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('#color-options .color-icon-btn').forEach(b => b.classList.remove('selected'));
     document.querySelector(`#color-options [data-color="${color}"]`).classList.add('selected');
   },
 
@@ -206,6 +207,12 @@ const App = {
     this.updateBotPreview();
   },
 
+  selectTime(btn) {
+    this.timeControl = btn.dataset.time;
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  },
+
   updateBotPreview() {
     const bot = BOT_PROFILES[this.difficulty];
     const preview = document.getElementById('bot-preview');
@@ -214,8 +221,31 @@ const App = {
     document.getElementById('bot-avatar').textContent = bot.name[0];
     document.getElementById('bot-avatar').style.background = bot.color;
     document.getElementById('bot-pv-name').textContent = bot.name;
-    document.getElementById('bot-pv-rating').textContent = '(' + bot.rating + ')';
-    document.getElementById('bot-pv-desc').textContent = bot.desc;
+    document.getElementById('bot-pv-rating').textContent = bot.rating;
+    document.getElementById('bot-speech').textContent = bot.desc;
+  },
+
+  updateSidebarBot() {
+    const el = document.getElementById('sidebar-bot');
+    if (!el) return;
+    const bot = BOT_PROFILES[this.difficulty] || BOT_PROFILES.medium;
+    el.innerHTML = `<div class="sidebar-bot-avatar" style="background:${bot.color}">${bot.name[0]}</div>
+      <div class="sidebar-bot-info">
+        <span class="sidebar-bot-name">${bot.name}</span>
+        <span class="sidebar-bot-rating">${bot.rating}</span>
+      </div>`;
+  },
+
+  updateOpeningName() {
+    const el = document.getElementById('opening-bar');
+    if (!el) return;
+    const name = (typeof findOpeningName === 'function') ? findOpeningName(ChessGame.engine) : '';
+    if (name) {
+      el.textContent = name;
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
   },
 
   async startGame() {
@@ -233,8 +263,9 @@ const App = {
     Board.render(ChessGame.board());
     this.updateMoveList();
     this.updatePlayerBars();
+    this.updateSidebarBot();
+    this.updateOpeningName();
 
-    // Create bot
     if (this.difficulty === 'custom') {
       this.bot = CustomBot;
     } else {
@@ -247,7 +278,6 @@ const App = {
       }
     }
 
-    // If bot plays first (player is black)
     if (this.botColor === 'w') {
       setTimeout(() => this.botMove(), 300);
     }
@@ -258,12 +288,14 @@ const App = {
     if (!this.gameActive) return;
     if (ChessGame.turn() !== this.playerColor) return;
 
+    Board.clearHint();
+    if (this.hintTimeout) { clearTimeout(this.hintTimeout); this.hintTimeout = null; }
+
     const move = ChessGame.makeMove(from, to, promotion);
     if (!move) return;
 
     this.afterMove(move);
 
-    // Bot responds
     if (!ChessGame.isGameOver()) {
       setTimeout(() => this.botMove(), 200);
     }
@@ -303,11 +335,59 @@ const App = {
     this.moveHistory = ChessGame.history({ verbose: true });
     this.updateMoveList();
     this.updatePlayerBars();
+    this.updateOpeningName();
 
     if (ChessGame.isGameOver()) {
       this.gameActive = false;
       const result = ChessGame.getResult();
       this.showGameOver(result);
+    }
+  },
+
+  // --- Hint ---
+  showHint() {
+    if (!this.gameActive) return;
+    if (ChessGame.turn() !== this.playerColor) return;
+
+    Board.clearHint();
+    if (this.hintTimeout) { clearTimeout(this.hintTimeout); this.hintTimeout = null; }
+
+    const hintMove = MinimaxBot.getMove(ChessGame.engine);
+    if (hintMove) {
+      Board.showHint(hintMove.from, hintMove.to);
+      this.hintTimeout = setTimeout(() => Board.clearHint(), 3000);
+    }
+  },
+
+  // --- Undo ---
+  undoMove() {
+    if (!this.gameActive) return;
+    // Undo bot's last move and player's last move
+    const undo1 = ChessGame.undo();
+    const undo2 = ChessGame.undo();
+    if (undo1 || undo2) {
+      Board.render(ChessGame.board());
+      Board.setCheck(null);
+      Board.clearSelection();
+      Board.clearHint();
+      // Re-highlight last move if exists
+      const hist = ChessGame.history({ verbose: true });
+      if (hist.length > 0) {
+        const last = hist[hist.length - 1];
+        if (typeof Settings !== 'undefined' && Settings.current && Settings.current.highlightMoves) {
+          Board.setLastMove(last.from, last.to);
+        }
+      } else {
+        Board.el.querySelectorAll('.last-move-light, .last-move-dark').forEach(el => {
+          el.classList.remove('last-move-light', 'last-move-dark');
+        });
+      }
+      if (ChessGame.inCheck()) {
+        Board.setCheck(Board.findKing(ChessGame.turn(), ChessGame.board()));
+      }
+      this.updateMoveList();
+      this.updatePlayerBars();
+      this.updateOpeningName();
     }
   },
 
@@ -341,9 +421,7 @@ const App = {
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
         const p = board[r][f];
-        if (p && p.type !== 'k') {
-          currentPieces[p.color][p.type]++;
-        }
+        if (p && p.type !== 'k') currentPieces[p.color][p.type]++;
       }
     }
 
@@ -363,7 +441,6 @@ const App = {
     const topColor = Board.flipped ? 'w' : 'b';
     const bottomColor = Board.flipped ? 'b' : 'w';
 
-    // Use game-mode player bar IDs
     const topNameId = this.activeBoardId === 'game-board' ? 'game-top-name' : 'top-name';
     const bottomNameId = this.activeBoardId === 'game-board' ? 'game-bottom-name' : 'bottom-name';
     const topCapId = this.activeBoardId === 'game-board' ? 'game-top-captured' : 'top-captured';
@@ -374,11 +451,9 @@ const App = {
     this._renderPlayerBar(bottomCapId, captured[bottomColor === 'w' ? 'w' : 'b'], bottomColor === 'w' ? 'b' : 'w',
       bottomColor === 'w' ? wScore - bScore : bScore - wScore);
 
-    // Names & avatars
     const bot = BOT_PROFILES[this.difficulty] || BOT_PROFILES.medium;
     const playerName = Account.user ? Account.user.username : 'You';
     const playerLetter = Account.user ? Account.user.username[0].toUpperCase() : 'Y';
-
     const botIsTop = !Board.flipped;
 
     const topNameEl = document.getElementById(topNameId);
@@ -440,6 +515,7 @@ const App = {
     if (Board.el) {
       Board.clearSelection();
       Board.setCheck(null);
+      Board.clearHint();
       Board.el.querySelectorAll('.last-move-light, .last-move-dark').forEach(el => {
         el.classList.remove('last-move-light', 'last-move-dark');
       });
@@ -458,5 +534,4 @@ const App = {
   }
 };
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => App.init());

@@ -270,6 +270,19 @@ const Board = {
     // Re-render will be called by app
   },
 
+  showHint(from, to) {
+    this.clearHint();
+    [from, to].forEach(sq => {
+      const el = this._getSquareEl(sq);
+      if (el) el.classList.add('hint-highlight');
+    });
+  },
+
+  clearHint() {
+    if (!this.el) return;
+    this.el.querySelectorAll('.hint-highlight').forEach(el => el.classList.remove('hint-highlight'));
+  },
+
   findKing(color, boardState) {
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
