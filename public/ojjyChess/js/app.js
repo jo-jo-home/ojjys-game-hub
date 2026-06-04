@@ -164,11 +164,11 @@ const App = {
   },
 
   updateUserBar() {
-    const bar = document.getElementById('user-bar');
+    const bar = document.getElementById('nav-user-bar');
+    if (!bar) return;
     if (Account.user) {
-      const s = Account.user.stats || { wins: 0, losses: 0, draws: 0 };
-      bar.innerHTML = `<span class="username">${Account.user.username}</span>
-        <span class="stats">${s.wins}W ${s.losses}L ${s.draws}D</span>`;
+      const letter = Account.user.username[0].toUpperCase();
+      bar.innerHTML = `<div class="nav-user-avatar">${letter}</div><span class="nav-user-name">${Account.user.username}</span>`;
       bar.style.display = 'flex';
     } else {
       bar.style.display = 'none';
