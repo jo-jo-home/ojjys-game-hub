@@ -664,29 +664,67 @@ const App = {
 
     flameEl.className = 'streak-flame level-' + level;
 
-    // Fire colors get more intense with level
-    const colors = [
-      ['#c0c0c0', '#888888', '#666666'], // level 0 (grey, inactive)
-      ['#ffa500', '#ff6600', '#ff3300'],  // level 1 (small orange fire)
-      ['#ff8c00', '#ff4500', '#cc0000'],  // level 2 (medium fire)
-      ['#ff6600', '#ff2200', '#aa0000'],  // level 3 (big fire)
-      ['#ffcc00', '#ff4400', '#cc0000'],  // level 4 (biggest, yellow-orange)
-    ];
-    const c = colors[level];
+    if (level === 0) {
+      // Water droplet (like chess.com at 0 days) - grey teardrop with highlight
+      flameEl.innerHTML = `
+        <defs>
+          <linearGradient id="dropGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#b0bec5"/>
+            <stop offset="100%" stop-color="#78909c"/>
+          </linearGradient>
+        </defs>
+        <path d="M32 8 C32 8 20 26 20 38 C20 46 25 54 32 54 C39 54 44 46 44 38 C44 26 32 8 32 8Z" fill="url(#dropGrad)"/>
+        <ellipse cx="28" cy="32" rx="4" ry="7" fill="rgba(255,255,255,0.3)" transform="rotate(-15,28,32)"/>
+      `;
+    } else {
+      // Real fire SVGs - multiple tongues of flame, not teardrop shaped
+      const fireColors = [
+        null,
+        ['#ff9800', '#ff5722', '#d84315'],  // level 1
+        ['#ff9800', '#ff3d00', '#bf360c'],  // level 2
+        ['#ffc107', '#ff6d00', '#dd2c00'],  // level 3
+        ['#ffeb3b', '#ff9100', '#ff3d00'],  // level 4
+      ];
+      const c = fireColors[level];
 
-    flameEl.innerHTML = `
-      <defs>
-        <linearGradient id="fireGrad" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stop-color="${c[2]}"/>
-          <stop offset="40%" stop-color="${c[1]}"/>
-          <stop offset="100%" stop-color="${c[0]}"/>
-        </linearGradient>
-      </defs>
-      <path d="M32 4 C32 4 18 22 18 36 C18 48 24 56 32 58 C40 56 46 48 46 36 C46 22 32 4 32 4Z" fill="url(#fireGrad)"/>
-      ${level >= 2 ? '<path d="M32 20 C32 20 24 30 24 40 C24 48 28 52 32 54 C36 52 40 48 40 40 C40 30 32 20 32 20Z" fill="' + c[0] + '" opacity="0.5"/>' : ''}
-      ${level >= 3 ? '<path d="M32 30 C32 30 27 36 27 43 C27 48 30 50 32 51 C34 50 37 48 37 43 C37 36 32 30 32 30Z" fill="#ffdd44" opacity="0.6"/>' : ''}
-      ${level >= 4 ? '<path d="M32 36 C32 36 29 40 29 44 C29 47 31 48 32 49 C33 48 35 47 35 44 C35 40 32 36 32 36Z" fill="#ffffff" opacity="0.5"/>' : ''}
-    `;
+      // Base fire shape with multiple flame tongues
+      let svg = `
+        <defs>
+          <linearGradient id="fireGrad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="${c[2]}"/>
+            <stop offset="50%" stop-color="${c[1]}"/>
+            <stop offset="100%" stop-color="${c[0]}"/>
+          </linearGradient>
+        </defs>
+        <!-- Main flame body -->
+        <path d="M32 6 C28 16 16 26 16 40 C16 50 23 58 32 58 C41 58 48 50 48 40 C48 26 36 16 32 6Z" fill="url(#fireGrad)"/>
+        <!-- Left tongue -->
+        <path d="M24 14 C22 22 14 30 18 42 C20 48 24 52 28 54 C22 50 20 44 22 36 C23 30 24 22 24 14Z" fill="${c[0]}" opacity="0.6"/>
+        <!-- Right tongue -->
+        <path d="M40 18 C42 24 48 32 46 42 C44 48 40 52 36 54 C42 50 44 44 42 36 C41 30 40 24 40 18Z" fill="${c[0]}" opacity="0.5"/>
+      `;
+
+      // Inner glow for level 2+
+      if (level >= 2) {
+        svg += `<path d="M32 22 C29 28 22 34 22 43 C22 49 27 54 32 54 C37 54 42 49 42 43 C42 34 35 28 32 22Z" fill="${c[0]}" opacity="0.5"/>`;
+      }
+
+      // Bright core for level 3+
+      if (level >= 3) {
+        svg += `<path d="M32 30 C30 34 25 38 26 45 C27 50 30 52 32 53 C34 52 37 50 38 45 C39 38 34 34 32 30Z" fill="#ffeb3b" opacity="0.7"/>`;
+      }
+
+      // White-hot center for level 4
+      if (level >= 4) {
+        svg += `<path d="M32 38 C31 40 28 42 29 46 C30 49 31 50 32 51 C33 50 34 49 35 46 C36 42 33 40 32 38Z" fill="#fff9c4" opacity="0.8"/>`;
+        // Extra sparks
+        svg += `<circle cx="22" cy="20" r="1.5" fill="${c[0]}" opacity="0.7"/>`;
+        svg += `<circle cx="42" cy="16" r="1.5" fill="${c[0]}" opacity="0.6"/>`;
+        svg += `<circle cx="18" cy="28" r="1" fill="${c[1]}" opacity="0.5"/>`;
+      }
+
+      flameEl.innerHTML = svg;
+    }
 
     // Render week days
     const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
