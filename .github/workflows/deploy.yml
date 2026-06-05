@@ -18,9 +18,37 @@ jobs:
           deno-version: v2.x
 
       - name: Deploy
-        run: |
-          deno install -gArf jsr:@deno/deployctl
-          deployctl deploy --project=ojjys-game-hub --entrypoint=server.ts --prod \
-            --exclude=public/bitlife,public/chess,public/cookieclicker,public/coreball,public/crossyroadspace,public/driftboss,public/drifthunters,public/drivemad,public/ducklife1,public/ducklife2,public/ducklife3,public/ducklife4,public/ducklife5,public/ducklife6,public/fallguys,public/geometrydash,public/geometrydashlite,public/gettingoverit,public/gladihoppers,public/leveldevil,public/motox3m,public/ngon,public/ojjyclient,public/ovo,public/retrobowl,public/rocketgoalio,public/spacewaves,public/stickmanhook,public/subwayssurfersny
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        uses: denoland/deployctl@v1
+        with:
+          project: ojjys-game-hub
+          entrypoint: server.ts
+          exclude: |
+            public/bitlife
+            public/chess
+            public/cookieclicker
+            public/coreball
+            public/crossyroadspace
+            public/driftboss
+            public/drifthunters
+            public/drivemad
+            public/ducklife1
+            public/ducklife2
+            public/ducklife3
+            public/ducklife4
+            public/ducklife5
+            public/ducklife6
+            public/fallguys
+            public/geometrydash
+            public/geometrydashlite
+            public/gettingoverit
+            public/gladihoppers
+            public/leveldevil
+            public/motox3m
+            public/ngon
+            public/ojjyclient
+            public/ovo
+            public/retrobowl
+            public/rocketgoalio
+            public/spacewaves
+            public/stickmanhook
+            public/subwayssurfersny
