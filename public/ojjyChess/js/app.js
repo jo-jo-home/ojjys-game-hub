@@ -664,20 +664,29 @@ const App = {
 
     flameEl.className = 'streak-flame level-' + level;
 
+    // Chess pawn path (centered in 64x64 viewBox, sits in lower portion of flame)
+    const pawnPath = 'M32 24 C29.5 24 27.5 22 27.5 19.5 C27.5 17.5 29 15.8 31 15.5 C31 14.5 30 13.5 30 12.5 C30 10.5 31 9.5 32 9.5 C33 9.5 34 10.5 34 12.5 C34 13.5 33 14.5 33 15.5 C35 15.8 36.5 17.5 36.5 19.5 C36.5 22 34.5 24 32 24Z M28 24.5 C26 25.5 24.5 28 24.5 30.5 L39.5 30.5 C39.5 28 38 25.5 36 24.5 M24 31 L24 33 C24 33.5 24.5 34 25 34 L39 34 C39.5 34 40 33.5 40 33 L40 31 Z M23 35 L23 37 C23 37.5 23.5 38 24 38 L40 38 C40.5 38 41 37.5 41 37 L41 35 Z';
+
     if (level === 0) {
-      // Water droplet (like chess.com at 0 days) - grey teardrop with highlight
+      // Grey flame with dark pawn silhouette (like chess.com at 0 days)
       flameEl.innerHTML = `
         <defs>
-          <linearGradient id="dropGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#b0bec5"/>
-            <stop offset="100%" stop-color="#78909c"/>
+          <linearGradient id="greyFlame" x1="0.3" y1="0" x2="0.7" y2="1">
+            <stop offset="0%" stop-color="#9e9e9e"/>
+            <stop offset="100%" stop-color="#616161"/>
           </linearGradient>
         </defs>
-        <path d="M32 8 C32 8 20 26 20 38 C20 46 25 54 32 54 C39 54 44 46 44 38 C44 26 32 8 32 8Z" fill="url(#dropGrad)"/>
-        <ellipse cx="28" cy="32" rx="4" ry="7" fill="rgba(255,255,255,0.3)" transform="rotate(-15,28,32)"/>
+        <!-- Outer flame shape -->
+        <path d="M32 2 C32 2 24 10 20 20 C16 30 14 36 16 44 C18 52 24 58 32 60 C40 58 46 52 48 44 C50 36 48 30 44 20 C40 10 32 2 32 2Z" fill="url(#greyFlame)"/>
+        <!-- Left flicker -->
+        <path d="M22 12 C18 20 12 30 16 42 C18 48 22 52 26 55 C20 50 18 44 18 38 C18 30 20 20 22 12Z" fill="#9e9e9e" opacity="0.5"/>
+        <!-- Right flicker -->
+        <path d="M42 14 C46 22 50 30 48 42 C46 48 42 52 38 55 C44 50 46 44 46 38 C46 30 44 22 42 14Z" fill="#9e9e9e" opacity="0.4"/>
+        <!-- Pawn silhouette -->
+        <path d="${pawnPath}" fill="#424242" opacity="0.6"/>
       `;
     } else {
-      // Real fire SVGs - multiple tongues of flame, not teardrop shaped
+      // Fire with chess pawn inside
       const fireColors = [
         null,
         ['#ff9800', '#ff5722', '#d84315'],  // level 1
@@ -687,41 +696,41 @@ const App = {
       ];
       const c = fireColors[level];
 
-      // Base fire shape with multiple flame tongues
       let svg = `
         <defs>
           <linearGradient id="fireGrad" x1="0" y1="1" x2="0" y2="0">
             <stop offset="0%" stop-color="${c[2]}"/>
-            <stop offset="50%" stop-color="${c[1]}"/>
+            <stop offset="45%" stop-color="${c[1]}"/>
             <stop offset="100%" stop-color="${c[0]}"/>
           </linearGradient>
         </defs>
         <!-- Main flame body -->
-        <path d="M32 6 C28 16 16 26 16 40 C16 50 23 58 32 58 C41 58 48 50 48 40 C48 26 36 16 32 6Z" fill="url(#fireGrad)"/>
-        <!-- Left tongue -->
-        <path d="M24 14 C22 22 14 30 18 42 C20 48 24 52 28 54 C22 50 20 44 22 36 C23 30 24 22 24 14Z" fill="${c[0]}" opacity="0.6"/>
-        <!-- Right tongue -->
-        <path d="M40 18 C42 24 48 32 46 42 C44 48 40 52 36 54 C42 50 44 44 42 36 C41 30 40 24 40 18Z" fill="${c[0]}" opacity="0.5"/>
+        <path d="M32 2 C32 2 24 10 20 20 C16 30 14 36 16 44 C18 52 24 58 32 60 C40 58 46 52 48 44 C50 36 48 30 44 20 C40 10 32 2 32 2Z" fill="url(#fireGrad)"/>
+        <!-- Left flame tongue -->
+        <path d="M22 8 C18 18 12 28 16 42 C18 48 22 54 26 56 C20 50 18 44 18 36 C18 28 20 18 22 8Z" fill="${c[0]}" opacity="0.6"/>
+        <!-- Right flame tongue -->
+        <path d="M42 10 C46 20 50 28 48 42 C46 48 42 54 38 56 C44 50 46 44 46 36 C46 28 44 20 42 10Z" fill="${c[0]}" opacity="0.5"/>
       `;
 
       // Inner glow for level 2+
       if (level >= 2) {
-        svg += `<path d="M32 22 C29 28 22 34 22 43 C22 49 27 54 32 54 C37 54 42 49 42 43 C42 34 35 28 32 22Z" fill="${c[0]}" opacity="0.5"/>`;
+        svg += `<path d="M32 16 C28 24 20 32 22 44 C24 52 28 56 32 58 C36 56 40 52 42 44 C44 32 36 24 32 16Z" fill="${c[0]}" opacity="0.45"/>`;
       }
 
       // Bright core for level 3+
       if (level >= 3) {
-        svg += `<path d="M32 30 C30 34 25 38 26 45 C27 50 30 52 32 53 C34 52 37 50 38 45 C39 38 34 34 32 30Z" fill="#ffeb3b" opacity="0.7"/>`;
+        svg += `<path d="M32 24 C30 30 24 36 26 46 C28 52 30 54 32 56 C34 54 36 52 38 46 C40 36 34 30 32 24Z" fill="#ffeb3b" opacity="0.6"/>`;
       }
 
       // White-hot center for level 4
       if (level >= 4) {
-        svg += `<path d="M32 38 C31 40 28 42 29 46 C30 49 31 50 32 51 C33 50 34 49 35 46 C36 42 33 40 32 38Z" fill="#fff9c4" opacity="0.8"/>`;
-        // Extra sparks
-        svg += `<circle cx="22" cy="20" r="1.5" fill="${c[0]}" opacity="0.7"/>`;
-        svg += `<circle cx="42" cy="16" r="1.5" fill="${c[0]}" opacity="0.6"/>`;
-        svg += `<circle cx="18" cy="28" r="1" fill="${c[1]}" opacity="0.5"/>`;
+        svg += `<path d="M32 32 C30 36 27 40 28 46 C29 50 31 52 32 53 C33 52 35 50 36 46 C37 40 34 36 32 32Z" fill="#fff9c4" opacity="0.7"/>`;
       }
+
+      // Pawn silhouette (darker, inside the flame)
+      const pawnOpacity = level >= 3 ? '0.35' : '0.45';
+      const pawnFill = level >= 3 ? '#4a1500' : '#7f2800';
+      svg += `<path d="${pawnPath}" fill="${pawnFill}" opacity="${pawnOpacity}"/>`;
 
       flameEl.innerHTML = svg;
     }

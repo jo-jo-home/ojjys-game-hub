@@ -166,6 +166,7 @@ body.game-mode {
   gap: 24px;
   align-items: flex-start;
   margin-bottom: 36px;
+  overflow: hidden;
 }
 
 .home-board-col {
@@ -173,12 +174,12 @@ body.game-mode {
 }
 
 .home-board-col .board-wrapper {
-  width: clamp(300px, 42vw, 460px);
+  width: clamp(280px, 38vw, 460px);
 }
 
 .home-play-col {
   flex: 1;
-  min-width: 280px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -265,47 +266,47 @@ body.game-mode {
 /* Fire animation - size varies based on streak level */
 @keyframes flicker {
   0%, 100% { transform: scaleY(1) scaleX(1); opacity: 1; }
-  25% { transform: scaleY(1.05) scaleX(0.95); opacity: 0.9; }
-  50% { transform: scaleY(0.95) scaleX(1.05); opacity: 1; }
-  75% { transform: scaleY(1.03) scaleX(0.97); opacity: 0.95; }
+  30% { transform: scaleY(1.02) scaleX(0.98); opacity: 0.97; }
+  60% { transform: scaleY(0.98) scaleX(1.01); opacity: 1; }
+  80% { transform: scaleY(1.01) scaleX(0.99); opacity: 0.98; }
 }
 
 .streak-flame {
-  animation: flicker 0.8s ease-in-out infinite;
+  animation: flicker 2s ease-in-out infinite;
   transform-origin: bottom center;
 }
 
 .streak-flame.level-0 {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   animation: none;
   filter: none;
 }
 
 .streak-flame.level-1 {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   filter: drop-shadow(0 0 4px rgba(255, 120, 0, 0.3));
 }
 
 .streak-flame.level-2 {
-  width: 48px;
-  height: 48px;
-  animation-duration: 0.6s;
+  width: 52px;
+  height: 52px;
+  animation-duration: 1.8s;
   filter: drop-shadow(0 0 8px rgba(255, 120, 0, 0.5));
 }
 
 .streak-flame.level-3 {
   width: 56px;
   height: 56px;
-  animation-duration: 0.5s;
+  animation-duration: 1.5s;
   filter: drop-shadow(0 0 12px rgba(255, 100, 0, 0.6));
 }
 
 .streak-flame.level-4 {
   width: 64px;
   height: 64px;
-  animation-duration: 0.4s;
+  animation-duration: 1.2s;
   filter: drop-shadow(0 0 16px rgba(255, 60, 0, 0.8)) drop-shadow(0 0 30px rgba(255, 60, 0, 0.3));
 }
 
