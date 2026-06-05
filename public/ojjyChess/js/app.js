@@ -664,73 +664,59 @@ const App = {
 
     flameEl.className = 'streak-flame level-' + level;
 
-    // Chess pawn path (centered in 64x64 viewBox, sits in lower portion of flame)
-    const pawnPath = 'M32 24 C29.5 24 27.5 22 27.5 19.5 C27.5 17.5 29 15.8 31 15.5 C31 14.5 30 13.5 30 12.5 C30 10.5 31 9.5 32 9.5 C33 9.5 34 10.5 34 12.5 C34 13.5 33 14.5 33 15.5 C35 15.8 36.5 17.5 36.5 19.5 C36.5 22 34.5 24 32 24Z M28 24.5 C26 25.5 24.5 28 24.5 30.5 L39.5 30.5 C39.5 28 38 25.5 36 24.5 M24 31 L24 33 C24 33.5 24.5 34 25 34 L39 34 C39.5 34 40 33.5 40 33 L40 31 Z M23 35 L23 37 C23 37.5 23.5 38 24 38 L40 38 C40.5 38 41 37.5 41 37 L41 35 Z';
+    // Simple pawn silhouette — small, centered in lower half of flame (chess.com style)
+    const pawnPath = 'M32 28 C30 28 28.5 26.5 28.5 24.5 C28.5 23 29.5 21.8 31 21.5 C31 20.5 30.2 19.5 30.2 18.8 C30.2 17.2 31 16.5 32 16.5 C33 16.5 33.8 17.2 33.8 18.8 C33.8 19.5 33 20.5 33 21.5 C34.5 21.8 35.5 23 35.5 24.5 C35.5 26.5 34 28 32 28Z M29 28.5 L35 28.5 C37 29.5 38.5 31.5 38.5 34 L25.5 34 C25.5 31.5 27 29.5 29 28.5Z M25 35 L39 35 L39 37 C39 37.5 38.5 38 38 38 L26 38 C25.5 38 25 37.5 25 37 Z M24 39 L40 39 L40 41 C40 41.5 39.5 42 39 42 L25 42 C24.5 42 24 41.5 24 41 Z';
 
     if (level === 0) {
-      // Grey flame with dark pawn silhouette (like chess.com at 0 days)
+      // Grey flame with darker pawn (chess.com 0-day style)
       flameEl.innerHTML = `
         <defs>
-          <linearGradient id="greyFlame" x1="0.3" y1="0" x2="0.7" y2="1">
-            <stop offset="0%" stop-color="#9e9e9e"/>
-            <stop offset="100%" stop-color="#616161"/>
+          <linearGradient id="greyFlame" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0%" stop-color="#8a8a8a"/>
+            <stop offset="100%" stop-color="#5a5a5a"/>
           </linearGradient>
         </defs>
-        <!-- Outer flame shape -->
-        <path d="M32 2 C32 2 24 10 20 20 C16 30 14 36 16 44 C18 52 24 58 32 60 C40 58 46 52 48 44 C50 36 48 30 44 20 C40 10 32 2 32 2Z" fill="url(#greyFlame)"/>
-        <!-- Left flicker -->
-        <path d="M22 12 C18 20 12 30 16 42 C18 48 22 52 26 55 C20 50 18 44 18 38 C18 30 20 20 22 12Z" fill="#9e9e9e" opacity="0.5"/>
-        <!-- Right flicker -->
-        <path d="M42 14 C46 22 50 30 48 42 C46 48 42 52 38 55 C44 50 46 44 46 38 C46 30 44 22 42 14Z" fill="#9e9e9e" opacity="0.4"/>
-        <!-- Pawn silhouette -->
-        <path d="${pawnPath}" fill="#424242" opacity="0.6"/>
+        <path d="M32 4 Q24 16 20 26 Q15 38 18 46 Q22 56 32 58 Q42 56 46 46 Q49 38 44 26 Q40 16 32 4Z" fill="url(#greyFlame)"/>
+        <path d="M32 14 Q28 22 26 30 Q23 40 26 46 Q28 52 32 54 Q36 52 38 46 Q41 40 38 30 Q36 22 32 14Z" fill="#7a7a7a" opacity="0.5"/>
+        <path d="${pawnPath}" fill="#3a3a3a" opacity="0.7"/>
       `;
     } else {
-      // Fire with chess pawn inside
+      // Warm golden/amber flame with white pawn (chess.com style)
       const fireColors = [
         null,
-        ['#ff9800', '#ff5722', '#d84315'],  // level 1
-        ['#ff9800', '#ff3d00', '#bf360c'],  // level 2
-        ['#ffc107', '#ff6d00', '#dd2c00'],  // level 3
-        ['#ffeb3b', '#ff9100', '#ff3d00'],  // level 4
+        ['#e8b730', '#d4952a', '#c07b22'],  // level 1 — golden amber
+        ['#edc33a', '#d9a02e', '#c58524'],  // level 2
+        ['#f2d044', '#e4ac32', '#d09028'],  // level 3
+        ['#f7dd4e', '#eab836', '#dc9b2c'],  // level 4
       ];
       const c = fireColors[level];
 
       let svg = `
         <defs>
-          <linearGradient id="fireGrad" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stop-color="${c[2]}"/>
-            <stop offset="45%" stop-color="${c[1]}"/>
-            <stop offset="100%" stop-color="${c[0]}"/>
+          <linearGradient id="fireGrad" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0%" stop-color="${c[0]}"/>
+            <stop offset="60%" stop-color="${c[1]}"/>
+            <stop offset="100%" stop-color="${c[2]}"/>
           </linearGradient>
         </defs>
-        <!-- Main flame body -->
-        <path d="M32 2 C32 2 24 10 20 20 C16 30 14 36 16 44 C18 52 24 58 32 60 C40 58 46 52 48 44 C50 36 48 30 44 20 C40 10 32 2 32 2Z" fill="url(#fireGrad)"/>
-        <!-- Left flame tongue -->
-        <path d="M22 8 C18 18 12 28 16 42 C18 48 22 54 26 56 C20 50 18 44 18 36 C18 28 20 18 22 8Z" fill="${c[0]}" opacity="0.6"/>
-        <!-- Right flame tongue -->
-        <path d="M42 10 C46 20 50 28 48 42 C46 48 42 54 38 56 C44 50 46 44 46 36 C46 28 44 20 42 10Z" fill="${c[0]}" opacity="0.5"/>
+        <!-- Outer flame -->
+        <path d="M32 4 Q24 16 20 26 Q15 38 18 46 Q22 56 32 58 Q42 56 46 46 Q49 38 44 26 Q40 16 32 4Z" fill="url(#fireGrad)"/>
+        <!-- Inner lighter flame -->
+        <path d="M32 14 Q28 22 26 30 Q23 40 26 46 Q28 52 32 54 Q36 52 38 46 Q41 40 38 30 Q36 22 32 14Z" fill="${c[0]}" opacity="0.6"/>
       `;
 
-      // Inner glow for level 2+
+      // Bright inner core for level 2+
       if (level >= 2) {
-        svg += `<path d="M32 16 C28 24 20 32 22 44 C24 52 28 56 32 58 C36 56 40 52 42 44 C44 32 36 24 32 16Z" fill="${c[0]}" opacity="0.45"/>`;
+        svg += `<path d="M32 22 Q29 28 28 34 Q27 42 30 47 Q31 50 32 51 Q33 50 34 47 Q37 42 36 34 Q35 28 32 22Z" fill="#f5e06b" opacity="0.5"/>`;
       }
 
-      // Bright core for level 3+
+      // White-hot center for level 3+
       if (level >= 3) {
-        svg += `<path d="M32 24 C30 30 24 36 26 46 C28 52 30 54 32 56 C34 54 36 52 38 46 C40 36 34 30 32 24Z" fill="#ffeb3b" opacity="0.6"/>`;
+        svg += `<path d="M32 30 Q30 34 30 38 Q29 44 31 47 L32 48 L33 47 Q35 44 34 38 Q34 34 32 30Z" fill="#fff8c4" opacity="0.5"/>`;
       }
 
-      // White-hot center for level 4
-      if (level >= 4) {
-        svg += `<path d="M32 32 C30 36 27 40 28 46 C29 50 31 52 32 53 C33 52 35 50 36 46 C37 40 34 36 32 32Z" fill="#fff9c4" opacity="0.7"/>`;
-      }
-
-      // Pawn silhouette (darker, inside the flame)
-      const pawnOpacity = level >= 3 ? '0.35' : '0.45';
-      const pawnFill = level >= 3 ? '#4a1500' : '#7f2800';
-      svg += `<path d="${pawnPath}" fill="${pawnFill}" opacity="${pawnOpacity}"/>`;
+      // White pawn silhouette (chess.com style)
+      svg += `<path d="${pawnPath}" fill="rgba(255,255,255,0.9)"/>`;
 
       flameEl.innerHTML = svg;
     }
