@@ -52,3 +52,5 @@ jobs:
             public/spacewaves
             public/stickmanhook
             public/subwayssurfersny
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
