@@ -1,5 +1,24 @@
 import { serveDir } from "https://deno.land/std@0.224.0/http/file_server.ts";
 
+const GITHUB_RAW = "https://raw.githubusercontent.com/jo-jo-home/ojjys-game-hub/master/public";
+
+const MIME: Record<string, string> = {
+  ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
+  ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg", ".gif": "image/gif", ".svg": "image/svg+xml",
+  ".ico": "image/x-icon", ".woff": "font/woff", ".woff2": "font/woff2",
+  ".ttf": "font/ttf", ".mp3": "audio/mpeg", ".ogg": "audio/ogg",
+  ".wav": "audio/wav", ".mp4": "video/mp4", ".webm": "video/webm",
+  ".wasm": "application/wasm", ".unityweb": "application/octet-stream",
+  ".data": "application/octet-stream", ".swf": "application/x-shockwave-flash",
+  ".xml": "application/xml", ".txt": "text/plain", ".mem": "application/octet-stream",
+};
+
+function getMime(path: string): string {
+  const i = path.lastIndexOf(".");
+  return i >= 0 ? (MIME[path.substring(i).toLowerCase()] || "application/octet-stream") : "application/octet-stream";
+}
+
 const PASSWORD_HASH = "1779c0ce5c9ca5c69110d3853843a70e797bf3264fbeafa6c65de398fb423b4c";
 const sessions = new Set<string>();
 let _kv: Deno.Kv | null = null;
@@ -755,10 +774,29 @@ ${ANTI_INSPECT}
     });
   }
 
-  // Serve game files statically
+  // Serve game files statically (local first, then GitHub proxy)
   const resp = await serveDir(req, { fsRoot: "public" });
 
-  // Inject anti-inspect into game HTML pages
+  if (resp.status === 404) {
+    // File not on disk — proxy from GitHub raw content
+    try {
+      const ghResp = await fetch(`${GITHUB_RAW}${url.pathname}`);
+      if (ghResp.ok) {
+        const mime = getMime(url.pathname);
+        if (mime === "text/html") {
+          const html = await ghResp.text();
+          return new Response(html.replace("</head>", ANTI_INSPECT + "</head>"), {
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+          });
+        }
+        return new Response(ghResp.body, {
+          headers: { "Content-Type": mime, "Cache-Control": "public, max-age=86400" },
+        });
+      }
+    } catch { /* fall through to 404 */ }
+  }
+
+  // Inject anti-inspect into local HTML pages
   const ct = resp.headers.get("content-type") || "";
   if (ct.includes("text/html")) {
     const html = await resp.text();
