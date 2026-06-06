@@ -1,3 +1,32 @@
+// Sound system (chess.com sounds)
+const Sound = {
+  muted: localStorage.getItem('ojjychess-muted') === 'true',
+  _cache: {},
+  _base: 'https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/',
+  _names: ['game-start','game-end','capture','castle','move-self','move-opponent','move-check','promote','illegal','notify','tenseconds'],
+  play(name) {
+    if (this.muted) return;
+    if (!this._cache[name]) this._cache[name] = new Audio(this._base + name + '.mp3');
+    const a = this._cache[name];
+    a.currentTime = 0;
+    a.play().catch(() => {});
+  },
+  toggle() {
+    this.muted = !this.muted;
+    localStorage.setItem('ojjychess-muted', this.muted);
+    this.updateIcon();
+  },
+  updateIcon() {
+    const btn = document.getElementById('mute-btn');
+    if (!btn) return;
+    if (this.muted) {
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+    } else {
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>';
+    }
+  }
+};
+
 // Bot profiles (chess.com style)
 const BOT_PROFILES = {
   easy: { name: 'Marvin', rating: 250, desc: 'I just learned the rules!', color: '#7ab648' },
@@ -61,6 +90,7 @@ const App = {
 
   async init() {
     try { Settings.load(); } catch(e) { console.warn('Settings load failed', e); }
+    Sound.updateIcon();
 
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
@@ -341,10 +371,12 @@ const App = {
     if (this.playerColor === 'w' && Board.flipped) Board.flip();
 
     Board.render(ChessGame.board());
+    Board.clearResultIcons();
     this.updateMoveList();
     this.updatePlayerBars();
     this.updateSidebarBot();
     this.updateOpeningName();
+    Sound.play('game-start');
 
     if (this.difficulty === 'custom') {
       this.bot = CustomBot;
@@ -410,6 +442,23 @@ const App = {
       Board.setCheck(kingSquare);
     } else {
       Board.setCheck(null);
+    }
+
+    // Play sound based on move type
+    if (ChessGame.isGameOver()) {
+      Sound.play('game-end');
+    } else if (ChessGame.inCheck()) {
+      Sound.play('move-check');
+    } else if (move.flags && (move.flags.includes('k') || move.flags.includes('q'))) {
+      Sound.play('castle');
+    } else if (move.captured) {
+      Sound.play('capture');
+    } else if (move.promotion) {
+      Sound.play('promote');
+    } else if (move.color === this.playerColor) {
+      Sound.play('move-self');
+    } else {
+      Sound.play('move-opponent');
     }
 
     this.moveHistory = ChessGame.history({ verbose: true });
@@ -569,16 +618,25 @@ const App = {
     const overlay = document.getElementById('gameover-overlay');
     const title = document.getElementById('gameover-title');
     const desc = document.getElementById('gameover-desc');
+    const botSection = document.getElementById('gameover-bot-section');
+    const bot = BOT_PROFILES[this.difficulty] || BOT_PROFILES.medium;
 
-    if (result.type === 'checkmate') {
+    // Result icons on kings
+    const board = ChessGame.board();
+    const playerKing = Board.findKing(this.playerColor, board);
+    const botKing = Board.findKing(this.botColor, board);
+
+    if (result.type === 'checkmate' || result.type === 'resignation') {
       if (result.winner === this.playerColor) {
-        title.textContent = 'You Win!';
-        desc.textContent = 'by checkmate';
+        title.textContent = 'You Beat ' + bot.name + '!';
+        desc.textContent = result.type === 'resignation' ? 'by resignation' : 'by checkmate';
         if (Account.isLoggedIn()) Account.updateStats('win');
+        Board.setResultIcons(playerKing, botKing);
       } else {
-        title.textContent = 'You Lose';
-        desc.textContent = 'by checkmate';
+        title.textContent = bot.name + ' Wins';
+        desc.textContent = result.type === 'resignation' ? 'by resignation' : 'by checkmate';
         if (Account.isLoggedIn()) Account.updateStats('loss');
+        Board.setResultIcons(botKing, playerKing);
       }
     } else {
       title.textContent = 'Draw';
@@ -588,9 +646,19 @@ const App = {
       if (Account.isLoggedIn()) Account.updateStats('draw');
     }
 
-    overlay.classList.add('active');
+    // Bot avatar + message
+    if (botSection) {
+      let msg = '';
+      if (result.winner === this.playerColor) msg = 'Well played! You got me.';
+      else if (result.winner === this.botColor) msg = 'Better luck next time!';
+      else msg = 'A hard-fought draw!';
+      botSection.innerHTML = `
+        <div class="gameover-avatar" style="background:${bot.color}">${bot.name[0]}</div>
+        <div class="gameover-msg">${msg}</div>
+      `;
+    }
 
-    // Record streak (any completed game counts)
+    overlay.classList.add('active');
     this.recordStreak();
   },
 
@@ -601,6 +669,7 @@ const App = {
       Board.clearSelection();
       Board.setCheck(null);
       Board.clearHint();
+      Board.clearResultIcons();
       Board.el.querySelectorAll('.last-move-light, .last-move-dark').forEach(el => {
         el.classList.remove('last-move-light', 'last-move-dark');
       });
@@ -610,7 +679,8 @@ const App = {
   resign() {
     if (!this.gameActive) return;
     this.gameActive = false;
-    this.showGameOver({ type: 'checkmate', winner: this.botColor });
+    Sound.play('game-end');
+    this.showGameOver({ type: 'resignation', winner: this.botColor });
   },
 
   newGame() {

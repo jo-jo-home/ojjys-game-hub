@@ -320,6 +320,7 @@
         <div class="sidebar-header">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           <span>Play Bots</span>
+          <button class="mute-btn" id="mute-btn" onclick="Sound.toggle()" title="Toggle Sound"></button>
         </div>
 
         <!-- Bot card in sidebar -->
@@ -368,9 +369,12 @@
   <!-- Game over overlay -->
   <div id="gameover-overlay" class="gameover-overlay">
     <div class="gameover-box">
+      <button class="gameover-close" onclick="App.closeGameOver()">&times;</button>
       <h2 id="gameover-title">Game Over</h2>
       <p id="gameover-desc"></p>
-      <button onclick="App.closeGameOver()">new game</button>
+      <div class="gameover-bot-section" id="gameover-bot-section"></div>
+      <button class="gameover-primary" onclick="App.newGame();App.startGame();">New Game</button>
+      <button class="gameover-secondary" onclick="App.closeGameOver()">Close</button>
     </div>
   </div>
 

@@ -893,26 +893,78 @@ body.game-mode {
 }
 
 .gameover-box {
+  position: relative;
   background: #262421;
   border-radius: 12px;
-  padding: 2rem;
+  padding: 2rem 2rem 1.5rem;
   text-align: center;
-  min-width: 280px;
+  min-width: 320px;
+  max-width: 380px;
+  border: 1px solid #3a3a3a;
+}
+
+.gameover-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: #8b8987;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.gameover-close:hover {
+  color: #e0e0e0;
 }
 
 .gameover-box h2 {
   font-size: 1.5rem;
   color: #e0e0e0;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
+  font-weight: 700;
 }
 
 .gameover-box p {
   color: #8b8987;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.gameover-bot-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #1a1917;
+  border-radius: 8px;
+  padding: 12px 16px;
   margin-bottom: 1.2rem;
 }
 
-.gameover-box button {
-  padding: 12px 40px;
+.gameover-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.gameover-msg {
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.gameover-primary {
+  width: 100%;
+  padding: 12px;
   border: none;
   border-radius: 8px;
   background: #81b64c;
@@ -921,15 +973,38 @@ body.game-mode {
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s;
-  letter-spacing: 0.02em;
+  margin-bottom: 8px;
 }
 
-.gameover-box button:hover {
+.gameover-primary:hover {
   background: #6fa33e;
 }
 
-.gameover-box button:active {
-  background: #5f9333;
+.gameover-secondary {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  background: transparent;
+  color: #bababa;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.gameover-secondary:hover {
+  background: #333;
+}
+
+/* Result icons on king squares */
+.result-icon {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  z-index: 10;
+  pointer-events: none;
+  line-height: 0;
 }
 
 /* ========== Settings overlay ========== */
@@ -1434,6 +1509,22 @@ body.game-mode {
 
 .sidebar-header svg {
   color: #8b8987;
+}
+
+.mute-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #8b8987;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.mute-btn:hover {
+  color: #e0e0e0;
 }
 
 /* Sidebar bot card (during game) */

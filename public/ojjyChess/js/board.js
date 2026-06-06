@@ -283,6 +283,33 @@ const Board = {
     this.el.querySelectorAll('.hint-highlight').forEach(el => el.classList.remove('hint-highlight'));
   },
 
+  setResultIcons(winnerSq, loserSq) {
+    this.clearResultIcons();
+    if (winnerSq) {
+      const el = this._getSquareEl(winnerSq);
+      if (el) {
+        const icon = document.createElement('div');
+        icon.className = 'result-icon winner';
+        icon.innerHTML = '<svg viewBox="0 0 36 36" width="28" height="28"><circle cx="18" cy="18" r="16" fill="#81b64c"/><path d="M18 8l3 6 3-3v10H12V11l3 3z" fill="white"/></svg>';
+        el.appendChild(icon);
+      }
+    }
+    if (loserSq) {
+      const el = this._getSquareEl(loserSq);
+      if (el) {
+        const icon = document.createElement('div');
+        icon.className = 'result-icon loser';
+        icon.innerHTML = '<svg viewBox="0 0 36 36" width="28" height="28"><circle cx="18" cy="18" r="16" fill="#e04040"/><path d="M13 13l10 10M23 13l-10 10" stroke="white" stroke-width="3" stroke-linecap="round"/></svg>';
+        el.appendChild(icon);
+      }
+    }
+  },
+
+  clearResultIcons() {
+    if (!this.el) return;
+    this.el.querySelectorAll('.result-icon').forEach(el => el.remove());
+  },
+
   findKing(color, boardState) {
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
