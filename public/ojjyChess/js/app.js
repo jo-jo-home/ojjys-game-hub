@@ -664,47 +664,37 @@ const App = {
 
     flameEl.className = 'streak-flame level-' + level;
 
-    // Chess.com-style flame: layered organic flame with pawn silhouette
-    // Outer flame — wider, organic with side tongues
-    const outerFlame = 'M32 2 C30 8 25 15 22 24 C18 34 18 42 20 47 C23 53 27 57 32 59 C37 57 41 53 44 47 C46 42 46 34 42 24 C39 15 34 8 32 2Z';
-    const tongueL = 'M24 16 C22 21 21 27 23 32 C25 27 25 22 24 16Z';
-    const tongueR = 'M40 16 C42 21 43 27 41 32 C39 27 39 22 40 16Z';
-    // Inner flame — narrower, lighter
-    const innerFlame = 'M32 12 C30 17 27 24 26 32 C24 40 26 47 29 50 C30 52 32 54 32 54 C32 54 34 52 35 50 C38 47 40 40 38 32 C37 24 34 17 32 12Z';
-    // Pawn — simple geometric: circle head, neck, body, base
-    const pawn = `
-      <circle cx="32" cy="26" r="3.2" fill="PAWN_FILL"/>
-      <path d="M30.8 29 Q30.2 31 29.5 33 L34.5 33 Q33.8 31 33.2 29Z" fill="PAWN_FILL"/>
-      <path d="M28 33.5 L36 33.5 Q37.5 35 38 37 L26 37 Q26.5 35 28 33.5Z" fill="PAWN_FILL"/>
-      <rect x="25.5" y="37.5" width="13" height="2.5" rx="0.8" fill="PAWN_FILL"/>
-    `;
+    // Wide flame with 3 tongues (matches chess.com proportions)
+    const outerFlame = 'M32 2 C30 5 26 8 24 12 C22 8 18 5 16 8 C12 14 10 24 10 34 C10 46 16 54 24 58 C28 60 32 60 32 60 C32 60 36 60 40 58 C48 54 54 46 54 34 C54 24 52 14 48 8 C46 5 42 8 40 12 C38 8 34 5 32 2Z';
+    const innerFlame = 'M32 10 C30 14 27 20 25 28 C22 38 24 48 28 52 C30 54 32 56 32 56 C32 56 34 54 36 52 C40 48 42 38 39 28 C37 20 34 14 32 10Z';
+    // Chess.com's exact pawn path (from chesscom_logo_pawn_flat.svg, viewBox 290x400)
+    // Scaled with transform to fit inside flame
+    const pawnPath = 'M145 366c108.1 0 111-20.2 111-21.5 0-27.4-9.9-54.9-31-70.9-43.8-33.5-49.3-63.4-50.1-82.2 0-5 0-9.2-.1-12.5h34c4-7.4 6-14.2 6-22.7l-38.5-25.4c13.4-9.7 22.1-25.5 22.1-43.3 0-29.6-23.9-53.5-53.3-53.5S91.7 57.9 91.7 87.5c0 17.8 8.7 33.6 22.1 43.3l-38.5 25.4c0 8.5 2 15.3 6 22.7h34c-.1 3.3-.1 7.5-.1 12.5-.8 18.8-6.3 48.7-50.1 82.2-21 15.9-31 43.5-31 70.9C34 345.8 36.9 366 145 366z';
+    const pawnTransform = 'translate(32,35) scale(0.07) translate(-145,-200)';
 
     if (level === 0) {
       flameEl.innerHTML = `
         <defs>
           <linearGradient id="greyOuter" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop offset="0%" stop-color="#8a8a8a"/>
-            <stop offset="100%" stop-color="#5a5a5a"/>
-          </linearGradient>
-          <linearGradient id="greyInner" x1="0.5" y1="0" x2="0.5" y2="1">
             <stop offset="0%" stop-color="#7a7a7a"/>
             <stop offset="100%" stop-color="#555"/>
           </linearGradient>
+          <linearGradient id="greyInner" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0%" stop-color="#8a8a8a"/>
+            <stop offset="100%" stop-color="#666"/>
+          </linearGradient>
         </defs>
         <path d="${outerFlame}" fill="url(#greyOuter)"/>
-        <path d="${tongueL}" fill="#777" opacity="0.6"/>
-        <path d="${tongueR}" fill="#777" opacity="0.6"/>
         <path d="${innerFlame}" fill="url(#greyInner)"/>
-        ${pawn.replace(/PAWN_FILL/g, 'rgba(0,0,0,0.3)')}
+        <g transform="${pawnTransform}"><path d="${pawnPath}" fill="rgba(0,0,0,0.3)"/></g>
       `;
     } else {
-      // Outer: darker amber; Inner: lighter golden
       const colors = [
         null,
-        { outer: ['#d4952a', '#b87820'], inner: ['#f0c030', '#daa520'] },
-        { outer: ['#d9a02e', '#bd8022'], inner: ['#f5ca3a', '#dfaf24'] },
-        { outer: ['#dfab32', '#c28824'], inner: ['#f9d444', '#e4b928'] },
-        { outer: ['#e5b636', '#c89026'], inner: ['#fdde4e', '#e9c32c'] },
+        { outer: ['#c49a2a', '#a67b1a'], inner: ['#e8c040', '#d4a030'] },
+        { outer: ['#caa22e', '#ad821e'], inner: ['#edca4a', '#d9a934'] },
+        { outer: ['#d0aa32', '#b48a22'], inner: ['#f2d454', '#deb238'] },
+        { outer: ['#d6b236', '#ba9226'], inner: ['#f7de5e', '#e3bb3c'] },
       ];
       const c = colors[level];
 
@@ -720,10 +710,8 @@ const App = {
           </linearGradient>
         </defs>
         <path d="${outerFlame}" fill="url(#outerGrad)"/>
-        <path d="${tongueL}" fill="${c.outer[0]}" opacity="0.7"/>
-        <path d="${tongueR}" fill="${c.outer[0]}" opacity="0.7"/>
         <path d="${innerFlame}" fill="url(#innerGrad)"/>
-        ${pawn.replace(/PAWN_FILL/g, 'rgba(255,255,255,0.92)')}
+        <g transform="${pawnTransform}"><path d="${pawnPath}" fill="rgba(255,255,255,0.92)"/></g>
       `;
     }
 
