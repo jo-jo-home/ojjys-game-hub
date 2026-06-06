@@ -168,13 +168,24 @@ body.game-mode {
   margin-bottom: 36px;
 }
 
+.home-board-col {
+  flex: 0 0 auto;
+  width: clamp(260px, 32vw, 400px);
+}
+
 .home-board-col .board-wrapper {
-  width: clamp(280px, 34vw, 420px);
+  width: 100%;
+}
+
+.home-board-col .board {
+  width: 100%;
+  height: unset;
+  aspect-ratio: 1;
 }
 
 .home-play-col {
   flex: 1;
-  min-width: 0;
+  min-width: 240px;
   max-width: 480px;
   display: flex;
   flex-direction: column;
@@ -210,11 +221,9 @@ body.game-mode {
 }
 
 .streak-label {
-  font-size: 0.7rem;
-  color: #8b8987;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+  color: #e0e0e0;
+  font-weight: 700;
 }
 
 .streak-count {
@@ -1542,8 +1551,11 @@ body.game-mode {
     flex-direction: column;
     align-items: center;
   }
-  .home-board-col .board-wrapper {
+  .home-board-col {
     width: min(85vw, 460px);
+  }
+  .home-board-col .board-wrapper {
+    width: 100%;
   }
   .home-play-col {
     width: 100%;

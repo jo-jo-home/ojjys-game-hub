@@ -655,7 +655,7 @@ const App = {
 
     countEl.textContent = count + (count === 1 ? ' Day' : ' Days');
 
-    // Flame SVG and level based on streak count
+    // Flame level based on streak count
     let level = 0;
     if (count >= 30) level = 4;
     else if (count >= 14) level = 3;
@@ -664,61 +664,51 @@ const App = {
 
     flameEl.className = 'streak-flame level-' + level;
 
-    // Simple pawn silhouette — small, centered in lower half of flame (chess.com style)
-    const pawnPath = 'M32 28 C30 28 28.5 26.5 28.5 24.5 C28.5 23 29.5 21.8 31 21.5 C31 20.5 30.2 19.5 30.2 18.8 C30.2 17.2 31 16.5 32 16.5 C33 16.5 33.8 17.2 33.8 18.8 C33.8 19.5 33 20.5 33 21.5 C34.5 21.8 35.5 23 35.5 24.5 C35.5 26.5 34 28 32 28Z M29 28.5 L35 28.5 C37 29.5 38.5 31.5 38.5 34 L25.5 34 C25.5 31.5 27 29.5 29 28.5Z M25 35 L39 35 L39 37 C39 37.5 38.5 38 38 38 L26 38 C25.5 38 25 37.5 25 37 Z M24 39 L40 39 L40 41 C40 41.5 39.5 42 39 42 L25 42 C24.5 42 24 41.5 24 41 Z';
+    // Chess.com-style flame: clean teardrop with simple pawn
+    // Pawn: small circle head, narrow neck, wider body, flat base
+    const pawn = `
+      <circle cx="32" cy="24" r="3.5" fill="PAWN_FILL"/>
+      <path d="M30.5 27.5 Q30 30 29 32 L35 32 Q34 30 33.5 27.5Z" fill="PAWN_FILL"/>
+      <path d="M27.5 32 L36.5 32 Q38 34 38.5 36 L25.5 36 Q26 34 27.5 32Z" fill="PAWN_FILL"/>
+      <rect x="25" y="36.5" width="14" height="3" rx="1" fill="PAWN_FILL"/>
+    `;
+
+    // Clean teardrop flame shape
+    const flamePath = 'M32 5 C28 12 22 20 20 28 C17 38 20 48 26 52 C29 54 32 55 32 55 C32 55 35 54 38 52 C44 48 47 38 44 28 C42 20 36 12 32 5Z';
 
     if (level === 0) {
-      // Grey flame with darker pawn (chess.com 0-day style)
       flameEl.innerHTML = `
         <defs>
           <linearGradient id="greyFlame" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop offset="0%" stop-color="#8a8a8a"/>
-            <stop offset="100%" stop-color="#5a5a5a"/>
+            <stop offset="0%" stop-color="#7a7a7a"/>
+            <stop offset="100%" stop-color="#555"/>
           </linearGradient>
         </defs>
-        <path d="M32 4 Q24 16 20 26 Q15 38 18 46 Q22 56 32 58 Q42 56 46 46 Q49 38 44 26 Q40 16 32 4Z" fill="url(#greyFlame)"/>
-        <path d="M32 14 Q28 22 26 30 Q23 40 26 46 Q28 52 32 54 Q36 52 38 46 Q41 40 38 30 Q36 22 32 14Z" fill="#7a7a7a" opacity="0.5"/>
-        <path d="${pawnPath}" fill="#3a3a3a" opacity="0.7"/>
+        <path d="${flamePath}" fill="url(#greyFlame)"/>
+        ${pawn.replace(/PAWN_FILL/g, 'rgba(0,0,0,0.35)')}
       `;
     } else {
-      // Warm golden/amber flame with white pawn (chess.com style)
-      const fireColors = [
+      // Golden amber gradient — brighter at higher levels
+      const colors = [
         null,
-        ['#e8b730', '#d4952a', '#c07b22'],  // level 1 — golden amber
-        ['#edc33a', '#d9a02e', '#c58524'],  // level 2
-        ['#f2d044', '#e4ac32', '#d09028'],  // level 3
-        ['#f7dd4e', '#eab836', '#dc9b2c'],  // level 4
+        ['#f5c518', '#e09b20', '#c47a18'],  // level 1
+        ['#f7ce2a', '#e5a524', '#cc831c'],  // level 2
+        ['#f9d83c', '#eaaf28', '#d48d20'],  // level 3
+        ['#fbe24e', '#efba2c', '#dc9724'],  // level 4
       ];
-      const c = fireColors[level];
+      const c = colors[level];
 
-      let svg = `
+      flameEl.innerHTML = `
         <defs>
           <linearGradient id="fireGrad" x1="0.5" y1="0" x2="0.5" y2="1">
             <stop offset="0%" stop-color="${c[0]}"/>
-            <stop offset="60%" stop-color="${c[1]}"/>
+            <stop offset="55%" stop-color="${c[1]}"/>
             <stop offset="100%" stop-color="${c[2]}"/>
           </linearGradient>
         </defs>
-        <!-- Outer flame -->
-        <path d="M32 4 Q24 16 20 26 Q15 38 18 46 Q22 56 32 58 Q42 56 46 46 Q49 38 44 26 Q40 16 32 4Z" fill="url(#fireGrad)"/>
-        <!-- Inner lighter flame -->
-        <path d="M32 14 Q28 22 26 30 Q23 40 26 46 Q28 52 32 54 Q36 52 38 46 Q41 40 38 30 Q36 22 32 14Z" fill="${c[0]}" opacity="0.6"/>
+        <path d="${flamePath}" fill="url(#fireGrad)"/>
+        ${pawn.replace(/PAWN_FILL/g, 'rgba(255,255,255,0.92)')}
       `;
-
-      // Bright inner core for level 2+
-      if (level >= 2) {
-        svg += `<path d="M32 22 Q29 28 28 34 Q27 42 30 47 Q31 50 32 51 Q33 50 34 47 Q37 42 36 34 Q35 28 32 22Z" fill="#f5e06b" opacity="0.5"/>`;
-      }
-
-      // White-hot center for level 3+
-      if (level >= 3) {
-        svg += `<path d="M32 30 Q30 34 30 38 Q29 44 31 47 L32 48 L33 47 Q35 44 34 38 Q34 34 32 30Z" fill="#fff8c4" opacity="0.5"/>`;
-      }
-
-      // White pawn silhouette (chess.com style)
-      svg += `<path d="${pawnPath}" fill="rgba(255,255,255,0.9)"/>`;
-
-      flameEl.innerHTML = svg;
     }
 
     // Render week days
