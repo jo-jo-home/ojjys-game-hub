@@ -283,6 +283,31 @@ const Board = {
     this.el.querySelectorAll('.hint-highlight').forEach(el => el.classList.remove('hint-highlight'));
   },
 
+  // FLIP animation: after render, slide piece from old square to new
+  animateMove(from, to) {
+    const fromEl = this._getSquareEl(from);
+    const toEl = this._getSquareEl(to);
+    if (!fromEl || !toEl) return;
+    const piece = toEl.querySelector('.piece');
+    if (!piece) return;
+
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = toEl.getBoundingClientRect();
+    const dx = fromRect.left - toRect.left;
+    const dy = fromRect.top - toRect.top;
+
+    piece.style.transition = 'none';
+    piece.style.transform = `translate(${dx}px, ${dy}px)`;
+    piece.style.zIndex = '20';
+    piece.offsetHeight; // force reflow
+    piece.style.transition = 'transform 0.15s ease';
+    piece.style.transform = '';
+    piece.addEventListener('transitionend', () => {
+      piece.style.transition = '';
+      piece.style.zIndex = '';
+    }, { once: true });
+  },
+
   setResultIcons(winnerSq, loserSq) {
     this.clearResultIcons();
     if (winnerSq) {

@@ -290,7 +290,14 @@ const App = {
     this.optionsOpen = !this.optionsOpen;
     const body = document.getElementById('options-body');
     const arrow = document.getElementById('options-arrow');
-    body.style.display = this.optionsOpen ? 'flex' : 'none';
+    if (this.optionsOpen) {
+      body.classList.remove('collapsed');
+      body.style.maxHeight = body.scrollHeight + 'px';
+    } else {
+      body.style.maxHeight = body.scrollHeight + 'px';
+      body.offsetHeight; // force reflow
+      body.classList.add('collapsed');
+    }
     arrow.innerHTML = this.optionsOpen ? '&#9650;' : '&#9660;';
   },
 
@@ -433,6 +440,7 @@ const App = {
 
   afterMove(move) {
     Board.render(ChessGame.board());
+    Board.animateMove(move.from, move.to);
     if (typeof Settings !== 'undefined' && Settings.current && Settings.current.highlightMoves) {
       Board.setLastMove(move.from, move.to);
     }
