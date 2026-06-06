@@ -463,6 +463,47 @@ body.game-mode {
   margin-left: 4px;
 }
 
+/* Chess clock */
+.clock {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  min-width: 72px;
+  text-align: center;
+  background: #1a1917;
+  color: #bababa;
+  display: none;
+  flex-shrink: 0;
+}
+
+.clock.visible {
+  display: block;
+}
+
+.clock.active-clock {
+  background: #fff;
+  color: #111;
+}
+
+.clock.low-time {
+  background: #e04040;
+  color: #fff;
+}
+
+.clock.low-time.active-clock {
+  background: #e04040;
+  color: #fff;
+}
+
+.clock.flagged {
+  background: #e04040;
+  color: #fff;
+}
+
 /* Player bar avatars */
 .bar-avatar {
   display: inline-flex;

@@ -27,6 +27,129 @@ const Sound = {
   }
 };
 
+// Chess clock
+const Clock = {
+  wTime: 0,       // ms remaining for white
+  bTime: 0,       // ms remaining for black
+  increment: 0,   // ms increment per move
+  activeSide: null,
+  _interval: null,
+  _lastTick: 0,
+  enabled: false,
+  onFlag: null,    // callback(color) when time runs out
+
+  start(timeMinutes, incrementSeconds) {
+    this.stop();
+    if (!timeMinutes) { this.enabled = false; this._hideClocks(); return; }
+    this.enabled = true;
+    this.wTime = timeMinutes * 60 * 1000;
+    this.bTime = timeMinutes * 60 * 1000;
+    this.increment = incrementSeconds * 1000;
+    this.activeSide = null;
+    this._lowTimePlayed = false;
+    this._updateDisplay();
+    this._showClocks();
+  },
+
+  switchTo(color) {
+    // Apply increment to the side that just moved (opposite of color)
+    if (this.activeSide && this.activeSide !== color) {
+      if (this.activeSide === 'w') this.wTime += this.increment;
+      else this.bTime += this.increment;
+    }
+    this.activeSide = color;
+    this._lastTick = performance.now();
+    this._updateDisplay();
+    if (!this._interval) {
+      this._interval = setInterval(() => this._tick(), 100);
+    }
+  },
+
+  stop() {
+    if (this._interval) { clearInterval(this._interval); this._interval = null; }
+    this.activeSide = null;
+  },
+
+  _lowTimePlayed: false,
+
+  _tick() {
+    if (!this.activeSide) return;
+    const now = performance.now();
+    const elapsed = now - this._lastTick;
+    this._lastTick = now;
+
+    if (this.activeSide === 'w') {
+      this.wTime = Math.max(0, this.wTime - elapsed);
+      if (this.wTime <= 0) { this.stop(); if (this.onFlag) this.onFlag('w'); return; }
+    } else {
+      this.bTime = Math.max(0, this.bTime - elapsed);
+      if (this.bTime <= 0) { this.stop(); if (this.onFlag) this.onFlag('b'); return; }
+    }
+
+    // Play low time warning sound once when player drops below 10s
+    const playerColor = Board.playerColor;
+    const playerTime = playerColor === 'w' ? this.wTime : this.bTime;
+    if (playerTime <= 10000 && playerTime > 0 && !this._lowTimePlayed) {
+      this._lowTimePlayed = true;
+      Sound.play('tenseconds');
+    }
+
+    this._updateDisplay();
+  },
+
+  _formatTime(ms) {
+    const totalSec = Math.ceil(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      const rm = m % 60;
+      return h + ':' + String(rm).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+    return m + ':' + String(s).padStart(2, '0');
+  },
+
+  _updateDisplay() {
+    const topEl = document.getElementById('game-top-clock');
+    const botEl = document.getElementById('game-bottom-clock');
+    if (!topEl || !botEl) return;
+
+    const topColor = Board.flipped ? 'w' : 'b';
+    const botColor = Board.flipped ? 'b' : 'w';
+
+    topEl.textContent = this._formatTime(topColor === 'w' ? this.wTime : this.bTime);
+    botEl.textContent = this._formatTime(botColor === 'w' ? this.wTime : this.bTime);
+
+    // Active state
+    topEl.classList.toggle('active-clock', this.activeSide === topColor);
+    botEl.classList.toggle('active-clock', this.activeSide === botColor);
+
+    // Low time warning (under 30 seconds)
+    const topTime = topColor === 'w' ? this.wTime : this.bTime;
+    const botTime = botColor === 'w' ? this.wTime : this.bTime;
+    topEl.classList.toggle('low-time', topTime <= 30000 && topTime > 0);
+    botEl.classList.toggle('low-time', botTime <= 30000 && botTime > 0);
+
+    // Flagged
+    topEl.classList.toggle('flagged', topTime <= 0);
+    botEl.classList.toggle('flagged', botTime <= 0);
+  },
+
+  _showClocks() {
+    const topEl = document.getElementById('game-top-clock');
+    const botEl = document.getElementById('game-bottom-clock');
+    if (topEl) topEl.classList.add('visible');
+    if (botEl) botEl.classList.add('visible');
+  },
+
+  _hideClocks() {
+    const topEl = document.getElementById('game-top-clock');
+    const botEl = document.getElementById('game-bottom-clock');
+    if (topEl) { topEl.classList.remove('visible', 'active-clock', 'low-time', 'flagged'); topEl.textContent = ''; }
+    if (botEl) { botEl.classList.remove('visible', 'active-clock', 'low-time', 'flagged'); botEl.textContent = ''; }
+  }
+};
+
 // Bot profiles (chess.com style)
 const BOT_PROFILES = {
   easy: { name: 'Marvin', rating: 250, desc: 'I just learned the rules!', color: '#7ab648' },
@@ -385,6 +508,17 @@ const App = {
     this.updateOpeningName();
     Sound.play('game-start');
 
+    // Setup clock
+    if (this.timeControl && this.timeControl !== 'none') {
+      const [timeStr, incStr] = this.timeControl.split('+');
+      Clock.onFlag = (color) => this._onClockFlag(color);
+      Clock.start(parseFloat(timeStr), parseInt(incStr || 0));
+      // White's clock starts on game start
+      Clock.switchTo('w');
+    } else {
+      Clock.start(0, 0); // disables clocks
+    }
+
     if (this.difficulty === 'custom') {
       this.bot = CustomBot;
     } else {
@@ -474,8 +608,14 @@ const App = {
     this.updatePlayerBars();
     this.updateOpeningName();
 
+    // Switch clock to the side whose turn it now is
+    if (Clock.enabled && !ChessGame.isGameOver()) {
+      Clock.switchTo(ChessGame.turn());
+    }
+
     if (ChessGame.isGameOver()) {
       this.gameActive = false;
+      Clock.stop();
       const result = ChessGame.getResult();
       this.showGameOver(result);
     }
@@ -634,15 +774,15 @@ const App = {
     const playerKing = Board.findKing(this.playerColor, board);
     const botKing = Board.findKing(this.botColor, board);
 
-    if (result.type === 'checkmate' || result.type === 'resignation') {
+    if (result.type === 'checkmate' || result.type === 'resignation' || result.type === 'timeout') {
       if (result.winner === this.playerColor) {
         title.textContent = 'You Beat ' + bot.name + '!';
-        desc.textContent = result.type === 'resignation' ? 'by resignation' : 'by checkmate';
+        desc.textContent = result.type === 'resignation' ? 'by resignation' : result.type === 'timeout' ? 'on time' : 'by checkmate';
         if (Account.isLoggedIn()) Account.updateStats('win');
         Board.setResultIcons(playerKing, botKing);
       } else {
         title.textContent = bot.name + ' Wins';
-        desc.textContent = result.type === 'resignation' ? 'by resignation' : 'by checkmate';
+        desc.textContent = result.type === 'resignation' ? 'by resignation' : result.type === 'timeout' ? 'on time' : 'by checkmate';
         if (Account.isLoggedIn()) Account.updateStats('loss');
         Board.setResultIcons(botKing, playerKing);
       }
@@ -673,6 +813,7 @@ const App = {
   closeGameOver() {
     document.getElementById('gameover-overlay').classList.remove('active');
     this.gameActive = false;
+    Clock.stop();
     if (Board.el) {
       Board.clearSelection();
       Board.setCheck(null);
@@ -684,9 +825,18 @@ const App = {
     }
   },
 
+  _onClockFlag(color) {
+    if (!this.gameActive) return;
+    this.gameActive = false;
+    Sound.play('game-end');
+    const winner = color === 'w' ? 'b' : 'w';
+    this.showGameOver({ type: 'timeout', winner });
+  },
+
   resign() {
     if (!this.gameActive) return;
     this.gameActive = false;
+    Clock.stop();
     Sound.play('game-end');
     this.showGameOver({ type: 'resignation', winner: this.botColor });
   },
