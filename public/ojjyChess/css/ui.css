@@ -5,7 +5,7 @@
 }
 
 body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Noto Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
   background-color: #302e2b;
   color: #bababa;
   min-height: 100vh;
@@ -268,16 +268,14 @@ body.game-mode {
   border-color: #81b64c;
 }
 
-/* Fire animation - size varies based on streak level */
-@keyframes flicker {
-  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 1; }
-  30% { transform: scaleY(1.02) scaleX(0.98); opacity: 0.97; }
-  60% { transform: scaleY(0.98) scaleX(1.01); opacity: 1; }
-  80% { transform: scaleY(1.01) scaleX(0.99); opacity: 0.98; }
+/* Fire animation - gentle side-to-side sway like chess.com */
+@keyframes sway {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(2.5deg); }
+  75% { transform: rotate(-2.5deg); }
 }
 
 .streak-flame {
-  animation: flicker 2s ease-in-out infinite;
   transform-origin: bottom center;
 }
 
@@ -291,27 +289,28 @@ body.game-mode {
 .streak-flame.level-1 {
   width: 48px;
   height: 48px;
+  animation: sway 3s ease-in-out infinite;
   filter: drop-shadow(0 0 4px rgba(255, 120, 0, 0.3));
 }
 
 .streak-flame.level-2 {
   width: 52px;
   height: 52px;
-  animation-duration: 1.8s;
+  animation: sway 2.5s ease-in-out infinite;
   filter: drop-shadow(0 0 8px rgba(255, 120, 0, 0.5));
 }
 
 .streak-flame.level-3 {
   width: 56px;
   height: 56px;
-  animation-duration: 1.5s;
+  animation: sway 2s ease-in-out infinite;
   filter: drop-shadow(0 0 12px rgba(255, 100, 0, 0.6));
 }
 
 .streak-flame.level-4 {
   width: 64px;
   height: 64px;
-  animation-duration: 1.2s;
+  animation: sway 1.5s ease-in-out infinite;
   filter: drop-shadow(0 0 16px rgba(255, 60, 0, 0.8)) drop-shadow(0 0 30px rgba(255, 60, 0, 0.3));
 }
 

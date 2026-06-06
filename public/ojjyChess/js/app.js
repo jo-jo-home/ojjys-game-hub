@@ -664,49 +664,65 @@ const App = {
 
     flameEl.className = 'streak-flame level-' + level;
 
-    // Chess.com-style flame: clean teardrop with simple pawn
-    // Pawn: small circle head, narrow neck, wider body, flat base
+    // Chess.com-style flame: layered organic flame with pawn silhouette
+    // Outer flame — wider, organic with side tongues
+    const outerFlame = 'M32 2 C30 8 25 15 22 24 C18 34 18 42 20 47 C23 53 27 57 32 59 C37 57 41 53 44 47 C46 42 46 34 42 24 C39 15 34 8 32 2Z';
+    const tongueL = 'M24 16 C22 21 21 27 23 32 C25 27 25 22 24 16Z';
+    const tongueR = 'M40 16 C42 21 43 27 41 32 C39 27 39 22 40 16Z';
+    // Inner flame — narrower, lighter
+    const innerFlame = 'M32 12 C30 17 27 24 26 32 C24 40 26 47 29 50 C30 52 32 54 32 54 C32 54 34 52 35 50 C38 47 40 40 38 32 C37 24 34 17 32 12Z';
+    // Pawn — simple geometric: circle head, neck, body, base
     const pawn = `
-      <circle cx="32" cy="24" r="3.5" fill="PAWN_FILL"/>
-      <path d="M30.5 27.5 Q30 30 29 32 L35 32 Q34 30 33.5 27.5Z" fill="PAWN_FILL"/>
-      <path d="M27.5 32 L36.5 32 Q38 34 38.5 36 L25.5 36 Q26 34 27.5 32Z" fill="PAWN_FILL"/>
-      <rect x="25" y="36.5" width="14" height="3" rx="1" fill="PAWN_FILL"/>
+      <circle cx="32" cy="26" r="3.2" fill="PAWN_FILL"/>
+      <path d="M30.8 29 Q30.2 31 29.5 33 L34.5 33 Q33.8 31 33.2 29Z" fill="PAWN_FILL"/>
+      <path d="M28 33.5 L36 33.5 Q37.5 35 38 37 L26 37 Q26.5 35 28 33.5Z" fill="PAWN_FILL"/>
+      <rect x="25.5" y="37.5" width="13" height="2.5" rx="0.8" fill="PAWN_FILL"/>
     `;
-
-    // Clean teardrop flame shape
-    const flamePath = 'M32 5 C28 12 22 20 20 28 C17 38 20 48 26 52 C29 54 32 55 32 55 C32 55 35 54 38 52 C44 48 47 38 44 28 C42 20 36 12 32 5Z';
 
     if (level === 0) {
       flameEl.innerHTML = `
         <defs>
-          <linearGradient id="greyFlame" x1="0.5" y1="0" x2="0.5" y2="1">
+          <linearGradient id="greyOuter" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0%" stop-color="#8a8a8a"/>
+            <stop offset="100%" stop-color="#5a5a5a"/>
+          </linearGradient>
+          <linearGradient id="greyInner" x1="0.5" y1="0" x2="0.5" y2="1">
             <stop offset="0%" stop-color="#7a7a7a"/>
             <stop offset="100%" stop-color="#555"/>
           </linearGradient>
         </defs>
-        <path d="${flamePath}" fill="url(#greyFlame)"/>
-        ${pawn.replace(/PAWN_FILL/g, 'rgba(0,0,0,0.35)')}
+        <path d="${outerFlame}" fill="url(#greyOuter)"/>
+        <path d="${tongueL}" fill="#777" opacity="0.6"/>
+        <path d="${tongueR}" fill="#777" opacity="0.6"/>
+        <path d="${innerFlame}" fill="url(#greyInner)"/>
+        ${pawn.replace(/PAWN_FILL/g, 'rgba(0,0,0,0.3)')}
       `;
     } else {
-      // Golden amber gradient — brighter at higher levels
+      // Outer: darker amber; Inner: lighter golden
       const colors = [
         null,
-        ['#f5c518', '#e09b20', '#c47a18'],  // level 1
-        ['#f7ce2a', '#e5a524', '#cc831c'],  // level 2
-        ['#f9d83c', '#eaaf28', '#d48d20'],  // level 3
-        ['#fbe24e', '#efba2c', '#dc9724'],  // level 4
+        { outer: ['#d4952a', '#b87820'], inner: ['#f0c030', '#daa520'] },
+        { outer: ['#d9a02e', '#bd8022'], inner: ['#f5ca3a', '#dfaf24'] },
+        { outer: ['#dfab32', '#c28824'], inner: ['#f9d444', '#e4b928'] },
+        { outer: ['#e5b636', '#c89026'], inner: ['#fdde4e', '#e9c32c'] },
       ];
       const c = colors[level];
 
       flameEl.innerHTML = `
         <defs>
-          <linearGradient id="fireGrad" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop offset="0%" stop-color="${c[0]}"/>
-            <stop offset="55%" stop-color="${c[1]}"/>
-            <stop offset="100%" stop-color="${c[2]}"/>
+          <linearGradient id="outerGrad" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0%" stop-color="${c.outer[0]}"/>
+            <stop offset="100%" stop-color="${c.outer[1]}"/>
+          </linearGradient>
+          <linearGradient id="innerGrad" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0%" stop-color="${c.inner[0]}"/>
+            <stop offset="100%" stop-color="${c.inner[1]}"/>
           </linearGradient>
         </defs>
-        <path d="${flamePath}" fill="url(#fireGrad)"/>
+        <path d="${outerFlame}" fill="url(#outerGrad)"/>
+        <path d="${tongueL}" fill="${c.outer[0]}" opacity="0.7"/>
+        <path d="${tongueR}" fill="${c.outer[0]}" opacity="0.7"/>
+        <path d="${innerFlame}" fill="url(#innerGrad)"/>
         ${pawn.replace(/PAWN_FILL/g, 'rgba(255,255,255,0.92)')}
       `;
     }
