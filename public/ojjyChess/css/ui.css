@@ -319,6 +319,138 @@ body.game-mode {
   filter: drop-shadow(0 0 16px rgba(255, 60, 0, 0.8)) drop-shadow(0 0 30px rgba(255, 60, 0, 0.3));
 }
 
+/* ========== Play Chess menu (chess.com style) ========== */
+.play-menu {
+  background: #262421;
+  border-radius: 12px;
+  border: 1px solid #3a3a3a;
+  padding: 1.5rem 1.2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.play-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.play-menu-header h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.play-menu-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.play-menu-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #1a1917;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  text-align: left;
+  width: 100%;
+}
+
+.play-menu-card:hover {
+  background: #222;
+  border-color: #4a4845;
+  transform: translateY(-1px);
+}
+
+.play-menu-card:active {
+  transform: translateY(0);
+}
+
+.play-menu-icon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.play-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.play-menu-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.play-menu-desc {
+  font-size: 0.8rem;
+  color: #8b8987;
+}
+
+.play-menu-footer {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding-top: 8px;
+  border-top: 1px solid #3a3a3a;
+  margin-top: 4px;
+}
+
+.play-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #bababa;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.play-menu-link:hover {
+  color: #e0e0e0;
+}
+
+/* Setup back button row */
+.setup-back-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.setup-back-row h2 {
+  font-size: 1.3rem;
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
+.setup-back-btn {
+  background: none;
+  border: none;
+  color: #8b8987;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.setup-back-btn:hover {
+  color: #e0e0e0;
+}
+
 /* Play card */
 .play-card {
   background: #262421;

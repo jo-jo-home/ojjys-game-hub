@@ -249,7 +249,7 @@ const App = {
     document.getElementById('home-page').style.display = 'flex';
     document.getElementById('friends-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'none';
-    document.getElementById('setup-panel').style.display = 'flex';
+    this.showPlayMenu();
 
     // Update nav active state
     document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
@@ -308,6 +308,30 @@ const App = {
   _initSocial() {
     if (typeof Friends !== 'undefined') Friends.init();
     if (typeof Notifications !== 'undefined') Notifications.init();
+  },
+
+  // --- Play menu navigation ---
+  showPlayMenu() {
+    document.getElementById('play-menu').style.display = 'flex';
+    document.getElementById('setup-panel').style.display = 'none';
+  },
+
+  showBotSetup() {
+    document.getElementById('play-menu').style.display = 'none';
+    document.getElementById('setup-panel').style.display = 'flex';
+    this.updateBotPreview();
+  },
+
+  showPlayOnline() {
+    // Placeholder - not implemented yet
+  },
+
+  showPlayFriend() {
+    // Placeholder - not implemented yet
+  },
+
+  showVariants() {
+    // Placeholder - not implemented yet
   },
 
   // --- Auth ---
