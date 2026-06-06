@@ -664,54 +664,41 @@ const App = {
 
     flameEl.className = 'streak-flame level-' + level;
 
-    // Wide flame with 3 tongues (matches chess.com proportions)
-    const outerFlame = 'M32 2 C30 5 26 8 24 12 C22 8 18 5 16 8 C12 14 10 24 10 34 C10 46 16 54 24 58 C28 60 32 60 32 60 C32 60 36 60 40 58 C48 54 54 46 54 34 C54 24 52 14 48 8 C46 5 42 8 40 12 C38 8 34 5 32 2Z';
-    const innerFlame = 'M32 10 C30 14 27 20 25 28 C22 38 24 48 28 52 C30 54 32 56 32 56 C32 56 34 54 36 52 C40 48 42 38 39 28 C37 20 34 14 32 10Z';
-    // Chess.com's exact pawn path (from chesscom_logo_pawn_flat.svg, viewBox 290x400)
-    // Scaled with transform to fit inside flame
-    const pawnPath = 'M145 366c108.1 0 111-20.2 111-21.5 0-27.4-9.9-54.9-31-70.9-43.8-33.5-49.3-63.4-50.1-82.2 0-5 0-9.2-.1-12.5h34c4-7.4 6-14.2 6-22.7l-38.5-25.4c13.4-9.7 22.1-25.5 22.1-43.3 0-29.6-23.9-53.5-53.3-53.5S91.7 57.9 91.7 87.5c0 17.8 8.7 33.6 22.1 43.3l-38.5 25.4c0 8.5 2 15.3 6 22.7h34c-.1 3.3-.1 7.5-.1 12.5-.8 18.8-6.3 48.7-50.1 82.2-21 15.9-31 43.5-31 70.9C34 345.8 36.9 366 145 366z';
-    const pawnTransform = 'translate(32,35) scale(0.07) translate(-145,-200)';
+    // Chess.com's exact SVG paths (from play-streak/small-icons, viewBox 0 0 120 121)
+    const outerFlame = 'M90.1233 49.4545C91.1408 57.1943 86.1038 61.3942 81.4828 62.2775C88.5489 37.0525 79.2316 14.8663 51.4199 0C53.1056 3.41137 54.0412 7.14234 54.1638 10.9434C54.054 31.2435 18 48.6982 18 80.8719C18 96.822 26.1705 106.452 34.4105 112.108C48.8339 122.008 69.676 122.735 84.5581 113.083C93.7141 107.145 102 96.8044 102 80.3218C101.505 67.3933 98.6808 59.18 90.1233 49.4545Z';
+    const innerFlame = 'M38.5687 68.6526C37.8347 74.2323 41.4686 77.2601 44.8024 77.8969C39.7046 59.7118 46.4265 43.7174 66.491 33C65.2749 35.4593 64.5999 38.149 64.5115 40.8893C64.5907 55.5239 90.6016 68.1074 90.6016 91.302C90.6016 114.497 66.617 119.151 66.617 119.151H54.4953C45.9042 117.889 30.0004 110.287 30.0004 90.9054C30.3575 81.585 32.395 75.6639 38.5687 68.6526Z';
+    const pawnUpper = 'M74 93L75.9737 86.1031L69.834 82.0555C71.7595 80.2062 73.0891 77.816 73.6504 75.1952C74.2116 72.5744 73.9786 69.844 72.9815 67.3585C71.9844 64.8729 70.2692 62.7469 68.0587 61.2565C65.8482 59.7661 63.2444 58.98 60.5852 59.0004C58.8383 58.9899 57.1064 59.3265 55.4885 59.9909C53.8706 60.6553 52.3984 61.6345 51.1558 62.8726C49.9132 64.1107 48.9247 65.5835 48.2466 67.2068C47.5686 68.8301 47.2143 70.5721 47.204 72.3335C47.2198 75.9419 48.6319 79.4016 51.1396 81.9762L45 86.0237L47 93H74Z';
+    const pawnShadow1 = 'M73.1807 84.2603C68.5 87.5 64.1024 85.9952 64.0217 86.0355C66.1404 85.0266 68.7435 83.2711 69.8427 82.0664L73.1807 84.2603Z';
+    const pawnBase = 'M52.9997 93C52.9997 108.979 37.8536 116.429 28.6051 107.326C46.0233 124.469 75.0087 124.329 91.5935 107.332C82.345 116.434 67.9997 108.979 67.9997 93L60.4046 90.3535L52.9997 93Z';
+    const pawnShadow2 = 'M69.7868 102.008L53 93H68C67.939 98.1906 69.7868 102.008 69.7868 102.008Z';
+
+    // Colors per level (from chess.com active-1 through active-10)
+    const levelColors = [
+      null,                                                  // level 0 = inactive
+      { outer: '#E3AA24', inner: '#F7C631' },                // level 1: golden amber
+      { outer: '#FA742C', inner: '#FFA459' },                // level 2: orange
+      { outer: '#940C45', inner: '#C4144F' },                // level 3: deep red
+      { outer: '#5D9948', inner: '#81B64C' },                // level 4: chess.com green
+    ];
 
     if (level === 0) {
+      // Inactive: single grey flame + pawn (no inner flame, matching chess.com inactive.svg)
       flameEl.innerHTML = `
-        <defs>
-          <linearGradient id="greyOuter" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop offset="0%" stop-color="#7a7a7a"/>
-            <stop offset="100%" stop-color="#555"/>
-          </linearGradient>
-          <linearGradient id="greyInner" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop offset="0%" stop-color="#8a8a8a"/>
-            <stop offset="100%" stop-color="#666"/>
-          </linearGradient>
-        </defs>
-        <path d="${outerFlame}" fill="url(#greyOuter)"/>
-        <path d="${innerFlame}" fill="url(#greyInner)"/>
-        <g transform="${pawnTransform}"><path d="${pawnPath}" fill="rgba(0,0,0,0.3)"/></g>
+        <path d="${outerFlame}" fill="#4B4847"/>
+        <path d="${pawnUpper}" fill="white"/>
+        <path d="${pawnShadow1}" fill="#BEBDB9" opacity="0.3"/>
+        <path d="${pawnBase}" fill="white"/>
+        <path d="${pawnShadow2}" fill="#BEBDB9" opacity="0.3"/>
       `;
     } else {
-      const colors = [
-        null,
-        { outer: ['#c49a2a', '#a67b1a'], inner: ['#e8c040', '#d4a030'] },
-        { outer: ['#caa22e', '#ad821e'], inner: ['#edca4a', '#d9a934'] },
-        { outer: ['#d0aa32', '#b48a22'], inner: ['#f2d454', '#deb238'] },
-        { outer: ['#d6b236', '#ba9226'], inner: ['#f7de5e', '#e3bb3c'] },
-      ];
-      const c = colors[level];
-
+      const c = levelColors[level];
       flameEl.innerHTML = `
-        <defs>
-          <linearGradient id="outerGrad" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop offset="0%" stop-color="${c.outer[0]}"/>
-            <stop offset="100%" stop-color="${c.outer[1]}"/>
-          </linearGradient>
-          <linearGradient id="innerGrad" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop offset="0%" stop-color="${c.inner[0]}"/>
-            <stop offset="100%" stop-color="${c.inner[1]}"/>
-          </linearGradient>
-        </defs>
-        <path d="${outerFlame}" fill="url(#outerGrad)"/>
-        <path d="${innerFlame}" fill="url(#innerGrad)"/>
-        <g transform="${pawnTransform}"><path d="${pawnPath}" fill="rgba(255,255,255,0.92)"/></g>
+        <path d="${outerFlame}" fill="${c.outer}"/>
+        <path d="${innerFlame}" fill="${c.inner}"/>
+        <path d="${pawnUpper}" fill="white"/>
+        <path d="${pawnShadow1}" fill="#BEBDB9" opacity="0.3"/>
+        <path d="${pawnBase}" fill="white"/>
+        <path d="${pawnShadow2}" fill="#BEBDB9" opacity="0.3"/>
       `;
     }
 
