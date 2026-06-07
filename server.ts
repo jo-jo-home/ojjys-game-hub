@@ -1,4 +1,5 @@
 import { serveDir } from "https://deno.land/std@0.224.0/http/file_server.ts";
+import { Chess } from "npm:chess.js@0.10.3";
 
 const GITHUB_RAW = "https://raw.githubusercontent.com/jo-jo-home/ojjys-game-hub/master/public";
 
@@ -56,6 +57,297 @@ function getSessionToken(req: Request): string | null {
 
 function isAuthenticated(req: Request): boolean {
   return getSessionToken(req) !== null;
+}
+
+// ========== Online chess multiplayer state ==========
+interface ActiveGame {
+  chess: any;
+  white: string; black: string;
+  wSocket: WebSocket | null; bSocket: WebSocket | null;
+  wTime: number; bTime: number; increment: number;
+  lastMoveAt: number; clockRunning: boolean;
+  clockInterval: ReturnType<typeof setInterval> | null;
+  timeControl: string; startedAt: number;
+  moves: string[];
+  drawOfferedBy: string | null;
+  disconnectTimer: ReturnType<typeof setTimeout> | null;
+}
+
+const matchmakingQueue = new Map<string, { ws: WebSocket; username: string; timeControl: string; queuedAt: number }>();
+const activeGames = new Map<string, ActiveGame>();
+const playerGameMap = new Map<string, string>();
+const playerSockets = new Map<string, WebSocket>();
+
+function parseTimeControl(tc: string): { time: number; increment: number } {
+  const [min, inc] = tc.split("|").map(Number);
+  return { time: (min || 5) * 60 * 1000, increment: (inc || 0) * 1000 };
+}
+
+function sendWs(ws: WebSocket | null, data: Record<string, unknown>) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(data));
+  }
+}
+
+async function endGame(gameId: string, result: string, winner: string | null) {
+  const game = activeGames.get(gameId);
+  if (!game) return;
+  if (game.clockInterval) clearInterval(game.clockInterval);
+  if (game.disconnectTimer) clearTimeout(game.disconnectTimer);
+
+  const msg = { type: "game_over", result, winner };
+  sendWs(game.wSocket, msg);
+  sendWs(game.bSocket, msg);
+
+  // Store game in KV for both players
+  const kv = await getKv();
+  const gameRecord = {
+    gameId, white: game.white, black: game.black,
+    result, winner, timeControl: game.timeControl,
+    moves: game.moves, startedAt: game.startedAt, endedAt: Date.now(),
+  };
+
+  await kv.set(["chess_games", game.white.toLowerCase(), gameId], gameRecord);
+  await kv.set(["chess_games", game.black.toLowerCase(), gameId], gameRecord);
+
+  // Update stats
+  for (const player of [game.white, game.black]) {
+    const key = ["chess_users", player.toLowerCase()];
+    const userData = await kv.get(key);
+    if (!userData.value) continue;
+    const u = userData.value as any;
+    const stats = u.stats || { wins: 0, losses: 0, draws: 0 };
+    if (!winner) {
+      stats.draws++;
+    } else if ((winner === "w" && player === game.white) || (winner === "b" && player === game.black)) {
+      stats.wins++;
+    } else {
+      stats.losses++;
+    }
+    await kv.set(key, { ...u, stats });
+  }
+
+  // Clean up
+  playerGameMap.delete(game.white.toLowerCase());
+  playerGameMap.delete(game.black.toLowerCase());
+  activeGames.delete(gameId);
+}
+
+async function getChessUserByToken(token: string): Promise<{ username: string; isGuest: boolean } | null> {
+  const kv = await getKv();
+  const session = await kv.get(["chess_sessions", token]);
+  if (session.value) return { username: (session.value as any).username, isGuest: false };
+  const guest = await kv.get(["chess_guest_sessions", token]);
+  if (guest.value) return { username: (guest.value as any).guestName, isGuest: true };
+  return null;
+}
+
+function handleWebSocket(ws: WebSocket, username: string) {
+  const ukey = username.toLowerCase();
+  playerSockets.set(ukey, ws);
+
+  // Check if player has an active game (reconnect)
+  const existingGameId = playerGameMap.get(ukey);
+  if (existingGameId) {
+    const game = activeGames.get(existingGameId);
+    if (game) {
+      const isWhite = game.white.toLowerCase() === ukey;
+      if (isWhite) game.wSocket = ws; else game.bSocket = ws;
+      if (game.disconnectTimer) { clearTimeout(game.disconnectTimer); game.disconnectTimer = null; }
+      // Notify opponent
+      const opponentSocket = isWhite ? game.bSocket : game.wSocket;
+      sendWs(opponentSocket, { type: "opponent_reconnected" });
+      // Send current game state
+      sendWs(ws, {
+        type: "game_start", gameId: existingGameId,
+        color: isWhite ? "w" : "b",
+        opponent: { username: isWhite ? game.black : game.white },
+        wTime: game.wTime, bTime: game.bTime, increment: game.increment,
+        fen: game.chess.fen(), moves: game.moves,
+      });
+    }
+  }
+
+  ws.onmessage = async (event) => {
+    let msg: any;
+    try { msg = JSON.parse(event.data as string); } catch { return; }
+
+    if (msg.type === "find_game") {
+      // Don't allow if already in a game
+      if (playerGameMap.has(ukey)) {
+        sendWs(ws, { type: "error", message: "Already in a game" });
+        return;
+      }
+      const tc = msg.timeControl || "5|0";
+      // Check queue for a match
+      let matched = false;
+      for (const [qKey, q] of matchmakingQueue) {
+        if (q.timeControl === tc && qKey !== ukey) {
+          // Match found
+          matchmakingQueue.delete(qKey);
+          const gameId = crypto.randomUUID();
+          const { time, increment } = parseTimeControl(tc);
+          const whiteIsNew = Math.random() < 0.5;
+          const white = whiteIsNew ? username : q.username;
+          const black = whiteIsNew ? q.username : username;
+          const game: ActiveGame = {
+            chess: new Chess(),
+            white, black,
+            wSocket: white === username ? ws : q.ws,
+            bSocket: black === username ? ws : q.ws,
+            wTime: time, bTime: time, increment,
+            lastMoveAt: Date.now(), clockRunning: false,
+            clockInterval: null, timeControl: tc,
+            startedAt: Date.now(), moves: [],
+            drawOfferedBy: null, disconnectTimer: null,
+          };
+          activeGames.set(gameId, game);
+          playerGameMap.set(white.toLowerCase(), gameId);
+          playerGameMap.set(black.toLowerCase(), gameId);
+
+          const base = { gameId, wTime: time, bTime: time, increment };
+          sendWs(game.wSocket, { type: "game_start", ...base, color: "w", opponent: { username: black } });
+          sendWs(game.bSocket, { type: "game_start", ...base, color: "b", opponent: { username: white } });
+
+          // Start clock check interval
+          game.clockInterval = setInterval(() => {
+            if (!game.clockRunning) return;
+            const now = Date.now();
+            const elapsed = now - game.lastMoveAt;
+            const turn = game.chess.turn();
+            if (turn === "w") {
+              if (game.wTime - elapsed <= 0) {
+                game.wTime = 0;
+                endGame(gameId, "timeout", "b");
+              }
+            } else {
+              if (game.bTime - elapsed <= 0) {
+                game.bTime = 0;
+                endGame(gameId, "timeout", "w");
+              }
+            }
+          }, 500);
+
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        matchmakingQueue.set(ukey, { ws, username, timeControl: tc, queuedAt: Date.now() });
+        sendWs(ws, { type: "searching", timeControl: tc });
+      }
+
+    } else if (msg.type === "cancel_search") {
+      matchmakingQueue.delete(ukey);
+      sendWs(ws, { type: "search_cancelled" });
+
+    } else if (msg.type === "move") {
+      const gameId = playerGameMap.get(ukey);
+      if (!gameId) { sendWs(ws, { type: "error", message: "No active game" }); return; }
+      const game = activeGames.get(gameId);
+      if (!game) return;
+
+      const isWhite = game.white.toLowerCase() === ukey;
+      const expectedTurn = game.chess.turn();
+      if ((isWhite && expectedTurn !== "w") || (!isWhite && expectedTurn !== "b")) {
+        sendWs(ws, { type: "error", message: "Not your turn" });
+        return;
+      }
+
+      const moveObj: any = { from: msg.from, to: msg.to };
+      if (msg.promotion) moveObj.promotion = msg.promotion;
+      const result = game.chess.move(moveObj);
+      if (!result) {
+        sendWs(ws, { type: "error", message: "Invalid move" });
+        return;
+      }
+
+      // Update clocks
+      const now = Date.now();
+      if (game.clockRunning) {
+        const elapsed = now - game.lastMoveAt;
+        if (expectedTurn === "w") {
+          game.wTime = Math.max(0, game.wTime - elapsed) + game.increment;
+        } else {
+          game.bTime = Math.max(0, game.bTime - elapsed) + game.increment;
+        }
+      }
+      game.lastMoveAt = now;
+      game.clockRunning = true;
+      game.drawOfferedBy = null;
+      game.moves.push(result.san);
+
+      const moveMsg = {
+        type: "move_made", from: msg.from, to: msg.to,
+        promotion: msg.promotion || null, san: result.san,
+        fen: game.chess.fen(),
+        wTime: game.wTime, bTime: game.bTime,
+        turn: game.chess.turn(),
+        captured: result.captured || null,
+        flags: result.flags,
+      };
+      sendWs(game.wSocket, moveMsg);
+      sendWs(game.bSocket, moveMsg);
+
+      // Check game over
+      if (game.chess.game_over()) {
+        if (game.chess.in_checkmate()) {
+          await endGame(gameId, "checkmate", expectedTurn);
+        } else if (game.chess.in_stalemate()) {
+          await endGame(gameId, "stalemate", null);
+        } else if (game.chess.in_draw()) {
+          await endGame(gameId, "draw", null);
+        } else if (game.chess.in_threefold_repetition()) {
+          await endGame(gameId, "repetition", null);
+        }
+      }
+
+    } else if (msg.type === "resign") {
+      const gameId = playerGameMap.get(ukey);
+      if (!gameId) return;
+      const game = activeGames.get(gameId);
+      if (!game) return;
+      const isWhite = game.white.toLowerCase() === ukey;
+      await endGame(gameId, "resign", isWhite ? "b" : "w");
+
+    } else if (msg.type === "offer_draw") {
+      const gameId = playerGameMap.get(ukey);
+      if (!gameId) return;
+      const game = activeGames.get(gameId);
+      if (!game) return;
+      game.drawOfferedBy = ukey;
+      const isWhite = game.white.toLowerCase() === ukey;
+      sendWs(isWhite ? game.bSocket : game.wSocket, { type: "draw_offered" });
+
+    } else if (msg.type === "accept_draw") {
+      const gameId = playerGameMap.get(ukey);
+      if (!gameId) return;
+      const game = activeGames.get(gameId);
+      if (!game || !game.drawOfferedBy || game.drawOfferedBy === ukey) return;
+      await endGame(gameId, "draw", null);
+    }
+  };
+
+  ws.onclose = () => {
+    playerSockets.delete(ukey);
+    matchmakingQueue.delete(ukey);
+
+    const gameId = playerGameMap.get(ukey);
+    if (gameId) {
+      const game = activeGames.get(gameId);
+      if (game) {
+        const isWhite = game.white.toLowerCase() === ukey;
+        if (isWhite) game.wSocket = null; else game.bSocket = null;
+        const opponentSocket = isWhite ? game.bSocket : game.wSocket;
+        sendWs(opponentSocket, { type: "opponent_disconnected" });
+
+        // Auto-resign after 60s
+        game.disconnectTimer = setTimeout(() => {
+          endGame(gameId, "abandon", isWhite ? "b" : "w");
+        }, 60000);
+      }
+    }
+  };
 }
 
 // Anti-inspect script injected into all HTML pages
@@ -712,6 +1004,31 @@ Deno.serve(async (req: Request) => {
       }});
       return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
     } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
+  }
+
+  // --- WebSocket endpoint for online play ---
+  if (url.pathname === "/api/ojjychess/ws") {
+    const token = url.searchParams.get("token");
+    if (!token) return new Response("Missing token", { status: 401 });
+    const user = await getChessUserByToken(token);
+    if (!user) return new Response("Invalid token", { status: 401 });
+    const { socket, response } = Deno.upgradeWebSocket(req);
+    handleWebSocket(socket, user.username);
+    return response;
+  }
+
+  // --- Game history endpoint ---
+  if (url.pathname === "/api/ojjychess/games" && req.method === "GET") {
+    const user = await getChessUser(req);
+    if (!user) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    const kv = await getKv();
+    const games: any[] = [];
+    const iter = kv.list({ prefix: ["chess_games", user.username.toLowerCase()] });
+    for await (const entry of iter) {
+      games.push(entry.value);
+    }
+    games.sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0));
+    return new Response(JSON.stringify(games.slice(0, 30)), { headers: JSON_HEADERS });
   }
 
   // --- Poll endpoint ---

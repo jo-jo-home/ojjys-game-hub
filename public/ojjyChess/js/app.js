@@ -249,6 +249,11 @@ const App = {
     document.getElementById('home-page').style.display = 'flex';
     document.getElementById('friends-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'none';
+    document.getElementById('stats-page').style.display = 'none';
+    document.getElementById('online-search-overlay').style.display = 'none';
+    document.getElementById('online-gameover-overlay').style.display = 'none';
+    document.getElementById('draw-offer-banner').style.display = 'none';
+    document.getElementById('disconnect-banner').style.display = 'none';
     this.showPlayMenu();
 
     // Update nav active state
@@ -272,6 +277,7 @@ const App = {
     document.getElementById('home-page').style.display = 'none';
     document.getElementById('friends-page').style.display = 'flex';
     document.getElementById('game-layout').style.display = 'none';
+    document.getElementById('stats-page').style.display = 'none';
 
     // Update nav active state
     document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
@@ -298,11 +304,31 @@ const App = {
     document.getElementById('left-nav').style.display = 'none';
     document.getElementById('home-page').style.display = 'none';
     document.getElementById('friends-page').style.display = 'none';
+    document.getElementById('stats-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
     Board.init('game-board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
     this.activeBoardId = 'game-board';
+
+    // Restore bot game controls
+    const controls = document.querySelector('.game-icon-controls');
+    if (controls) {
+      controls.innerHTML = `
+        <button class="icon-btn" onclick="App.resign()" title="Resign">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21V4h10l2 3H22v9H12l-2-3H6v8"/></svg>
+        </button>
+        <button class="icon-btn" onclick="App.undoMove()" title="Undo">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 015 5v2M3 10l5-5M3 10l5 5"/></svg>
+        </button>
+        <button class="icon-btn" onclick="App.showHint()" title="Hint">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6m-5 3h4M12 2a7 7 0 00-3 13.33V17h6v-1.67A7 7 0 0012 2z"/></svg>
+        </button>`;
+    }
+
+    // Update sidebar header for bots
+    const sidebarHeader = document.querySelector('#game-sidebar .sidebar-header span');
+    if (sidebarHeader) sidebarHeader.textContent = 'Play Bots';
   },
 
   _initSocial() {
@@ -314,6 +340,7 @@ const App = {
   showPlayMenu() {
     document.getElementById('play-menu').style.display = 'flex';
     document.getElementById('setup-panel').style.display = 'none';
+    document.getElementById('online-setup-panel').style.display = 'none';
   },
 
   showBotSetup() {
@@ -323,7 +350,45 @@ const App = {
   },
 
   showPlayOnline() {
-    // Placeholder - not implemented yet
+    document.getElementById('play-menu').style.display = 'none';
+    document.getElementById('setup-panel').style.display = 'none';
+    document.getElementById('online-setup-panel').style.display = 'flex';
+    // Ensure WS connected
+    OnlineGame.connect();
+  },
+
+  selectOnlineTC(btn) {
+    document.querySelectorAll('.online-tc-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    OnlineGame.selectedTC = btn.dataset.tc;
+  },
+
+  startOnlineSearch() {
+    OnlineGame.findGame(OnlineGame.selectedTC);
+  },
+
+  enterOnlineGameMode() {
+    document.body.className = 'game-mode';
+    document.getElementById('left-nav').style.display = 'none';
+    document.getElementById('home-page').style.display = 'none';
+    document.getElementById('friends-page').style.display = 'none';
+    document.getElementById('stats-page').style.display = 'none';
+    document.getElementById('game-layout').style.display = 'flex';
+
+    Board.init('game-board');
+    this.activeBoardId = 'game-board';
+
+    // Update sidebar controls for online game
+    const controls = document.querySelector('.game-icon-controls');
+    if (controls) {
+      controls.innerHTML = `
+        <button class="icon-btn" onclick="OnlineGame.resign()" title="Resign">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21V4h10l2 3H22v9H12l-2-3H6v8"/></svg>
+        </button>
+        <button class="icon-btn" onclick="OnlineGame.offerDraw()" title="Offer Draw">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-14v4m0 4h.01"/></svg>
+        </button>`;
+    }
   },
 
   showPlayFriend() {
@@ -332,6 +397,74 @@ const App = {
 
   showVariants() {
     // Placeholder - not implemented yet
+  },
+
+  // --- Stats page ---
+  async enterStatsMode() {
+    document.body.className = 'home-mode';
+    document.getElementById('home-page').style.display = 'none';
+    document.getElementById('game-layout').style.display = 'none';
+    document.getElementById('friends-page').style.display = 'none';
+    document.getElementById('left-nav').style.display = 'flex';
+    document.getElementById('stats-page').style.display = 'flex';
+
+    // Load profile
+    const profile = await Account.getProfile();
+    if (profile) {
+      document.getElementById('stats-avatar').textContent = profile.username[0].toUpperCase();
+      document.getElementById('stats-username').textContent = profile.username;
+      document.getElementById('stats-joined').textContent = profile.createdAt
+        ? 'Joined ' + new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        : '';
+      const stats = profile.stats || { wins: 0, losses: 0, draws: 0 };
+      document.getElementById('stat-wins').textContent = stats.wins;
+      document.getElementById('stat-losses').textContent = stats.losses;
+      document.getElementById('stat-draws').textContent = stats.draws;
+    }
+
+    // Load game history
+    try {
+      const token = localStorage.getItem('ojjychess_token');
+      const resp = await fetch('/api/ojjychess/games', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        const games = await resp.json();
+        this._renderGameHistory(games);
+      }
+    } catch {}
+  },
+
+  _renderGameHistory(games) {
+    const list = document.getElementById('game-history-list');
+    if (!games || games.length === 0) {
+      list.innerHTML = '<div class="history-empty">No games played yet</div>';
+      return;
+    }
+    const myName = (this.currentUser ? this.currentUser.username : '').toLowerCase();
+    list.innerHTML = games.map(g => {
+      const isWhite = g.white.toLowerCase() === myName;
+      const opponent = isWhite ? g.black : g.white;
+      let resultClass = 'draw';
+      let resultText = 'D';
+      if (g.winner) {
+        const iWon = (g.winner === 'w' && isWhite) || (g.winner === 'b' && !isWhite);
+        resultClass = iWon ? 'win' : 'loss';
+        resultText = iWon ? 'W' : 'L';
+      }
+      const date = g.endedAt ? new Date(g.endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const tc = g.timeControl || '';
+      return `<div class="history-row">
+        <span class="history-result ${resultClass}">${resultText}</span>
+        <span class="history-opponent">${opponent}</span>
+        <span class="history-tc">${tc.replace('|', '+')}</span>
+        <span class="history-date">${date}</span>
+      </div>`;
+    }).join('');
+  },
+
+  showGameHistory() {
+    this.enterStatsMode();
   },
 
   // --- Auth ---

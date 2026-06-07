@@ -132,6 +132,53 @@ body.game-mode {
   flex-shrink: 0;
 }
 
+/* Sidebar hover submenu */
+.left-nav-hover-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.left-nav-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  background: #262522;
+  border-radius: 8px;
+  padding: 8px 0;
+  min-width: 200px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  z-index: 200;
+  margin-left: 4px;
+}
+
+.left-nav-hover-wrap:hover .left-nav-submenu {
+  display: block;
+}
+
+.submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  color: #bababa;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+
+.submenu-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.submenu-item img {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
 /* ========== Home page ========== */
 .home-page {
   flex: 1;
@@ -1866,6 +1913,310 @@ body.game-mode {
   .home-features {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* ========== Online time control picker ========== */
+.online-tc-section {
+  padding: 8px 0;
+}
+
+.online-tc-section h3 {
+  font-size: 0.85rem;
+  color: #8b8987;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.online-tc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.online-tc-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  background: #262421;
+  border: 2px solid #3a3a3a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  color: #e0e0e0;
+}
+
+.online-tc-btn:hover {
+  border-color: #555;
+  background: #2a2927;
+}
+
+.online-tc-btn.selected {
+  border-color: #81b64c;
+  background: rgba(129,182,76,0.1);
+}
+
+.tc-time {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.tc-label {
+  font-size: 0.7rem;
+  color: #8b8987;
+  text-transform: uppercase;
+}
+
+/* ========== Stats page ========== */
+.stats-page {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+  background: #302e2b;
+}
+
+.stats-back-row {
+  padding: 12px 20px;
+  border-bottom: 1px solid #3a3a3a;
+  background: #262421;
+}
+
+.stats-content {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+.stats-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stats-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #81b64c;
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stats-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-username {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.stats-joined {
+  font-size: 0.85rem;
+  color: #8b8987;
+}
+
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: #262421;
+  border-radius: 8px;
+  padding: 20px 16px;
+  text-align: center;
+  border: 1px solid #3a3a3a;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.stat-card.stat-win .stat-value { color: #81b64c; }
+.stat-card.stat-loss .stat-value { color: #e04040; }
+.stat-card.stat-draw .stat-value { color: #bababa; }
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #8b8987;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stats-history h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin-bottom: 12px;
+}
+
+.game-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-empty {
+  color: #8b8987;
+  text-align: center;
+  padding: 32px;
+  font-size: 0.9rem;
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #262421;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.history-result {
+  font-weight: 700;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.history-result.win { color: #81b64c; }
+.history-result.loss { color: #e04040; }
+.history-result.draw { color: #bababa; }
+
+.history-opponent {
+  flex: 1;
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
+.history-tc {
+  color: #8b8987;
+  font-size: 0.75rem;
+}
+
+.history-date {
+  color: #8b8987;
+  font-size: 0.75rem;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* ========== Online search overlay ========== */
+.online-search-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.online-search-box {
+  background: #262421;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  min-width: 280px;
+}
+
+.search-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #3a3a3a;
+  border-top-color: #81b64c;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.search-text {
+  font-size: 1rem;
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
+.search-cancel {
+  background: #3a3a3a;
+  color: #e0e0e0;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.search-cancel:hover {
+  background: #4a4845;
+}
+
+/* ========== Draw offer / disconnect banners ========== */
+.draw-offer-banner, .disconnect-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #262421;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 400;
+  font-size: 0.9rem;
+  color: #e0e0e0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.draw-offer-banner button {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.draw-offer-banner button:first-of-type {
+  background: #81b64c;
+  color: #fff;
+}
+
+.draw-offer-banner button:last-of-type {
+  background: #3a3a3a;
+  color: #e0e0e0;
+}
+
+.disconnect-banner {
+  background: #5a2020;
+  border-color: #e04040;
 }
 
 @media (max-width: 768px) {

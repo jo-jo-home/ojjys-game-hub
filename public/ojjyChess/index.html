@@ -21,10 +21,34 @@
       </svg>
     </div>
     <div class="left-nav-items">
-      <a class="left-nav-item active" href="#" onclick="App.enterHomeMode(); return false">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07l-2.83 2.83M9.76 14.24l-2.83 2.83m11.14 0l-2.83-2.83M9.76 9.76L6.93 6.93" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
-        <span>Play</span>
-      </a>
+      <div class="left-nav-hover-wrap">
+        <a class="left-nav-item active" href="#" onclick="App.enterHomeMode(); return false">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07l-2.83 2.83M9.76 14.24l-2.83 2.83m11.14 0l-2.83-2.83M9.76 9.76L6.93 6.93" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+          <span>Play</span>
+        </a>
+        <div class="left-nav-submenu">
+          <div class="submenu-item" onclick="App.showPlayOnline()">
+            <img src="https://www.chess.com/bundles/web/images/color-icons/time-blitz.svg" width="24" height="24">
+            <span>Play Online</span>
+          </div>
+          <div class="submenu-item" onclick="App.showBotSetup()">
+            <img src="https://www.chess.com/bundles/web/images/color-icons/device-bot.svg" width="24" height="24">
+            <span>Play Bots</span>
+          </div>
+          <div class="submenu-item" onclick="App.enterStatsMode()">
+            <img src="https://www.chess.com/bundles/web/images/color-icons/leaderboard.svg" width="24" height="24">
+            <span>Stats</span>
+          </div>
+          <div class="submenu-item" onclick="App.showVariants()">
+            <img src="https://www.chess.com/bundles/web/images/color-icons/variants.svg" width="24" height="24">
+            <span>Variants</span>
+          </div>
+          <div class="submenu-item" onclick="App.showGameHistory()">
+            <img src="https://www.chess.com/bundles/web/images/color-icons/board-archive.svg" width="24" height="24">
+            <span>Game History</span>
+          </div>
+        </div>
+      </div>
       <a class="left-nav-item" href="#" onclick="return false">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.828 14.828a4 4 0 10-5.656-5.656 4 4 0 005.656 5.656z"/><path d="M9.172 14.828L4 20m10.828-5.172L20 20M9.172 9.172L4 4m10.828 5.172L20 4"/></svg>
         <span>Puzzles</span>
@@ -127,15 +151,67 @@
             </div>
 
             <div class="play-menu-footer">
-              <a class="play-menu-link" href="#" onclick="return false">
+              <a class="play-menu-link" href="#" onclick="App.showGameHistory(); return false">
                 <img src="https://www.chess.com/bundles/web/images/color-icons/board-archive.svg" width="20" height="20" alt="">
                 Game History
               </a>
-              <a class="play-menu-link" href="#" onclick="return false">
+              <a class="play-menu-link" href="#" onclick="App.enterStatsMode(); return false">
                 <img src="https://www.chess.com/bundles/web/images/color-icons/leaderboard.svg" width="20" height="20" alt="">
                 Leaderboard
               </a>
             </div>
+          </div>
+
+          <!-- Play Online setup panel -->
+          <div class="play-card" id="online-setup-panel" style="display:none">
+            <div class="setup-back-row">
+              <button class="setup-back-btn" onclick="App.showPlayMenu()">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              </button>
+              <h2>Play Online</h2>
+            </div>
+            <div class="online-tc-section">
+              <h3>Time Control</h3>
+              <div class="online-tc-grid">
+                <button class="online-tc-btn" data-tc="1|0" onclick="App.selectOnlineTC(this)">
+                  <span class="tc-time">1 min</span>
+                  <span class="tc-label">Bullet</span>
+                </button>
+                <button class="online-tc-btn" data-tc="1|1" onclick="App.selectOnlineTC(this)">
+                  <span class="tc-time">1 | 1</span>
+                  <span class="tc-label">Bullet</span>
+                </button>
+                <button class="online-tc-btn" data-tc="3|0" onclick="App.selectOnlineTC(this)">
+                  <span class="tc-time">3 min</span>
+                  <span class="tc-label">Blitz</span>
+                </button>
+                <button class="online-tc-btn" data-tc="3|2" onclick="App.selectOnlineTC(this)">
+                  <span class="tc-time">3 | 2</span>
+                  <span class="tc-label">Blitz</span>
+                </button>
+                <button class="online-tc-btn selected" data-tc="5|0" onclick="App.selectOnlineTC(this)">
+                  <span class="tc-time">5 min</span>
+                  <span class="tc-label">Blitz</span>
+                </button>
+                <button class="online-tc-btn" data-tc="5|3" onclick="App.selectOnlineTC(this)">
+                  <span class="tc-time">5 | 3</span>
+                  <span class="tc-label">Blitz</span>
+                </button>
+                <button class="online-tc-btn" data-tc="10|0" onclick="App.selectOnlineTC(this)">
+                  <span class="tc-time">10 min</span>
+                  <span class="tc-label">Rapid</span>
+                </button>
+                <button class="online-tc-btn" data-tc="15|10" onclick="App.selectOnlineTC(this)">
+                  <span class="tc-time">15 | 10</span>
+                  <span class="tc-label">Rapid</span>
+                </button>
+                <button class="online-tc-btn" data-tc="30|0" onclick="App.selectOnlineTC(this)">
+                  <span class="tc-time">30 min</span>
+                  <span class="tc-label">Classical</span>
+                </button>
+              </div>
+            </div>
+            <button class="play-btn" onclick="App.startOnlineSearch()">Play</button>
           </div>
 
           <!-- Bot setup panel (hidden, shown via Play Bots) -->
@@ -414,6 +490,69 @@
     </div>
   </div>
 
+  <!-- Stats page -->
+  <div id="stats-page" class="stats-page" style="display:none">
+    <div class="stats-back-row">
+      <button class="setup-back-btn" onclick="App.enterHomeMode()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m0 0l7 7m-7-7l7-7"/></svg>
+        Back
+      </button>
+    </div>
+    <div class="stats-content">
+      <div class="stats-header">
+        <div class="stats-avatar" id="stats-avatar"></div>
+        <div class="stats-info">
+          <div class="stats-username" id="stats-username"></div>
+          <div class="stats-joined" id="stats-joined"></div>
+        </div>
+      </div>
+      <div class="stats-cards">
+        <div class="stat-card stat-win"><div class="stat-value" id="stat-wins">0</div><div class="stat-label">Wins</div></div>
+        <div class="stat-card stat-loss"><div class="stat-value" id="stat-losses">0</div><div class="stat-label">Losses</div></div>
+        <div class="stat-card stat-draw"><div class="stat-value" id="stat-draws">0</div><div class="stat-label">Draws</div></div>
+      </div>
+      <div class="stats-history">
+        <h3>Recent Games</h3>
+        <div id="game-history-list" class="game-history-list">
+          <div class="history-empty">No games played yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Online search overlay -->
+  <div id="online-search-overlay" class="online-search-overlay" style="display:none">
+    <div class="online-search-box">
+      <div class="search-spinner"></div>
+      <p class="search-text">Searching for opponent...</p>
+      <button class="search-cancel" onclick="OnlineGame.cancelSearch()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Online game over overlay -->
+  <div id="online-gameover-overlay" class="gameover-overlay" style="display:none">
+    <div class="gameover-box">
+      <button class="gameover-close" onclick="OnlineGame.closeGameOver()">&times;</button>
+      <h2 id="online-gameover-title">Game Over</h2>
+      <p id="online-gameover-desc"></p>
+      <div class="online-gameover-players" id="online-gameover-players"></div>
+      <button class="gameover-primary" onclick="OnlineGame.rematch()">Rematch</button>
+      <button class="gameover-secondary" onclick="OnlineGame.backToHome()">Home</button>
+    </div>
+  </div>
+
+  <!-- Draw offer banner -->
+  <div id="draw-offer-banner" class="draw-offer-banner" style="display:none">
+    <span>Opponent offers a draw</span>
+    <button onclick="OnlineGame.acceptDraw()">Accept</button>
+    <button onclick="OnlineGame.declineDraw()">Decline</button>
+  </div>
+
+  <!-- Disconnect banner -->
+  <div id="disconnect-banner" class="disconnect-banner" style="display:none">
+    <span>Opponent disconnected. Waiting for reconnect...</span>
+  </div>
+
   <!-- Auth overlay -->
   <div id="auth-overlay" class="auth-overlay hidden">
     <div class="auth-box">
@@ -518,6 +657,7 @@
   <script src="js/friends.js"></script>
   <script src="js/messaging.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/online.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
