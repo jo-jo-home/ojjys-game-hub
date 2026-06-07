@@ -214,6 +214,63 @@
             <button class="play-btn" onclick="App.startOnlineSearch()">Play</button>
           </div>
 
+          <!-- Variants panel -->
+          <div class="play-card" id="variants-panel" style="display:none">
+            <div class="setup-back-row">
+              <button class="setup-back-btn" onclick="App.showPlayMenu()">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              </button>
+              <h2>Chess Variants</h2>
+            </div>
+            <div class="variants-list">
+              <button class="variant-card" onclick="App.startVariant('chess960')">
+                <div class="variant-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#e8c040" stroke-width="1.5"><path d="M12 2C10.5 2 9 3 9 5c0 1.5 1 2.5 1 2.5L8 10H6l-1 3h3l-1.5 7h11L16 13h3l-1-3h-2l-2-2.5S15 6.5 15 5c0-2-1.5-3-3-3z"/><path d="M7 2h2m6 0h2" stroke-width="2"/></svg>
+                </div>
+                <div class="variant-info">
+                  <span class="variant-name">Chess960</span>
+                  <span class="variant-desc">Fischer Random - randomized back rank</span>
+                </div>
+              </button>
+              <button class="variant-card" onclick="App.startVariant('kingofthehill')">
+                <div class="variant-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#e8c040" stroke-width="1.5"><path d="M12 2l3 6 6 1-4.5 4 1.5 6-6-3.5L6 19l1.5-6L3 9l6-1z"/></svg>
+                </div>
+                <div class="variant-info">
+                  <span class="variant-name">King of the Hill</span>
+                  <span class="variant-desc">Move your king to the center to win</span>
+                </div>
+              </button>
+              <button class="variant-card" onclick="App.startVariant('3check')">
+                <div class="variant-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#e04040" stroke-width="1.5"><path d="M12 9v4m0 3h.01M12 2a10 10 0 100 20 10 10 0 000-20z"/><text x="4" y="22" font-size="10" fill="#e04040" font-weight="bold">3</text></svg>
+                </div>
+                <div class="variant-info">
+                  <span class="variant-name">3-Check</span>
+                  <span class="variant-desc">Give 3 checks to win the game</span>
+                </div>
+              </button>
+              <button class="variant-card" onclick="App.startVariant('crazyhouse')">
+                <div class="variant-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#81b64c" stroke-width="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg>
+                </div>
+                <div class="variant-info">
+                  <span class="variant-name">Crazyhouse</span>
+                  <span class="variant-desc">Captured pieces can be dropped back</span>
+                </div>
+              </button>
+              <button class="variant-card variant-coming-soon" disabled>
+                <div class="variant-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#8b8987" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                </div>
+                <div class="variant-info">
+                  <span class="variant-name">Bughouse</span>
+                  <span class="variant-desc">Coming soon - 2v2 team chess</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <!-- Bot setup panel (hidden, shown via Play Bots) -->
           <div class="play-card" id="setup-panel" style="display:none">
             <div class="setup-back-row">
@@ -499,19 +556,116 @@
       </button>
     </div>
     <div class="stats-content">
+      <!-- Profile header -->
       <div class="stats-header">
         <div class="stats-avatar" id="stats-avatar"></div>
         <div class="stats-info">
           <div class="stats-username" id="stats-username"></div>
           <div class="stats-joined" id="stats-joined"></div>
+          <div class="stats-member-since" id="stats-member-since"></div>
         </div>
       </div>
-      <div class="stats-cards">
-        <div class="stat-card stat-win"><div class="stat-value" id="stat-wins">0</div><div class="stat-label">Wins</div></div>
-        <div class="stat-card stat-loss"><div class="stat-value" id="stat-losses">0</div><div class="stat-label">Losses</div></div>
-        <div class="stat-card stat-draw"><div class="stat-value" id="stat-draws">0</div><div class="stat-label">Draws</div></div>
+
+      <!-- Win/Loss/Draw overview -->
+      <div class="stats-section">
+        <h3>Overview</h3>
+        <div class="stats-overview-grid">
+          <div class="stat-card stat-win">
+            <div class="stat-value" id="stat-wins">0</div>
+            <div class="stat-label">Wins</div>
+          </div>
+          <div class="stat-card stat-loss">
+            <div class="stat-value" id="stat-losses">0</div>
+            <div class="stat-label">Losses</div>
+          </div>
+          <div class="stat-card stat-draw">
+            <div class="stat-value" id="stat-draws">0</div>
+            <div class="stat-label">Draws</div>
+          </div>
+        </div>
+        <!-- Win rate bar -->
+        <div class="winrate-bar-wrap">
+          <div class="winrate-bar">
+            <div class="winrate-seg winrate-win" id="winrate-win" style="width:0%"></div>
+            <div class="winrate-seg winrate-draw" id="winrate-draw" style="width:0%"></div>
+            <div class="winrate-seg winrate-loss" id="winrate-loss" style="width:0%"></div>
+          </div>
+          <div class="winrate-labels">
+            <span class="wrl-win" id="winrate-win-pct">0%</span>
+            <span class="wrl-draw" id="winrate-draw-pct">0%</span>
+            <span class="wrl-loss" id="winrate-loss-pct">0%</span>
+          </div>
+        </div>
       </div>
-      <div class="stats-history">
+
+      <!-- Games by type -->
+      <div class="stats-section">
+        <h3>Games by Time Control</h3>
+        <div class="stats-tc-grid" id="stats-tc-grid">
+          <div class="stats-tc-card">
+            <div class="stats-tc-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <div class="stats-tc-info">
+              <span class="stats-tc-name">Bullet</span>
+              <span class="stats-tc-count" id="tc-bullet">0 games</span>
+            </div>
+          </div>
+          <div class="stats-tc-card">
+            <div class="stats-tc-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </div>
+            <div class="stats-tc-info">
+              <span class="stats-tc-name">Blitz</span>
+              <span class="stats-tc-count" id="tc-blitz">0 games</span>
+            </div>
+          </div>
+          <div class="stats-tc-card">
+            <div class="stats-tc-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6h4"/></svg>
+            </div>
+            <div class="stats-tc-info">
+              <span class="stats-tc-name">Rapid</span>
+              <span class="stats-tc-count" id="tc-rapid">0 games</span>
+            </div>
+          </div>
+          <div class="stats-tc-card">
+            <div class="stats-tc-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C10.5 2 9 3 9 5c0 1.5 1 2.5 1 2.5L8 10H6l-1 3h3l-1.5 7h11L16 13h3l-1-3h-2l-2-2.5S15 6.5 15 5c0-2-1.5-3-3-3z"/></svg>
+            </div>
+            <div class="stats-tc-info">
+              <span class="stats-tc-name">Vs Bots</span>
+              <span class="stats-tc-count" id="tc-bots">0 games</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Additional stats -->
+      <div class="stats-section">
+        <h3>Performance</h3>
+        <div class="stats-perf-grid">
+          <div class="stats-perf-item">
+            <span class="perf-label">Total Games</span>
+            <span class="perf-value" id="perf-total">0</span>
+          </div>
+          <div class="stats-perf-item">
+            <span class="perf-label">Win Streak (Best)</span>
+            <span class="perf-value" id="perf-best-streak">0</span>
+          </div>
+          <div class="stats-perf-item">
+            <span class="perf-label">Current Streak</span>
+            <span class="perf-value" id="perf-current-streak">0</span>
+          </div>
+          <div class="stats-perf-item">
+            <span class="perf-label">Avg Game Length</span>
+            <span class="perf-value" id="perf-avg-moves">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent games -->
+      <div class="stats-section">
         <h3>Recent Games</h3>
         <div id="game-history-list" class="game-history-list">
           <div class="history-empty">No games played yet</div>

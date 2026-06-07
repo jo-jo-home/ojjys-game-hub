@@ -1915,6 +1915,67 @@ body.game-mode {
   }
 }
 
+/* ========== Variants panel ========== */
+.variants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.variant-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #262421;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+  color: inherit;
+  width: 100%;
+}
+
+.variant-card:hover:not(:disabled) {
+  border-color: #81b64c;
+  background: rgba(129,182,76,0.05);
+}
+
+.variant-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.variant-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #1a1917;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.variant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.variant-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.variant-desc {
+  font-size: 0.75rem;
+  color: #8b8987;
+}
+
 /* ========== Online time control picker ========== */
 .online-tc-section {
   padding: 8px 0;
@@ -1989,20 +2050,23 @@ body.game-mode {
   padding: 24px 20px;
 }
 
+/* Profile header */
 .stats-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #3a3a3a;
 }
 
 .stats-avatar {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: #81b64c;
   color: #fff;
-  font-size: 1.6rem;
+  font-size: 1.8rem;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -2013,11 +2077,11 @@ body.game-mode {
 .stats-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .stats-username {
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #e0e0e0;
 }
@@ -2027,17 +2091,37 @@ body.game-mode {
   color: #8b8987;
 }
 
-.stats-cards {
+.stats-member-since {
+  font-size: 0.75rem;
+  color: #6b6966;
+}
+
+/* Section blocks */
+.stats-section {
+  margin-bottom: 24px;
+}
+
+.stats-section h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #8b8987;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+/* W/L/D cards */
+.stats-overview-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 28px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .stat-card {
   background: #262421;
   border-radius: 8px;
-  padding: 20px 16px;
+  padding: 18px 14px;
   text-align: center;
   border: 1px solid #3a3a3a;
 }
@@ -2045,27 +2129,132 @@ body.game-mode {
 .stat-value {
   font-size: 2rem;
   font-weight: 700;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-card.stat-win .stat-value { color: #81b64c; }
 .stat-card.stat-loss .stat-value { color: #e04040; }
-.stat-card.stat-draw .stat-value { color: #bababa; }
+.stat-card.stat-draw .stat-value { color: #9e9e9e; }
 
 .stat-label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #8b8987;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.stats-history h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #e0e0e0;
-  margin-bottom: 12px;
+/* Win rate bar */
+.winrate-bar-wrap {
+  margin-top: 4px;
 }
 
+.winrate-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #3a3a3a;
+}
+
+.winrate-seg {
+  height: 100%;
+  transition: width 0.4s ease;
+  min-width: 0;
+}
+
+.winrate-win { background: #81b64c; }
+.winrate-draw { background: #9e9e9e; }
+.winrate-loss { background: #e04040; }
+
+.winrate-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.wrl-win { color: #81b64c; }
+.wrl-draw { color: #9e9e9e; }
+.wrl-loss { color: #e04040; }
+
+/* Time control cards */
+.stats-tc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.stats-tc-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #262421;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.stats-tc-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #3a3a3a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bababa;
+  flex-shrink: 0;
+}
+
+.stats-tc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stats-tc-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.stats-tc-count {
+  font-size: 0.75rem;
+  color: #8b8987;
+}
+
+/* Performance stats */
+.stats-perf-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.stats-perf-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #262421;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.perf-label {
+  font-size: 0.85rem;
+  color: #8b8987;
+}
+
+.perf-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #e0e0e0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Game history */
 .game-history-list {
   display: flex;
   flex-direction: column;
@@ -2094,11 +2283,12 @@ body.game-mode {
   width: 24px;
   text-align: center;
   flex-shrink: 0;
+  font-size: 0.8rem;
 }
 
 .history-result.win { color: #81b64c; }
 .history-result.loss { color: #e04040; }
-.history-result.draw { color: #bababa; }
+.history-result.draw { color: #9e9e9e; }
 
 .history-opponent {
   flex: 1;
@@ -2109,6 +2299,11 @@ body.game-mode {
 .history-tc {
   color: #8b8987;
   font-size: 0.75rem;
+}
+
+.history-moves {
+  color: #6b6966;
+  font-size: 0.7rem;
 }
 
 .history-date {

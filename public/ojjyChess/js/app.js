@@ -341,6 +341,7 @@ const App = {
     document.getElementById('play-menu').style.display = 'flex';
     document.getElementById('setup-panel').style.display = 'none';
     document.getElementById('online-setup-panel').style.display = 'none';
+    document.getElementById('variants-panel').style.display = 'none';
   },
 
   showBotSetup() {
@@ -396,7 +397,21 @@ const App = {
   },
 
   showVariants() {
-    // Placeholder - not implemented yet
+    document.getElementById('play-menu').style.display = 'none';
+    document.getElementById('setup-panel').style.display = 'none';
+    document.getElementById('online-setup-panel').style.display = 'none';
+    document.getElementById('variants-panel').style.display = 'flex';
+  },
+
+  startVariant(variant) {
+    // For now, Chess960 is the only playable variant
+    if (variant === 'chess960') {
+      this.pendingVariant = 'chess960';
+      this.showBotSetup();
+    } else {
+      // Others: show a quick alert for now
+      alert('This variant is coming soon!');
+    }
   },
 
   // --- Stats page ---
@@ -413,16 +428,44 @@ const App = {
     if (profile) {
       document.getElementById('stats-avatar').textContent = profile.username[0].toUpperCase();
       document.getElementById('stats-username').textContent = profile.username;
-      document.getElementById('stats-joined').textContent = profile.createdAt
-        ? 'Joined ' + new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      const joined = profile.createdAt ? new Date(profile.createdAt) : null;
+      document.getElementById('stats-joined').textContent = joined
+        ? 'Joined ' + joined.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
         : '';
+      if (joined) {
+        const days = Math.floor((Date.now() - joined.getTime()) / 86400000);
+        document.getElementById('stats-member-since').textContent =
+          days === 0 ? 'Member for less than a day' : `Member for ${days} day${days !== 1 ? 's' : ''}`;
+      }
       const stats = profile.stats || { wins: 0, losses: 0, draws: 0 };
       document.getElementById('stat-wins').textContent = stats.wins;
       document.getElementById('stat-losses').textContent = stats.losses;
       document.getElementById('stat-draws').textContent = stats.draws;
+
+      // Win rate bar
+      const total = stats.wins + stats.losses + stats.draws;
+      document.getElementById('perf-total').textContent = total;
+      if (total > 0) {
+        const wp = Math.round(stats.wins / total * 100);
+        const dp = Math.round(stats.draws / total * 100);
+        const lp = 100 - wp - dp;
+        document.getElementById('winrate-win').style.width = wp + '%';
+        document.getElementById('winrate-draw').style.width = dp + '%';
+        document.getElementById('winrate-loss').style.width = lp + '%';
+        document.getElementById('winrate-win-pct').textContent = wp + '% Win';
+        document.getElementById('winrate-draw-pct').textContent = dp + '% Draw';
+        document.getElementById('winrate-loss-pct').textContent = lp + '% Loss';
+      } else {
+        document.getElementById('winrate-win').style.width = '0%';
+        document.getElementById('winrate-draw').style.width = '0%';
+        document.getElementById('winrate-loss').style.width = '0%';
+        document.getElementById('winrate-win-pct').textContent = '0% Win';
+        document.getElementById('winrate-draw-pct').textContent = '0% Draw';
+        document.getElementById('winrate-loss-pct').textContent = '0% Loss';
+      }
     }
 
-    // Load game history
+    // Load game history and compute detailed stats
     try {
       const token = localStorage.getItem('ojjychess_token');
       const resp = await fetch('/api/ojjychess/games', {
@@ -431,8 +474,60 @@ const App = {
       if (resp.ok) {
         const games = await resp.json();
         this._renderGameHistory(games);
+        this._computeDetailedStats(games);
       }
     } catch {}
+  },
+
+  _computeDetailedStats(games) {
+    const myName = (this.currentUser ? this.currentUser.username : '').toLowerCase();
+    let bullet = 0, blitz = 0, rapid = 0, bots = 0;
+    let bestStreak = 0, currentStreak = 0, tempStreak = 0;
+    let totalMoves = 0, gamesWithMoves = 0;
+
+    // Sort by time ascending for streak calculation
+    const sorted = [...games].sort((a, b) => (a.endedAt || 0) - (b.endedAt || 0));
+
+    for (const g of sorted) {
+      // Count by time control
+      const tc = g.timeControl || '';
+      const mins = parseInt(tc.split('|')[0]) || 0;
+      if (g.white === 'Bot' || g.black === 'Bot' || !g.white || !g.black) {
+        bots++;
+      } else if (mins <= 2) {
+        bullet++;
+      } else if (mins <= 5) {
+        blitz++;
+      } else {
+        rapid++;
+      }
+
+      // Streaks
+      const isWhite = (g.white || '').toLowerCase() === myName;
+      const iWon = g.winner && ((g.winner === 'w' && isWhite) || (g.winner === 'b' && !isWhite));
+      if (iWon) {
+        tempStreak++;
+        if (tempStreak > bestStreak) bestStreak = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+      currentStreak = tempStreak;
+
+      // Average moves
+      if (g.moves && g.moves.length > 0) {
+        totalMoves += g.moves.length;
+        gamesWithMoves++;
+      }
+    }
+
+    document.getElementById('tc-bullet').textContent = bullet + ' game' + (bullet !== 1 ? 's' : '');
+    document.getElementById('tc-blitz').textContent = blitz + ' game' + (blitz !== 1 ? 's' : '');
+    document.getElementById('tc-rapid').textContent = rapid + ' game' + (rapid !== 1 ? 's' : '');
+    document.getElementById('tc-bots').textContent = bots + ' game' + (bots !== 1 ? 's' : '');
+    document.getElementById('perf-best-streak').textContent = bestStreak;
+    document.getElementById('perf-current-streak').textContent = currentStreak;
+    document.getElementById('perf-avg-moves').textContent =
+      gamesWithMoves > 0 ? Math.round(totalMoves / gamesWithMoves) + ' moves' : '--';
   },
 
   _renderGameHistory(games) {
@@ -443,20 +538,22 @@ const App = {
     }
     const myName = (this.currentUser ? this.currentUser.username : '').toLowerCase();
     list.innerHTML = games.map(g => {
-      const isWhite = g.white.toLowerCase() === myName;
+      const isWhite = (g.white || '').toLowerCase() === myName;
       const opponent = isWhite ? g.black : g.white;
       let resultClass = 'draw';
-      let resultText = 'D';
+      let resultText = 'Draw';
       if (g.winner) {
         const iWon = (g.winner === 'w' && isWhite) || (g.winner === 'b' && !isWhite);
         resultClass = iWon ? 'win' : 'loss';
-        resultText = iWon ? 'W' : 'L';
+        resultText = iWon ? 'Won' : 'Lost';
       }
       const date = g.endedAt ? new Date(g.endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
       const tc = g.timeControl || '';
+      const moves = g.moves ? Math.ceil(g.moves.length / 2) + ' moves' : '';
       return `<div class="history-row">
         <span class="history-result ${resultClass}">${resultText}</span>
-        <span class="history-opponent">${opponent}</span>
+        <span class="history-opponent">vs ${opponent || 'Unknown'}</span>
+        <span class="history-moves">${moves}</span>
         <span class="history-tc">${tc.replace('|', '+')}</span>
         <span class="history-date">${date}</span>
       </div>`;
@@ -650,7 +747,13 @@ const App = {
     this.moveHistory = [];
     this.gameActive = true;
 
-    ChessGame.newGame();
+    // Chess960 variant: generate random starting position
+    if (this.pendingVariant === 'chess960') {
+      ChessGame.newGame(this._generate960Fen());
+      this.pendingVariant = null;
+    } else {
+      ChessGame.newGame();
+    }
     this.botColor = this.playerColor === 'w' ? 'b' : 'w';
     Board.playerColor = this.playerColor;
 
@@ -980,6 +1083,37 @@ const App = {
         el.classList.remove('last-move-light', 'last-move-dark');
       });
     }
+  },
+
+  _generate960Fen() {
+    // Generate a valid Chess960 starting position
+    const pieces = new Array(8).fill(null);
+    const place = (piece, positions) => {
+      const idx = positions[Math.floor(Math.random() * positions.length)];
+      pieces[idx] = piece;
+      return idx;
+    };
+    // 1. Place bishops on opposite-colored squares
+    const lightSqs = [0, 2, 4, 6];
+    const darkSqs = [1, 3, 5, 7];
+    place('b', lightSqs);
+    place('b', darkSqs);
+    // 2. Place queen on any empty square
+    let empty = () => pieces.map((p, i) => p === null ? i : -1).filter(i => i >= 0);
+    place('q', empty());
+    // 3. Place knights on any 2 empty squares
+    place('n', empty());
+    place('n', empty());
+    // 4. Place rook, king, rook on remaining 3 squares (king between rooks)
+    const rem = empty();
+    pieces[rem[0]] = 'r';
+    pieces[rem[1]] = 'k';
+    pieces[rem[2]] = 'r';
+
+    const rank = pieces.map(p => p).join('');
+    const whiteRank = rank.toUpperCase();
+    const blackRank = rank;
+    return `${blackRank}/pppppppp/8/8/8/8/PPPPPPPP/${whiteRank} w KQkq - 0 1`;
   },
 
   _onClockFlag(color) {

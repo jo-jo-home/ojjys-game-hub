@@ -2,6 +2,7 @@ import { serveDir } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { Chess } from "npm:chess.js@0.10.3";
 
 const GITHUB_RAW = "https://raw.githubusercontent.com/jo-jo-home/ojjys-game-hub/master/public";
+const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN") || "";
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
@@ -1097,7 +1098,9 @@ ${ANTI_INSPECT}
   if (resp.status === 404) {
     // File not on disk — proxy from GitHub raw content
     try {
-      const ghResp = await fetch(`${GITHUB_RAW}${url.pathname}`);
+      const ghHeaders: Record<string, string> = {};
+      if (GITHUB_TOKEN) ghHeaders["Authorization"] = `token ${GITHUB_TOKEN}`;
+      const ghResp = await fetch(`${GITHUB_RAW}${url.pathname}`, { headers: ghHeaders });
       if (ghResp.ok) {
         const mime = getMime(url.pathname);
         if (mime === "text/html") {
