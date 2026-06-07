@@ -1105,7 +1105,7 @@ ${ANTI_INSPECT}
       if (ghPath.endsWith("/")) ghPath += "index.html";
       const ghResp = await fetch(`${GITHUB_RAW}${ghPath}`, { headers: ghHeaders });
       if (ghResp.ok) {
-        const mime = getMime(url.pathname);
+        const mime = getMime(ghPath);
         if (mime === "text/html") {
           const html = await ghResp.text();
           return new Response(html.replace("</head>", ANTI_INSPECT + "</head>"), {
