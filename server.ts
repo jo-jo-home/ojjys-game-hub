@@ -1070,6 +1070,62 @@ Deno.serve(async (req: Request) => {
     } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
   }
 
+  // --- Puzzle stats ---
+  if (url.pathname === "/api/ojjychess/puzzles/stats" && req.method === "GET") {
+    const user = await getChessUser(req);
+    if (!user) return new Response(JSON.stringify({ xp: 0, streak: 0 }), { headers: JSON_HEADERS });
+    const kv = await getKv();
+    const data = await kv.get(["chess_puzzle_stats", user.username.toLowerCase()]);
+    const stats = (data.value as any) || { xp: 0, streak: 0 };
+    return new Response(JSON.stringify(stats), { headers: JSON_HEADERS });
+  }
+
+  // --- Puzzle result ---
+  if (url.pathname === "/api/ojjychess/puzzles/result" && req.method === "POST") {
+    const user = await getChessUser(req);
+    if (!user) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    try {
+      const { solved } = await req.json();
+      const kv = await getKv();
+      const key = ["chess_puzzle_stats", user.username.toLowerCase()];
+      const existing = await kv.get(key);
+      const stats = (existing.value as any) || { xp: 0, streak: 0, solved: 0, attempted: 0 };
+
+      stats.attempted = (stats.attempted || 0) + 1;
+      if (solved) {
+        stats.xp = (stats.xp || 0) + 10;
+        stats.streak = (stats.streak || 0) + 1;
+        stats.solved = (stats.solved || 0) + 1;
+      } else {
+        stats.xp = Math.max(0, (stats.xp || 0) - 5);
+        stats.streak = 0;
+      }
+
+      await kv.set(key, stats);
+      return new Response(JSON.stringify(stats), { headers: JSON_HEADERS });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
+  }
+
+  // --- Puzzle leaderboard ---
+  if (url.pathname === "/api/ojjychess/puzzles/leaderboard" && req.method === "GET") {
+    const kv = await getKv();
+    const entries: any[] = [];
+    const iter = kv.list({ prefix: ["chess_puzzle_stats"] });
+    for await (const entry of iter) {
+      const val = entry.value as any;
+      const username = (entry.key[1] as string);
+      // Only include users with XP > 0
+      if (val && val.xp > 0) {
+        // Look up display name from user record
+        const userRecord = await kv.get(["chess_users", username]);
+        const displayName = userRecord.value ? (userRecord.value as any).username : username;
+        entries.push({ username: displayName, xp: val.xp, solved: val.solved || 0 });
+      }
+    }
+    entries.sort((a: any, b: any) => b.xp - a.xp);
+    return new Response(JSON.stringify(entries.slice(0, 25)), { headers: JSON_HEADERS });
+  }
+
   // --- Poll endpoint ---
   if (url.pathname === "/api/ojjychess/poll" && req.method === "GET") {
     const user = await getChessUser(req);

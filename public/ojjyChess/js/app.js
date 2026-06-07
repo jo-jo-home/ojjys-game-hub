@@ -252,6 +252,7 @@ const App = {
     document.getElementById('game-layout').style.display = 'none';
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'none';
+    document.getElementById('puzzle-page').style.display = 'none';
     document.getElementById('online-search-overlay').style.display = 'none';
     document.getElementById('online-gameover-overlay').style.display = 'none';
     document.getElementById('draw-offer-banner').style.display = 'none';
@@ -262,6 +263,7 @@ const App = {
     document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
     document.querySelector('.left-nav-items .left-nav-item').classList.add('active');
 
+    Puzzles._stopTimer();
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
     Board.getLegalMovesFor = null; // use default ChessGame
@@ -282,6 +284,7 @@ const App = {
     document.getElementById('game-layout').style.display = 'none';
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'none';
+    document.getElementById('puzzle-page').style.display = 'none';
 
     // Update nav active state
     document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
@@ -310,8 +313,10 @@ const App = {
     document.getElementById('friends-page').style.display = 'none';
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'none';
+    document.getElementById('puzzle-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
+    Puzzles._stopTimer();
     Board.init('game-board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
     Board.getLegalMovesFor = null; // use default ChessGame
@@ -381,8 +386,10 @@ const App = {
     document.getElementById('friends-page').style.display = 'none';
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'none';
+    document.getElementById('puzzle-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
+    Puzzles._stopTimer();
     Board.init('game-board');
     this.activeBoardId = 'game-board';
 
@@ -423,6 +430,7 @@ const App = {
     document.getElementById('left-nav').style.display = 'flex';
     document.getElementById('stats-page').style.display = 'flex';
     document.getElementById('history-page').style.display = 'none';
+    document.getElementById('puzzle-page').style.display = 'none';
 
     // Load profile
     const profile = await Account.getProfile();
@@ -565,6 +573,28 @@ const App = {
     this.enterHistoryMode();
   },
 
+  // --- Puzzles page ---
+  async enterPuzzlesMode() {
+    document.body.className = 'home-mode';
+    document.getElementById('left-nav').style.display = 'flex';
+    document.getElementById('home-page').style.display = 'none';
+    document.getElementById('friends-page').style.display = 'none';
+    document.getElementById('game-layout').style.display = 'none';
+    document.getElementById('stats-page').style.display = 'none';
+    document.getElementById('history-page').style.display = 'none';
+    document.getElementById('puzzle-page').style.display = 'flex';
+
+    // Update nav active state
+    document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.left-nav-item span').forEach(sp => {
+      if (sp.textContent === 'Puzzles') sp.parentElement.classList.add('active');
+    });
+
+    Board.init('puzzle-board');
+    this.activeBoardId = 'puzzle-board';
+    await Puzzles.init();
+  },
+
   // --- Game History page ---
   _historyGames: [],
   _historyFiltered: [],
@@ -580,6 +610,7 @@ const App = {
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('left-nav').style.display = 'flex';
     document.getElementById('history-page').style.display = 'flex';
+    document.getElementById('puzzle-page').style.display = 'none';
 
     // Fetch games
     try {

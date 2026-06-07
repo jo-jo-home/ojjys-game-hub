@@ -49,9 +49,9 @@
           </div>
         </div>
       </div>
-      <a class="left-nav-item nav-disabled" href="#" onclick="return false" title="Coming soon">
+      <a class="left-nav-item" href="#" onclick="App.enterPuzzlesMode(); return false">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.828 14.828a4 4 0 10-5.656-5.656 4 4 0 005.656 5.656z"/><path d="M9.172 14.828L4 20m10.828-5.172L20 20M9.172 9.172L4 4m10.828 5.172L20 4"/></svg>
-        <span>Puzzles</span><span class="nav-soon">soon</span>
+        <span>Puzzles</span>
       </a>
       <a class="left-nav-item nav-disabled" href="#" onclick="return false" title="Coming soon">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422A12.083 12.083 0 0121 14.07V17l-9 5-9-5v-2.93c0-1.18.34-2.34.98-3.34L12 14z"/></svg>
@@ -593,6 +593,79 @@
     </div>
   </div>
 
+  <!-- Puzzles page -->
+  <div id="puzzle-page" class="puzzle-page" style="display:none">
+    <div class="puzzle-topbar">
+      <button class="setup-back-btn" onclick="App.enterHomeMode()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <div class="puzzle-tabs">
+        <button id="puzzle-tab-puzzle" class="pz-tab active" onclick="Puzzles.setTab('puzzle')">Puzzles</button>
+        <button id="puzzle-tab-lb" class="pz-tab" onclick="Puzzles.setTab('leaderboard')">Leaderboard</button>
+      </div>
+    </div>
+
+    <!-- Main puzzle view -->
+    <div id="puzzle-main-content" class="puzzle-layout">
+      <div class="puzzle-board-area">
+        <div id="puzzle-board" class="board"></div>
+      </div>
+      <div class="puzzle-sidebar">
+        <div id="puzzle-xp-bar" class="puzzle-xp-bar"></div>
+        <div class="puzzle-info">
+          <div id="puzzle-number" class="puzzle-num"></div>
+          <div id="puzzle-theme" class="puzzle-theme"></div>
+          <div id="puzzle-rating" class="puzzle-rating" style="display:none"></div>
+          <div id="puzzle-goal" class="puzzle-goal"></div>
+        </div>
+        <div class="puzzle-streak-row">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#e8c040" stroke-width="2"><path d="M12 2C10 6 4 8 4 14a8 8 0 0016 0c0-6-6-8-8-12z"/></svg>
+          <span>Streak: <strong id="puzzle-streak">0</strong></span>
+        </div>
+        <div id="puzzle-timer-wrap" class="puzzle-timer-wrap" style="display:none">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          <span id="puzzle-timer">0:00</span>
+        </div>
+        <div id="puzzle-status" class="puzzle-status"></div>
+        <div id="puzzle-hint-area" class="puzzle-hint-area" style="display:none">
+          <div class="hint-coach">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#81b64c" stroke-width="2"><path d="M9 18h6m-5 3h4M12 2a7 7 0 00-3 13.33V17h6v-1.67A7 7 0 0012 2z"/></svg>
+            <span>Think about which piece is undefended.</span>
+          </div>
+        </div>
+        <div id="puzzle-controls" class="puzzle-controls"></div>
+        <button class="pz-settings-btn" onclick="Puzzles.openSettings()" title="Settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 8.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Leaderboard panel -->
+    <div id="puzzle-leaderboard-panel" class="puzzle-leaderboard-panel" style="display:none">
+      <h3>Puzzle Leaderboard</h3>
+      <div class="lb-header">
+        <span class="lb-pos">#</span>
+        <span class="lb-name">Player</span>
+        <span class="lb-rank">Rank</span>
+        <span class="lb-xp">XP</span>
+      </div>
+      <div id="puzzle-leaderboard-body" class="lb-body"></div>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="puzzle-settings-overlay" class="puzzle-settings-overlay" style="display:none">
+      <div class="puzzle-settings-modal">
+        <div class="psm-header">
+          <h3>Settings</h3>
+          <button class="psm-close" onclick="Puzzles.closeSettings()">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div id="puzzle-settings-body" class="psm-body"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Stats page -->
   <div id="stats-page" class="stats-page" style="display:none">
     <div class="stats-back-row">
@@ -876,6 +949,7 @@
   <script src="js/messaging.js"></script>
   <script src="js/notifications.js"></script>
   <script src="js/online.js"></script>
+  <script src="js/puzzles.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
