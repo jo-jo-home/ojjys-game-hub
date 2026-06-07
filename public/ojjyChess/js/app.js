@@ -250,6 +250,7 @@ const App = {
     document.getElementById('friends-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'none';
     document.getElementById('stats-page').style.display = 'none';
+    document.getElementById('history-page').style.display = 'none';
     document.getElementById('online-search-overlay').style.display = 'none';
     document.getElementById('online-gameover-overlay').style.display = 'none';
     document.getElementById('draw-offer-banner').style.display = 'none';
@@ -278,6 +279,7 @@ const App = {
     document.getElementById('friends-page').style.display = 'flex';
     document.getElementById('game-layout').style.display = 'none';
     document.getElementById('stats-page').style.display = 'none';
+    document.getElementById('history-page').style.display = 'none';
 
     // Update nav active state
     document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
@@ -305,6 +307,7 @@ const App = {
     document.getElementById('home-page').style.display = 'none';
     document.getElementById('friends-page').style.display = 'none';
     document.getElementById('stats-page').style.display = 'none';
+    document.getElementById('history-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
     Board.init('game-board');
@@ -374,6 +377,7 @@ const App = {
     document.getElementById('home-page').style.display = 'none';
     document.getElementById('friends-page').style.display = 'none';
     document.getElementById('stats-page').style.display = 'none';
+    document.getElementById('history-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
     Board.init('game-board');
@@ -422,6 +426,7 @@ const App = {
     document.getElementById('friends-page').style.display = 'none';
     document.getElementById('left-nav').style.display = 'flex';
     document.getElementById('stats-page').style.display = 'flex';
+    document.getElementById('history-page').style.display = 'none';
 
     // Load profile
     const profile = await Account.getProfile();
@@ -561,7 +566,199 @@ const App = {
   },
 
   showGameHistory() {
-    this.enterStatsMode();
+    this.enterHistoryMode();
+  },
+
+  // --- Game History page ---
+  _historyGames: [],
+  _historyFiltered: [],
+  _historyPage: 1,
+  _historyPerPage: 15,
+  _historyTab: 'all',
+
+  async enterHistoryMode() {
+    document.body.className = 'home-mode';
+    document.getElementById('home-page').style.display = 'none';
+    document.getElementById('game-layout').style.display = 'none';
+    document.getElementById('friends-page').style.display = 'none';
+    document.getElementById('stats-page').style.display = 'none';
+    document.getElementById('left-nav').style.display = 'flex';
+    document.getElementById('history-page').style.display = 'flex';
+
+    // Fetch games
+    try {
+      const token = localStorage.getItem('ojjychess_token');
+      const resp = await fetch('/api/ojjychess/games', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        this._historyGames = await resp.json();
+      } else {
+        this._historyGames = [];
+      }
+    } catch { this._historyGames = []; }
+
+    this._historyTab = 'all';
+    this._historyPage = 1;
+    document.querySelectorAll('.htab').forEach(t => t.classList.toggle('active', t.dataset.filter === 'all'));
+    this._applyHistoryFilters();
+  },
+
+  setHistoryTab(tab, btn) {
+    this._historyTab = tab;
+    this._historyPage = 1;
+    document.querySelectorAll('.htab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    this._applyHistoryFilters();
+  },
+
+  filterHistory() {
+    this._historyPage = 1;
+    this._applyHistoryFilters();
+  },
+
+  resetHistoryFilters() {
+    document.getElementById('history-result-filter').value = '';
+    document.getElementById('history-opponent-filter').value = '';
+    this._historyPage = 1;
+    this._applyHistoryFilters();
+  },
+
+  _applyHistoryFilters() {
+    const myName = (this.currentUser ? this.currentUser.username : '').toLowerCase();
+    let games = [...this._historyGames];
+
+    // Tab filter
+    if (this._historyTab === 'live') {
+      games = games.filter(g => g.white && g.black && g.white !== 'Bot' && g.black !== 'Bot');
+    } else if (this._historyTab === 'bot') {
+      games = games.filter(g => !g.white || !g.black || g.white === 'Bot' || g.black === 'Bot');
+    }
+
+    // Result filter
+    const resultFilter = document.getElementById('history-result-filter').value;
+    if (resultFilter) {
+      games = games.filter(g => {
+        const isWhite = (g.white || '').toLowerCase() === myName;
+        if (!g.winner) return resultFilter === 'draw';
+        const iWon = (g.winner === 'w' && isWhite) || (g.winner === 'b' && !isWhite);
+        return (resultFilter === 'win' && iWon) || (resultFilter === 'loss' && !iWon);
+      });
+    }
+
+    // Opponent filter
+    const oppFilter = document.getElementById('history-opponent-filter').value.toLowerCase().trim();
+    if (oppFilter) {
+      games = games.filter(g => {
+        const isWhite = (g.white || '').toLowerCase() === myName;
+        const opp = isWhite ? (g.black || '') : (g.white || '');
+        return opp.toLowerCase().includes(oppFilter);
+      });
+    }
+
+    this._historyFiltered = games;
+    document.getElementById('history-total').textContent = games.length;
+    this._renderHistoryTable();
+    this._renderHistoryPagination();
+  },
+
+  _renderHistoryTable() {
+    const tbody = document.getElementById('history-tbody');
+    const emptyMsg = document.getElementById('history-empty-msg');
+    const games = this._historyFiltered;
+    const start = (this._historyPage - 1) * this._historyPerPage;
+    const page = games.slice(start, start + this._historyPerPage);
+
+    if (games.length === 0) {
+      tbody.innerHTML = '';
+      emptyMsg.style.display = 'block';
+      return;
+    }
+    emptyMsg.style.display = 'none';
+
+    const myName = (this.currentUser ? this.currentUser.username : '').toLowerCase();
+
+    tbody.innerHTML = page.map(g => {
+      const tc = g.timeControl || '';
+      const mins = parseInt(tc.split('|')[0]) || 0;
+      const inc = parseInt(tc.split('|')[1]) || 0;
+      const tcLabel = inc > 0 ? `${mins}|${inc}` : `${mins} min`;
+
+      // TC icon
+      let tcIcon;
+      if (mins <= 2) {
+        tcIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
+      } else {
+        tcIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
+      }
+
+      const white = g.white || 'Unknown';
+      const black = g.black || 'Unknown';
+      const isWhite = white.toLowerCase() === myName;
+
+      // Result
+      const wScore = g.winner === 'w' ? '1' : g.winner === 'b' ? '0' : '\u00BD';
+      const bScore = g.winner === 'b' ? '1' : g.winner === 'w' ? '0' : '\u00BD';
+      const wClass = g.winner === 'w' ? 'win' : g.winner === 'b' ? 'loss' : 'draw';
+      const bClass = g.winner === 'b' ? 'win' : g.winner === 'w' ? 'loss' : 'draw';
+      const wIcon = wClass === 'win' ? '<svg viewBox="0 0 12 12"><path d="M2 10l4-4 4 4" stroke-linecap="round"/></svg>'
+        : wClass === 'loss' ? '<svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke-linecap="round"/></svg>'
+        : '<svg viewBox="0 0 12 12"><path d="M2 6h8" stroke-linecap="round"/></svg>';
+      const bIcon = bClass === 'win' ? '<svg viewBox="0 0 12 12"><path d="M2 10l4-4 4 4" stroke-linecap="round"/></svg>'
+        : bClass === 'loss' ? '<svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke-linecap="round"/></svg>'
+        : '<svg viewBox="0 0 12 12"><path d="M2 6h8" stroke-linecap="round"/></svg>';
+
+      const moves = g.moves ? Math.ceil(g.moves.length / 2) : '--';
+      const date = g.endedAt ? new Date(g.endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+      return `<tr>
+        <td>
+          <div class="ht-cell-players">
+            <div class="ht-tc">${tcIcon}<span class="ht-tc-label">${tcLabel}</span></div>
+            <div class="ht-names">
+              <div class="ht-player-row">
+                <span class="ht-color-sq white"></span>
+                <span class="ht-player-name ${isWhite ? 'me' : ''}">${white}</span>
+              </div>
+              <div class="ht-player-row">
+                <span class="ht-color-sq black"></span>
+                <span class="ht-player-name ${!isWhite ? 'me' : ''}">${black}</span>
+              </div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="ht-cell-result">
+            <div class="ht-result-row"><span>${wScore}</span><span class="ht-result-icon ${wClass}">${wIcon}</span></div>
+            <div class="ht-result-row"><span>${bScore}</span><span class="ht-result-icon ${bClass}">${bIcon}</span></div>
+          </div>
+        </td>
+        <td class="ht-cell-moves">${moves}</td>
+        <td class="ht-cell-date">${date}</td>
+      </tr>`;
+    }).join('');
+  },
+
+  _renderHistoryPagination() {
+    const el = document.getElementById('history-pagination');
+    const total = this._historyFiltered.length;
+    const pages = Math.ceil(total / this._historyPerPage);
+    if (pages <= 1) { el.innerHTML = ''; return; }
+
+    let html = `<button class="hp-btn" onclick="App._historyGoPage(${this._historyPage - 1})" ${this._historyPage <= 1 ? 'disabled' : ''}>&lt;</button>`;
+    for (let i = 1; i <= pages; i++) {
+      html += `<button class="hp-btn ${i === this._historyPage ? 'active' : ''}" onclick="App._historyGoPage(${i})">${i}</button>`;
+    }
+    html += `<button class="hp-btn" onclick="App._historyGoPage(${this._historyPage + 1})" ${this._historyPage >= pages ? 'disabled' : ''}>&gt;</button>`;
+    el.innerHTML = html;
+  },
+
+  _historyGoPage(p) {
+    const pages = Math.ceil(this._historyFiltered.length / this._historyPerPage);
+    if (p < 1 || p > pages) return;
+    this._historyPage = p;
+    this._renderHistoryTable();
+    this._renderHistoryPagination();
   },
 
   // --- Auth ---

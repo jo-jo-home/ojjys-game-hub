@@ -547,6 +547,52 @@
     </div>
   </div>
 
+  <!-- Game History page -->
+  <div id="history-page" class="history-page" style="display:none">
+    <div class="history-topbar">
+      <img src="https://www.chess.com/bundles/web/images/color-icons/board-archive.svg" width="32" height="32">
+      <h2>Game History (<span id="history-total">0</span>)</h2>
+    </div>
+    <div class="history-layout">
+      <div class="history-main">
+        <div class="history-tabs" id="history-tabs">
+          <button class="htab active" data-filter="all" onclick="App.setHistoryTab('all',this)">Recent</button>
+          <button class="htab" data-filter="live" onclick="App.setHistoryTab('live',this)">Live</button>
+          <button class="htab" data-filter="bot" onclick="App.setHistoryTab('bot',this)">Bot</button>
+        </div>
+        <div class="history-table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th class="ht-players">Players</th>
+                <th class="ht-result">Result</th>
+                <th class="ht-moves">Moves</th>
+                <th class="ht-date">Date</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody"></tbody>
+          </table>
+          <div class="history-empty-msg" id="history-empty-msg" style="display:none">No games found</div>
+        </div>
+        <div class="history-pagination" id="history-pagination"></div>
+      </div>
+      <div class="history-sidebar">
+        <h3>Game History</h3>
+        <select id="history-result-filter" class="history-select">
+          <option value="">Any Result</option>
+          <option value="win">Wins</option>
+          <option value="loss">Losses</option>
+          <option value="draw">Draws</option>
+        </select>
+        <input type="text" id="history-opponent-filter" class="history-input" placeholder="Opponent">
+        <div class="history-filter-btns">
+          <button class="hf-search" onclick="App.filterHistory()">Search</button>
+          <button class="hf-reset" onclick="App.resetHistoryFilters()">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Stats page -->
   <div id="stats-page" class="stats-page" style="display:none">
     <div class="stats-back-row">
