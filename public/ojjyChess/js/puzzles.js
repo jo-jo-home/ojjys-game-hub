@@ -57,7 +57,7 @@ const PUZZLE_DATA = [
     solution: ['e1e8'], playerColor: 'w',
     theme: 'Back Rank Mate', rating: 550, goal: 'Deliver checkmate'
   },
-  // === INTERMEDIATE (600-800) ===
+  // === INTERMEDIATE (600-800) — mix of 1-move and 2-move ===
   {
     id: 'p12', fen: 'r4rk1/ppp2ppp/2n5/3N4/2BP4/8/PPP2PPP/R3K2R w KQ - 0 1',
     solution: ['d5f6'], playerColor: 'w',
@@ -70,142 +70,142 @@ const PUZZLE_DATA = [
   },
   {
     id: 'p14', fen: 'r1b1k2r/ppppqppp/2n2n2/2b5/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 6 5',
-    solution: ['e4e5'], playerColor: 'w',
-    theme: 'Tactics', rating: 700, goal: 'Attack the knight with tempo'
+    solution: ['e4e5', 'f6d5', 'c3d5'], playerColor: 'w',
+    theme: 'Tactics', rating: 700, goal: 'Attack the knight and win material'
   },
   {
-    id: 'p15', fen: 'r1bq1rk1/ppp2ppp/2n2n2/3p4/1b1NP3/2N5/PPP1BPPP/R1BQ1RK1 w - - 0 7',
-    solution: ['e4d5'], playerColor: 'w',
-    theme: 'Opening', rating: 650, goal: 'Win the center pawn'
+    id: 'p15', fen: 'r2q1rk1/pp2ppbp/2np1np1/8/2PNP1b1/2N1BP2/PP2B1PP/R2Q1RK1 w - - 0 10',
+    solution: ['f3g4', 'f6g4', 'e3g5'], playerColor: 'w',
+    theme: 'Capture + Attack', rating: 700, goal: 'Win the bishop and attack with tempo'
   },
   {
-    id: 'p16', fen: 'r2q1rk1/pp2ppbp/2np1np1/8/2PNP1b1/2N1BP2/PP2B1PP/R2Q1RK1 w - - 0 10',
-    solution: ['f3g4'], playerColor: 'w',
-    theme: 'Capture', rating: 700, goal: 'Win the bishop'
+    id: 'p16', fen: 'rnb1k2r/pppp1ppp/5n2/2b1p1q1/2B1P3/5N2/PPPP1PPP/RNBQ1RK1 w kq - 6 5',
+    solution: ['f3e5', 'g5c1', 'd1f3'], playerColor: 'w',
+    theme: 'Tactics', rating: 750, goal: 'Sacrifice the knight and win it back with interest'
   },
   {
-    id: 'p17', fen: 'rnb1k2r/pppp1ppp/5n2/2b1p1q1/2B1P3/5N2/PPPP1PPP/RNBQ1RK1 w kq - 6 5',
-    solution: ['f3e5'], playerColor: 'w',
-    theme: 'Tactics', rating: 750, goal: 'Attack with a central knight'
-  },
-  {
-    id: 'p18', fen: 'r2qkb1r/ppp1pppp/2n2n2/3pN3/3P1Bb1/8/PPP1PPPP/RN1QKB1R b KQkq - 3 4',
+    id: 'p17', fen: 'r2qkb1r/ppp1pppp/2n2n2/3pN3/3P1Bb1/8/PPP1PPPP/RN1QKB1R b KQkq - 3 4',
     solution: ['g4d1'], playerColor: 'b',
     theme: 'Hanging Piece', rating: 750, goal: 'Win the undefended queen'
   },
-  // === ADVANCED (800-1000) ===
+  {
+    id: 'p18', fen: 'r1bq1rk1/ppp2ppp/2n2n2/3p4/1b1NP3/2N5/PPP1BPPP/R1BQ1RK1 w - - 0 7',
+    solution: ['e4d5', 'f6d5', 'c3d5'], playerColor: 'w',
+    theme: 'Opening', rating: 650, goal: 'Win the center pawn and recapture'
+  },
+  // === ADVANCED (800-1000) — mostly multi-move ===
   {
     id: 'p19', fen: 'r2q1rk1/ppp1bppp/2n5/3pN3/3Pn3/3B4/PPP2PPP/R1BQ1RK1 w - - 0 10',
-    solution: ['e5f7'], playerColor: 'w',
-    theme: 'Fork', rating: 800, goal: 'Fork the queen and rook'
+    solution: ['e5f7', 'f8f7', 'd3h7'], playerColor: 'w',
+    theme: 'Fork + Attack', rating: 800, goal: 'Fork the rook, then attack the king'
   },
   {
-    id: 'p20', fen: 'r1bqr1k1/pppp1ppp/2n2n2/2b5/2B1P3/3P1N2/PPP2PPP/RNBQR1K1 b - - 0 7',
-    solution: ['f6g4'], playerColor: 'b',
-    theme: 'Tactics', rating: 850, goal: 'Target the weak f2 pawn'
+    id: 'p20', fen: '3rr1k1/ppp2ppp/8/3Q4/8/8/PPP2PPP/4RRK1 w - - 0 1',
+    solution: ['d5g8', 'e8g8', 'e1e8'], playerColor: 'w',
+    theme: 'Sacrifice', rating: 850, goal: 'Sacrifice your queen for a back rank checkmate'
   },
   {
-    id: 'p21', fen: 'r3k2r/ppp2ppp/2n1bn2/3qp3/8/2NP1N2/PPP1BPPP/R2Q1RK1 b kq - 0 8',
-    solution: ['d5d3'], playerColor: 'b',
-    theme: 'Centralization', rating: 850, goal: 'Invade with the queen'
+    id: 'p21', fen: 'r1b1kb1r/ppppqppp/2n5/1B2p3/4n3/5N2/PPPP1PPP/RNBQ1RK1 w kq - 0 5',
+    solution: ['b5c6', 'd7c6', 'f3e5'], playerColor: 'w',
+    theme: 'Pin + Fork', rating: 900, goal: 'Pin, then exploit the weakened position'
   },
   {
     id: 'p22', fen: '2kr3r/ppp2ppp/2n5/3q4/3P4/2P1BN2/P4PPP/R2Q1RK1 b - - 0 12',
-    solution: ['d5f3'], playerColor: 'b',
-    theme: 'Tactics', rating: 900, goal: 'Win the knight'
+    solution: ['d5f3', 'g2f3', 'h8h2'], playerColor: 'b',
+    theme: 'Sacrifice + Attack', rating: 900, goal: 'Sacrifice the queen to crash through on the h-file'
   },
   {
-    id: 'p23', fen: 'r1b1kb1r/ppppqppp/2n5/1B2p3/4n3/5N2/PPPP1PPP/RNBQ1RK1 w kq - 0 5',
-    solution: ['b5c6'], playerColor: 'w',
-    theme: 'Pin', rating: 900, goal: 'Break the defense with a pin'
+    id: 'p23', fen: 'r1bqr1k1/pppp1ppp/2n2n2/2b5/2B1P3/3P1N2/PPP2PPP/RNBQR1K1 b - - 0 7',
+    solution: ['f6g4', 'h2h3', 'g4f2'], playerColor: 'b',
+    theme: 'Attack', rating: 950, goal: 'Target the weak f2 square with a knight maneuver'
   },
   {
-    id: 'p24', fen: '3rr1k1/ppp2ppp/8/3Q4/8/8/PPP2PPP/4RRK1 w - - 0 1',
-    solution: ['d5g8', 'e8g8', 'e1e8'], playerColor: 'w',
-    theme: 'Sacrifice', rating: 950, goal: 'Sacrifice your queen for checkmate'
+    id: 'p24', fen: 'r3k2r/ppp2ppp/2n1bn2/3qp3/8/2NP1N2/PPP1BPPP/R2Q1RK1 b kq - 0 8',
+    solution: ['d5d3', 'e2d3', 'e6d5'], playerColor: 'b',
+    theme: 'Exchange + Centralization', rating: 950, goal: 'Trade queens and centralize the bishop'
   },
-  // === EXPERT (1000-1200) ===
+  // === EXPERT (1000-1200) — all multi-move ===
   {
     id: 'p25', fen: 'r1bqk2r/2ppbppp/p1n2n2/1p2p3/4P3/1B3N2/PPPP1PPP/RNBQR1K1 w kq - 0 7',
-    solution: ['f3e5'], playerColor: 'w',
-    theme: 'Sacrifice', rating: 1000, goal: 'Sacrifice the knight to open the position'
+    solution: ['f3e5', 'c6e5', 'e1e5'], playerColor: 'w',
+    theme: 'Sacrifice + Recapture', rating: 1000, goal: 'Sacrifice the knight to win back with the rook'
   },
   {
     id: 'p26', fen: 'r4rk1/1bq1bppp/p2ppn2/1p6/3NP3/1BN1BP2/PPPQ2PP/2KR3R w - - 0 13',
-    solution: ['d4e6'], playerColor: 'w',
-    theme: 'Fork', rating: 1050, goal: 'Fork queen and rook with the knight'
+    solution: ['d4e6', 'f7e6', 'b3e6'], playerColor: 'w',
+    theme: 'Sacrifice + Fork', rating: 1050, goal: 'Sacrifice the knight then recapture with the bishop forking'
   },
   {
-    id: 'p27', fen: '2r2rk1/pp1qnppp/2n1p3/3pP3/3P4/1PN2N2/P3QPPP/R1B2RK1 w - - 0 14',
-    solution: ['f3d2'], playerColor: 'w',
-    theme: 'Maneuver', rating: 1050, goal: 'Reposition the knight to a better square'
+    id: 'p27', fen: 'r1b2rk1/ppq2ppp/2n1pn2/2pp4/1b1P4/2NBPN2/PP3PPP/R1BQ1RK1 w - - 0 8',
+    solution: ['d4c5', 'b4c5', 'e3d4'], playerColor: 'w',
+    theme: 'Pawn Play', rating: 1100, goal: 'Win the pawn and gain the bishop pair'
   },
   {
-    id: 'p28', fen: 'r1b2rk1/ppq2ppp/2n1pn2/2pp4/1b1P4/2NBPN2/PP3PPP/R1BQ1RK1 w - - 0 8',
-    solution: ['d4c5'], playerColor: 'w',
-    theme: 'Capture', rating: 1100, goal: 'Win the pawn and attack the bishop'
+    id: 'p28', fen: 'r3kb1r/1bqn1ppp/p2ppn2/1p6/3NP3/1BN1BP2/PPPQ2PP/R3K2R w KQkq - 0 10',
+    solution: ['d4c6', 'b7c6', 'e4e5'], playerColor: 'w',
+    theme: 'Sacrifice + Breakthrough', rating: 1100, goal: 'Sacrifice the knight to shatter the structure then advance'
   },
   {
-    id: 'p29', fen: 'r3kb1r/1bqn1ppp/p2ppn2/1p6/3NP3/1BN1BP2/PPPQ2PP/R3K2R w KQkq - 0 10',
-    solution: ['d4c6'], playerColor: 'w',
-    theme: 'Sacrifice', rating: 1100, goal: 'Sacrifice the knight to shatter the pawn structure'
+    id: 'p29', fen: 'r2qr1k1/pp1b1ppp/2n1pn2/2pp4/1bPP4/2NBPN2/PP3PPP/R1BQ1RK1 w - - 0 8',
+    solution: ['c4d5', 'e6d5', 'e3f4'], playerColor: 'w',
+    theme: 'Opening + Development', rating: 1150, goal: 'Open the center and activate the bishop'
   },
   {
-    id: 'p30', fen: 'r2qr1k1/pp1b1ppp/2n1pn2/2pp4/1bPP4/2NBPN2/PP3PPP/R1BQ1RK1 w - - 0 8',
-    solution: ['c4d5'], playerColor: 'w',
-    theme: 'Opening', rating: 1150, goal: 'Open the center with a pawn break'
+    id: 'p30', fen: '2r2rk1/pp1qnppp/2n1p3/3pP3/3P4/1PN2N2/P3QPPP/R1B2RK1 w - - 0 14',
+    solution: ['f3d2', 'd7c7', 'd2b3'], playerColor: 'w',
+    theme: 'Maneuver', rating: 1050, goal: 'Reposition the knight to a stronger outpost'
   },
-  // === MASTER (1200-1500) ===
+  // === MASTER (1200-1500) — all multi-move ===
   {
     id: 'p31', fen: '2r1r1k1/pb1n1pp1/1p2pn1p/q1pp4/2PP4/PP1BPN2/1BQN1PPP/R4RK1 w - - 0 16',
-    solution: ['c4d5'], playerColor: 'w',
-    theme: 'Pawn Break', rating: 1200, goal: 'Break through in the center'
+    solution: ['c4d5', 'e6d5', 'e3e4'], playerColor: 'w',
+    theme: 'Pawn Break', rating: 1200, goal: 'Break through in the center with two pawn moves'
   },
   {
     id: 'p32', fen: 'r1b2rk1/pp3ppp/1qnppn2/8/2PNP3/2N1BP2/PP4PP/R2Q1RK1 w - - 0 10',
-    solution: ['d4c6'], playerColor: 'w',
-    theme: 'Exchange Sacrifice', rating: 1250, goal: 'Give up the knight to damage the pawn structure'
+    solution: ['d4c6', 'b6c6', 'c3d5'], playerColor: 'w',
+    theme: 'Exchange + Outpost', rating: 1250, goal: 'Trade and plant a knight on the dominant square'
   },
   {
     id: 'p33', fen: '2rq1rk1/pp1bppbp/2np1np1/8/2PNP3/2N1BP2/PP2B1PP/R2Q1RK1 w - - 0 10',
-    solution: ['e4e5'], playerColor: 'w',
-    theme: 'Space', rating: 1300, goal: 'Gain space with a pawn advance'
+    solution: ['e4e5', 'd6e5', 'd4f5'], playerColor: 'w',
+    theme: 'Space + Sacrifice', rating: 1300, goal: 'Gain space then jump to an outpost'
   },
   {
     id: 'p34', fen: 'r2q1rk1/1pp2ppp/p1np4/4p1b1/2P1Pn2/2NP2P1/PP3PBP/R1BQ1RK1 w - - 0 11',
-    solution: ['g3f4'], playerColor: 'w',
-    theme: 'Capture', rating: 1350, goal: 'Win the knight'
+    solution: ['g3f4', 'g5f4', 'c1f4', 'e5f4', 'd1g4'], playerColor: 'w',
+    theme: 'Capture Chain', rating: 1350, goal: 'Win the knight and open lines to the king'
   },
   {
     id: 'p35', fen: 'r4rk1/1ppq1ppp/p1n1pn2/3p4/1b1P4/2NBPN2/PP1B1PPP/R2Q1RK1 w - - 0 9',
-    solution: ['e3e4'], playerColor: 'w',
-    theme: 'Center Control', rating: 1400, goal: 'Seize the center with a pawn push'
+    solution: ['e3e4', 'd5e4', 'd3e4', 'f6e4', 'c3e4'], playerColor: 'w',
+    theme: 'Center Control', rating: 1400, goal: 'Seize the center with a pawn exchange sequence'
   },
-  // === GRANDMASTER (1500+) ===
+  // === GRANDMASTER (1500+) — all multi-move ===
   {
     id: 'p36', fen: 'r2qk2r/pp1nbppp/2p1pn2/3p4/2PP4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 6',
-    solution: ['c4d5'], playerColor: 'w',
-    theme: 'Pawn Break', rating: 1500, goal: 'Create an isolated queen pawn position'
+    solution: ['c4d5', 'e6d5', 'f1d3'], playerColor: 'w',
+    theme: 'Pawn Break', rating: 1500, goal: 'Create an IQP position and develop the bishop actively'
   },
   {
     id: 'p37', fen: 'r1bq1rk1/pp2npbp/2npp1p1/2p5/4PP2/2NP1N2/PPP1B1PP/R1BQ1RK1 w - - 0 8',
-    solution: ['f4f5'], playerColor: 'w',
-    theme: 'Kingside Attack', rating: 1600, goal: 'Launch a kingside pawn storm'
+    solution: ['f4f5', 'g6f5', 'e4f5', 'e6f5', 'c1h6'], playerColor: 'w',
+    theme: 'Kingside Attack', rating: 1600, goal: 'Launch a kingside pawn storm and trade the fianchetto bishop'
   },
   {
     id: 'p38', fen: 'r3r1k1/pp1q1ppp/2nb4/3Np3/8/1P2P3/PBQ2PPP/R3KB1R w KQ - 0 15',
-    solution: ['d5f6'], playerColor: 'w',
-    theme: 'Fork', rating: 1650, goal: 'Fork the king and queen with the knight'
+    solution: ['d5f6', 'g7f6', 'b2f6', 'd7g4', 'f6h8'], playerColor: 'w',
+    theme: 'Fork + Attack', rating: 1650, goal: 'Fork the king and queen then invade'
   },
   {
     id: 'p39', fen: '2r2rk1/pp1qbppp/2n1pn2/3pN3/3P1B2/2PB4/PP3PPP/R2Q1RK1 w - - 0 12',
-    solution: ['e5c6'], playerColor: 'w',
-    theme: 'Exchange', rating: 1700, goal: 'Trade the knight to weaken the pawn structure'
+    solution: ['e5c6', 'd7c6', 'd3h7', 'g8h7', 'd1h5'], playerColor: 'w',
+    theme: 'Greek Gift', rating: 1700, goal: 'Sacrifice the bishop on h7 and launch a king hunt'
   },
   {
     id: 'p40', fen: 'r2q1rk1/pb1nbppp/1p2pn2/2p5/2PP4/2N2NP1/PPQ1PPBP/R1B2RK1 w - - 0 9',
-    solution: ['d4d5'], playerColor: 'w',
-    theme: 'Pawn Break', rating: 1800, goal: 'Sacrifice a pawn to open the long diagonal'
+    solution: ['d4d5', 'e6d5', 'c4d5', 'f6d5', 'c3d5'], playerColor: 'w',
+    theme: 'Pawn Break + Tactics', rating: 1800, goal: 'Sacrifice pawns to open the long diagonal and win material'
   },
 ];
 
