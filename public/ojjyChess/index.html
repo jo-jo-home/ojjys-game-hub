@@ -666,6 +666,58 @@
     </div>
   </div>
 
+  <!-- Variants page -->
+  <div id="variants-page" class="variants-page" style="display:none">
+    <div class="vp-preview" id="vp-preview">
+      <div class="vp-board-area">
+        <div id="vp-pocket-top" class="vp-pocket" style="display:none"></div>
+        <div class="vp-spell-cards" id="vp-spell-top" style="display:none">
+          <div class="vp-spell-card">Spell <span>x2</span></div>
+          <div class="vp-spell-card">Spell <span>x5</span></div>
+        </div>
+        <div class="vp-board" id="vp-board"></div>
+        <div class="vp-spell-cards" id="vp-spell-bottom" style="display:none">
+          <div class="vp-spell-card">Spell <span>x2</span></div>
+          <div class="vp-spell-card">Spell <span>x5</span></div>
+        </div>
+        <div id="vp-pocket-bottom" class="vp-pocket" style="display:none"></div>
+      </div>
+    </div>
+    <div class="vp-panel">
+      <div class="vp-panel-header">
+        <img src="https://www.chess.com/bundles/web/images/color-icons/variants.svg" width="28" height="28">
+        <h2>4 Player & Variants</h2>
+      </div>
+      <div class="vp-nav">
+        <button class="vp-nav-btn active">Home</button>
+        <button class="vp-nav-btn">Lobby</button>
+        <button class="vp-nav-btn">Arenas</button>
+        <button class="vp-nav-btn">Watch</button>
+        <button class="vp-nav-btn">Leaders</button>
+        <button class="vp-nav-btn">Archive</button>
+        <button class="vp-nav-btn">Friends</button>
+      </div>
+      <div class="vp-search-wrap">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8b8987" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" class="vp-search" placeholder="Search by title and game rules" oninput="Variants.filter(this.value)">
+      </div>
+      <div class="vp-categories">
+        <button class="vp-cat active" data-cat="most-popular" onclick="Variants.setCategory('most-popular')">Most Popular</button>
+        <button class="vp-cat" data-cat="featured" onclick="Variants.setCategory('featured')">Featured</button>
+        <button class="vp-cat" data-cat="more" onclick="Variants.setCategory('more')">More</button>
+      </div>
+      <div class="vp-list" id="vp-list"></div>
+      <div class="vp-footer">
+        <span class="vp-footer-user">ojjy</span>
+        <span class="vp-footer-sep">|</span>
+        <span class="vp-footer-link">Forum</span>
+        <span class="vp-footer-link">4PC</span>
+        <span class="vp-footer-stat">157 GAMES</span>
+        <span class="vp-footer-stat">1497 PLAYERS</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Stats page -->
   <div id="stats-page" class="stats-page" style="display:none">
     <div class="stats-back-row">
@@ -950,6 +1002,7 @@
   <script src="js/notifications.js"></script>
   <script src="js/online.js"></script>
   <script src="js/puzzles.js"></script>
+  <script src="js/variants.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -253,6 +253,7 @@ const App = {
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'none';
     document.getElementById('puzzle-page').style.display = 'none';
+    document.getElementById('variants-page').style.display = 'none';
     document.getElementById('online-search-overlay').style.display = 'none';
     document.getElementById('online-gameover-overlay').style.display = 'none';
     document.getElementById('draw-offer-banner').style.display = 'none';
@@ -285,6 +286,7 @@ const App = {
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'none';
     document.getElementById('puzzle-page').style.display = 'none';
+    document.getElementById('variants-page').style.display = 'none';
 
     // Update nav active state
     document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
@@ -314,6 +316,7 @@ const App = {
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'none';
     document.getElementById('puzzle-page').style.display = 'none';
+    document.getElementById('variants-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
     Puzzles._stopTimer();
@@ -387,6 +390,7 @@ const App = {
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'none';
     document.getElementById('puzzle-page').style.display = 'none';
+    document.getElementById('variants-page').style.display = 'none';
     document.getElementById('game-layout').style.display = 'flex';
 
     Puzzles._stopTimer();
@@ -411,10 +415,26 @@ const App = {
   },
 
   showVariants() {
-    document.getElementById('play-menu').style.display = 'none';
-    document.getElementById('setup-panel').style.display = 'none';
-    document.getElementById('online-setup-panel').style.display = 'none';
-    document.getElementById('variants-panel').style.display = 'flex';
+    this.enterVariantsMode();
+  },
+
+  enterVariantsMode() {
+    document.body.className = 'home-mode';
+    document.getElementById('left-nav').style.display = 'flex';
+    document.getElementById('home-page').style.display = 'none';
+    document.getElementById('friends-page').style.display = 'none';
+    document.getElementById('game-layout').style.display = 'none';
+    document.getElementById('stats-page').style.display = 'none';
+    document.getElementById('history-page').style.display = 'none';
+    document.getElementById('puzzle-page').style.display = 'none';
+    document.getElementById('variants-page').style.display = 'flex';
+
+    // No specific nav item for variants — clear active
+    document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
+
+    Puzzles._stopTimer();
+    Variants.init();
+    Variants.show();
   },
 
   startVariant(variant) {
@@ -431,6 +451,7 @@ const App = {
     document.getElementById('stats-page').style.display = 'flex';
     document.getElementById('history-page').style.display = 'none';
     document.getElementById('puzzle-page').style.display = 'none';
+    document.getElementById('variants-page').style.display = 'none';
 
     // Load profile
     const profile = await Account.getProfile();
@@ -583,6 +604,7 @@ const App = {
     document.getElementById('stats-page').style.display = 'none';
     document.getElementById('history-page').style.display = 'none';
     document.getElementById('puzzle-page').style.display = 'flex';
+    document.getElementById('variants-page').style.display = 'none';
 
     // Update nav active state
     document.querySelectorAll('.left-nav-item').forEach(el => el.classList.remove('active'));
@@ -611,6 +633,7 @@ const App = {
     document.getElementById('left-nav').style.display = 'flex';
     document.getElementById('history-page').style.display = 'flex';
     document.getElementById('puzzle-page').style.display = 'none';
+    document.getElementById('variants-page').style.display = 'none';
 
     // Fetch games
     try {
