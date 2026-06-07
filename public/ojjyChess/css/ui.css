@@ -2866,7 +2866,9 @@ body.game-mode {
   border: none;
   background: none;
   color: #8b8987;
+  font-family: 'Noto Sans', sans-serif;
   font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: color 0.15s;

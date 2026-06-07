@@ -17,7 +17,7 @@ const PUZZLE_DATA = [
     theme: 'Back Rank Mate', rating: 300, goal: 'Checkmate in one move'
   },
   {
-    id: 'p4', fen: '5rk1/ppp2ppp/3b4/8/8/8/PPP2PPP/4R1K1 w - - 0 1',
+    id: 'p4', fen: '6k1/ppp2ppp/3b4/8/8/8/PPP2PPP/4R1K1 w - - 0 1',
     solution: ['e1e8'], playerColor: 'w',
     theme: 'Back Rank Mate', rating: 350, goal: 'Checkmate in one move'
   },
