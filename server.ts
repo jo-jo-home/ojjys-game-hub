@@ -1085,19 +1085,26 @@ Deno.serve(async (req: Request) => {
     const user = await getChessUser(req);
     if (!user) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
     try {
-      const { solved } = await req.json();
+      const { solved, rating } = await req.json();
+      const r = typeof rating === "number" ? rating : 500;
       const kv = await getKv();
       const key = ["chess_puzzle_stats", user.username.toLowerCase()];
       const existing = await kv.get(key);
       const stats = (existing.value as any) || { xp: 0, streak: 0, solved: 0, attempted: 0 };
 
+      // XP scales with difficulty: easy puzzles give more XP, hard puzzles give less but cost more on fail
+      // Gain: 20 - floor(rating/100), clamped to [3, 18]
+      // Loss: floor(rating/200) + 1, clamped to [2, 10]
+      const gain = Math.max(3, Math.min(18, 20 - Math.floor(r / 100)));
+      const loss = Math.max(2, Math.min(10, Math.floor(r / 200) + 1));
+
       stats.attempted = (stats.attempted || 0) + 1;
       if (solved) {
-        stats.xp = (stats.xp || 0) + 10;
+        stats.xp = (stats.xp || 0) + gain;
         stats.streak = (stats.streak || 0) + 1;
         stats.solved = (stats.solved || 0) + 1;
       } else {
-        stats.xp = Math.max(0, (stats.xp || 0) - 5);
+        stats.xp = Math.max(0, (stats.xp || 0) - loss);
         stats.streak = 0;
       }
 
