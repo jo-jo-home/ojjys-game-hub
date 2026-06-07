@@ -158,12 +158,20 @@ function handleWebSocket(ws: WebSocket, username: string) {
       // Notify opponent
       const opponentSocket = isWhite ? game.bSocket : game.wSocket;
       sendWs(opponentSocket, { type: "opponent_reconnected" });
+      // Compute current clock times (deduct elapsed for active player)
+      let wTimeNow = game.wTime, bTimeNow = game.bTime;
+      if (game.clockRunning) {
+        const elapsed = Date.now() - game.lastMoveAt;
+        const turn = game.chess.turn();
+        if (turn === "w") wTimeNow = Math.max(0, wTimeNow - elapsed);
+        else bTimeNow = Math.max(0, bTimeNow - elapsed);
+      }
       // Send current game state
       sendWs(ws, {
         type: "game_start", gameId: existingGameId,
         color: isWhite ? "w" : "b",
         opponent: { username: isWhite ? game.black : game.white },
-        wTime: game.wTime, bTime: game.bTime, increment: game.increment,
+        wTime: wTimeNow, bTime: bTimeNow, increment: game.increment,
         fen: game.chess.fen(), moves: game.moves,
       });
     }
@@ -624,7 +632,7 @@ Deno.serve(async (req: Request) => {
       const user = await (await getKv()).get(["chess_users", sv.username.toLowerCase()]);
       if (!user.value) return new Response(JSON.stringify({ error: "user not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
       const uv = user.value as any;
-      return new Response(JSON.stringify({ username: uv.username, stats: uv.stats, isGuest: false }), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ username: uv.username, stats: uv.stats, isGuest: false, createdAt: uv.createdAt }), { headers: { "Content-Type": "application/json" } });
     }
 
     // Check guest session
@@ -1029,7 +1037,37 @@ Deno.serve(async (req: Request) => {
       games.push(entry.value);
     }
     games.sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0));
-    return new Response(JSON.stringify(games.slice(0, 30)), { headers: JSON_HEADERS });
+    return new Response(JSON.stringify(games.slice(0, 200)), { headers: JSON_HEADERS });
+  }
+
+  // Record a bot game
+  if (url.pathname === "/api/ojjychess/games" && req.method === "POST") {
+    const user = await getChessUser(req);
+    if (!user || user.isGuest) return new Response(JSON.stringify({ error: "login required" }), { status: 401, headers: JSON_HEADERS });
+    try {
+      const body = await req.json();
+      const { white, black, winner, result, timeControl, moves, startedAt, endedAt } = body;
+      if (!white || !black || !result) return new Response(JSON.stringify({ error: "missing fields" }), { status: 400, headers: JSON_HEADERS });
+      const kv = await getKv();
+      const gameId = crypto.randomUUID();
+      const gameRecord = { gameId, white, black, winner: winner || null, result, timeControl: timeControl || "bot", moves: moves || [], startedAt: startedAt || Date.now(), endedAt: endedAt || Date.now() };
+      await kv.set(["chess_games", user.username.toLowerCase(), gameId], gameRecord);
+
+      // Update stats
+      const userKey = ["chess_users", user.username.toLowerCase()];
+      const userData = await kv.get(userKey);
+      if (userData.value) {
+        const uv = userData.value as any;
+        const stats = uv.stats || { wins: 0, losses: 0, draws: 0 };
+        const myColor = white.toLowerCase() === user.username.toLowerCase() ? "w" : "b";
+        if (!winner) stats.draws++;
+        else if (winner === myColor) stats.wins++;
+        else stats.losses++;
+        await kv.set(userKey, { ...uv, stats });
+      }
+
+      return new Response(JSON.stringify({ ok: true, gameId }), { headers: JSON_HEADERS });
+    } catch { return new Response(JSON.stringify({ error: "invalid request" }), { status: 400, headers: JSON_HEADERS }); }
   }
 
   // --- Poll endpoint ---

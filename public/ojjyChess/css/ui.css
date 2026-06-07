@@ -132,6 +132,25 @@ body.game-mode {
   flex-shrink: 0;
 }
 
+.left-nav-item.nav-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  position: relative;
+}
+
+.nav-soon {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  color: #8b8987;
+  letter-spacing: 0.05em;
+  margin-left: auto;
+}
+
+.opt-toggle.opt-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 /* Sidebar hover submenu */
 .left-nav-hover-wrap {
   position: relative;

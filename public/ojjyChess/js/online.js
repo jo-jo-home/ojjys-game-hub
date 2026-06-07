@@ -119,10 +119,11 @@ const OnlineGame = {
     Board._createSquares();
     Board.render(this._getBoard());
 
-    // Override move handler
+    // Override move handler and legal move source for online
     Board.onMoveAttempt = (from, to, promotion) => {
       this.sendMove(from, to, promotion);
     };
+    Board.getLegalMovesFor = (sq) => this.localChess.moves({ square: sq, verbose: true });
 
     // Update player bars
     this._updatePlayerBars();
@@ -160,13 +161,14 @@ const OnlineGame = {
     }
 
     // Play sound
+    const isMyMove = (this.localChess.turn() !== this.playerColor);
     if (msg.captured) {
       Sound.play('capture');
     } else {
-      Sound.play('move');
+      Sound.play(isMyMove ? 'move-self' : 'move-opponent');
     }
     if (this.localChess.in_check()) {
-      Sound.play('check');
+      Sound.play('move-check');
     }
 
     // Update move list
@@ -192,19 +194,19 @@ const OnlineGame = {
     if (msg.result === 'checkmate') {
       title = iWon ? 'You Won!' : 'You Lost';
       desc = 'by checkmate';
-      Sound.play('gameover');
+      Sound.play('game-end');
     } else if (msg.result === 'resign') {
       title = iWon ? 'You Won!' : 'You Lost';
       desc = 'by resignation';
-      Sound.play('gameover');
+      Sound.play('game-end');
     } else if (msg.result === 'timeout') {
       title = iWon ? 'You Won!' : 'You Lost';
       desc = 'on time';
-      Sound.play('gameover');
+      Sound.play('game-end');
     } else if (msg.result === 'abandon') {
       title = iWon ? 'You Won!' : 'You Lost';
       desc = 'opponent abandoned';
-      Sound.play('gameover');
+      Sound.play('game-end');
     } else if (msg.result === 'draw') {
       title = 'Draw';
       desc = 'by agreement';
@@ -229,7 +231,7 @@ const OnlineGame = {
     document.getElementById('online-gameover-desc').textContent = desc;
 
     const playersEl = document.getElementById('online-gameover-players');
-    const myName = App.currentUser ? App.currentUser.username : 'You';
+    const myName = Account.user ? Account.user.username : 'You';
     playersEl.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:12px 0;font-size:0.95rem">
         <span style="color:${iWon ? '#81b64c' : isDraw ? '#bababa' : '#e04040'};font-weight:700">${myName}</span>
@@ -252,7 +254,7 @@ const OnlineGame = {
   _updatePlayerBars() {
     const topName = document.getElementById('game-top-name');
     const bottomName = document.getElementById('game-bottom-name');
-    const myName = App.currentUser ? App.currentUser.username : 'You';
+    const myName = Account.user ? Account.user.username : 'You';
 
     if (this.playerColor === 'w') {
       topName.textContent = this.opponentName;

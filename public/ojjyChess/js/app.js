@@ -217,6 +217,7 @@ const App = {
 
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
+    Board.getLegalMovesFor = null; // use default ChessGame
 
     ChessGame.newGame();
     Board.render(ChessGame.board());
@@ -263,6 +264,7 @@ const App = {
 
     Board.init('board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
+    Board.getLegalMovesFor = null; // use default ChessGame
     this.activeBoardId = 'board';
 
     ChessGame.newGame();
@@ -312,6 +314,7 @@ const App = {
 
     Board.init('game-board');
     Board.onMoveAttempt = (from, to, promotion) => this.handlePlayerMove(from, to, promotion);
+    Board.getLegalMovesFor = null; // use default ChessGame
     this.activeBoardId = 'game-board';
 
     // Restore bot game controls
@@ -408,14 +411,7 @@ const App = {
   },
 
   startVariant(variant) {
-    // For now, Chess960 is the only playable variant
-    if (variant === 'chess960') {
-      this.pendingVariant = 'chess960';
-      this.showBotSetup();
-    } else {
-      // Others: show a quick alert for now
-      alert('This variant is coming soon!');
-    }
+    // All variants currently disabled — no valid rule engine yet
   },
 
   // --- Stats page ---
@@ -485,7 +481,7 @@ const App = {
   },
 
   _computeDetailedStats(games) {
-    const myName = (this.currentUser ? this.currentUser.username : '').toLowerCase();
+    const myName = (Account.user ? Account.user.username : '').toLowerCase();
     let bullet = 0, blitz = 0, rapid = 0, bots = 0;
     let bestStreak = 0, currentStreak = 0, tempStreak = 0;
     let totalMoves = 0, gamesWithMoves = 0;
@@ -541,7 +537,7 @@ const App = {
       list.innerHTML = '<div class="history-empty">No games played yet</div>';
       return;
     }
-    const myName = (this.currentUser ? this.currentUser.username : '').toLowerCase();
+    const myName = (Account.user ? Account.user.username : '').toLowerCase();
     list.innerHTML = games.map(g => {
       const isWhite = (g.white || '').toLowerCase() === myName;
       const opponent = isWhite ? g.black : g.white;
@@ -625,7 +621,7 @@ const App = {
   },
 
   _applyHistoryFilters() {
-    const myName = (this.currentUser ? this.currentUser.username : '').toLowerCase();
+    const myName = (Account.user ? Account.user.username : '').toLowerCase();
     let games = [...this._historyGames];
 
     // Tab filter
@@ -676,7 +672,7 @@ const App = {
     }
     emptyMsg.style.display = 'none';
 
-    const myName = (this.currentUser ? this.currentUser.username : '').toLowerCase();
+    const myName = (Account.user ? Account.user.username : '').toLowerCase();
 
     tbody.innerHTML = page.map(g => {
       const tc = g.timeControl || '';
@@ -952,6 +948,7 @@ const App = {
     this.enterGameMode();
     this.moveHistory = [];
     this.gameActive = true;
+    this._gameStartedAt = Date.now();
 
     // Chess960 variant: generate random starting position
     if (this.pendingVariant === 'chess960') {
@@ -1240,16 +1237,16 @@ const App = {
     const playerKing = Board.findKing(this.playerColor, board);
     const botKing = Board.findKing(this.botColor, board);
 
+    let winner = null;
     if (result.type === 'checkmate' || result.type === 'resignation' || result.type === 'timeout') {
+      winner = result.winner;
       if (result.winner === this.playerColor) {
         title.textContent = 'You Beat ' + bot.name + '!';
         desc.textContent = result.type === 'resignation' ? 'by resignation' : result.type === 'timeout' ? 'on time' : 'by checkmate';
-        if (Account.isLoggedIn()) Account.updateStats('win');
         Board.setResultIcons(playerKing, botKing);
       } else {
         title.textContent = bot.name + ' Wins';
         desc.textContent = result.type === 'resignation' ? 'by resignation' : result.type === 'timeout' ? 'on time' : 'by checkmate';
-        if (Account.isLoggedIn()) Account.updateStats('loss');
         Board.setResultIcons(botKing, playerKing);
       }
     } else {
@@ -1257,7 +1254,18 @@ const App = {
       desc.textContent = result.type === 'stalemate' ? 'by stalemate' :
         result.type === 'repetition' ? 'by repetition' :
         result.type === 'insufficient' ? 'insufficient material' : 'draw';
-      if (Account.isLoggedIn()) Account.updateStats('draw');
+    }
+
+    // Persist bot game to history (also updates stats server-side)
+    if (Account.isLoggedIn() && !Account.isGuest) {
+      const playerName = Account.user ? Account.user.username : 'You';
+      this._recordBotGame({
+        white: this.playerColor === 'w' ? playerName : bot.name,
+        black: this.playerColor === 'b' ? playerName : bot.name,
+        winner, result: result.type,
+        timeControl: 'bot',
+        moves: ChessGame.engine ? ChessGame.engine.history() : [],
+      });
     }
 
     // Bot avatar + message
@@ -1357,6 +1365,17 @@ const App = {
       const data = await resp.json();
       this._renderStreak(data.streak || 0, data.todayPlayed || false, data.weekDays || []);
     } catch(e) { console.warn('loadStreak failed', e); }
+  },
+
+  async _recordBotGame(gameData) {
+    try {
+      await fetch('/api/ojjychess/games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + Account.token },
+        body: JSON.stringify({ ...gameData, startedAt: this._gameStartedAt || Date.now(), endedAt: Date.now() }),
+      });
+      await Account.getProfile();
+    } catch(e) {}
   },
 
   async recordStreak() {

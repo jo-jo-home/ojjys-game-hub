@@ -10,6 +10,8 @@ const Board = {
   playerColor: 'w',
   onMoveAttempt: null, // callback(from, to)
   onPromotionNeeded: null, // callback(from, to, resolve)
+  getLegalMovesFor: null, // callback(square) → move[] — set per mode
+  _listenersAttached: false,
 
   init(containerId) {
     this.el = document.getElementById(containerId);
@@ -63,49 +65,46 @@ const Board = {
   },
 
   _setupDragDrop() {
-    let startSq = null;
+    this._startSq = null;
 
-    this.el.addEventListener('pointerdown', (e) => {
+    // Remove old board listener when switching containers
+    if (this._boardDown && this._prevEl) {
+      this._prevEl.removeEventListener('pointerdown', this._boardDown);
+    }
+
+    this._boardDown = (e) => {
       const sq = e.target.closest('.square');
       if (!sq) return;
       const sqName = sq.dataset.square;
 
-      // If we already selected a square and click a legal move target
       if (this.selectedSquare && this.legalMoves.some(m => m.to === sqName)) {
         this._attemptMove(this.selectedSquare, sqName);
         return;
       }
 
-      // Check if there's a piece here that belongs to the current player
       const pieceEl = sq.querySelector('.piece');
-      if (!pieceEl) {
-        this.clearSelection();
-        return;
-      }
+      if (!pieceEl) { this.clearSelection(); return; }
+      if (pieceEl.dataset.color !== this.playerColor) { this.clearSelection(); return; }
 
-      const pieceColor = pieceEl.dataset.color;
-      if (pieceColor !== this.playerColor) {
-        this.clearSelection();
-        return;
-      }
-
-      // Select this square
-      startSq = sqName;
+      this._startSq = sqName;
       this.selectSquare(sqName);
 
-      // Start drag
       this.dragPiece = pieceEl;
       pieceEl.classList.add('dragging');
 
-      // Create ghost
       this.dragGhost = document.createElement('img');
       this.dragGhost.src = pieceEl.src;
       this.dragGhost.className = 'drag-ghost';
       document.body.appendChild(this.dragGhost);
       this._moveDragGhost(e.clientX, e.clientY);
-
       e.preventDefault();
-    });
+    };
+    this.el.addEventListener('pointerdown', this._boardDown);
+    this._prevEl = this.el;
+
+    // Document-level listeners only once
+    if (this._listenersAttached) return;
+    this._listenersAttached = true;
 
     document.addEventListener('pointermove', (e) => {
       if (!this.dragGhost) return;
@@ -115,26 +114,24 @@ const Board = {
     document.addEventListener('pointerup', (e) => {
       if (!this.dragGhost) return;
 
-      // Find which square we dropped on
       this.dragGhost.style.display = 'none';
       const dropEl = document.elementFromPoint(e.clientX, e.clientY);
       this.dragGhost.style.display = '';
 
       const sq = dropEl ? dropEl.closest('.square') : null;
 
-      // Clean up drag
       if (this.dragPiece) this.dragPiece.classList.remove('dragging');
       this.dragGhost.remove();
       this.dragGhost = null;
       this.dragPiece = null;
 
-      if (sq && startSq) {
+      if (sq && this._startSq) {
         const targetSq = sq.dataset.square;
-        if (targetSq !== startSq && this.legalMoves.some(m => m.to === targetSq)) {
-          this._attemptMove(startSq, targetSq);
+        if (targetSq !== this._startSq && this.legalMoves.some(m => m.to === targetSq)) {
+          this._attemptMove(this._startSq, targetSq);
         }
       }
-      startSq = null;
+      this._startSq = null;
     });
   },
 
@@ -185,9 +182,10 @@ const Board = {
     const el = this._getSquareEl(sqName);
     if (el) el.classList.add('selected');
 
-    // Show legal moves
-    if (typeof ChessGame !== 'undefined') {
-      this.legalMoves = ChessGame.getLegalMoves(sqName);
+    // Show legal moves via mode-specific callback
+    const getMoves = this.getLegalMovesFor || (typeof ChessGame !== 'undefined' ? (sq) => ChessGame.getLegalMoves(sq) : null);
+    if (getMoves) {
+      this.legalMoves = getMoves(sqName);
       this.legalMoves.forEach(m => {
         const targetEl = this._getSquareEl(m.to);
         if (!targetEl) return;
