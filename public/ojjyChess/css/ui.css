@@ -1044,7 +1044,57 @@ body.game-mode {
   gap: 12px;
 }
 
-.auth-form input {
+.auth-input-wrap {
+  display: flex;
+  align-items: center;
+  background: #1a1917;
+  border: 1px solid #4a4845;
+  border-radius: 6px;
+  padding: 0 12px;
+  transition: border-color 0.15s;
+}
+
+.auth-input-wrap:focus-within {
+  border-color: #81b64c;
+}
+
+.auth-input-icon {
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+
+.auth-input-wrap input {
+  border: none;
+  background: none;
+  padding: 12px 0;
+  color: #e0e0e0;
+  font-size: 1rem;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-input-wrap input::placeholder {
+  color: #6a6865;
+}
+
+.auth-eye-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.auth-eye-toggle:hover {
+  opacity: 1;
+}
+
+/* Standalone inputs (guest form) */
+.auth-form > input {
   padding: 10px 14px;
   border: 1px solid #4a4845;
   border-radius: 6px;
@@ -1054,25 +1104,26 @@ body.game-mode {
   outline: none;
 }
 
-.auth-form input:focus {
+.auth-form > input:focus {
   border-color: #81b64c;
 }
 
-.auth-form input::placeholder {
+.auth-form > input::placeholder {
   color: #6a6865;
 }
 
 .auth-form button[type="submit"] {
-  padding: 12px;
+  padding: 14px;
   border: none;
   border-radius: 8px;
   background: #81b64c;
   color: #fff;
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s;
   letter-spacing: 0.02em;
+  margin-top: 4px;
 }
 
 .auth-form button[type="submit"]:hover {

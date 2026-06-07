@@ -807,6 +807,15 @@ const App = {
     }
   },
 
+  togglePasswordVisibility(btn) {
+    const input = btn.parentElement.querySelector('input');
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    btn.innerHTML = isPassword
+      ? '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="#8b8987" d="M12 7c2.8 0 5 2.2 5 5 0 .7-.1 1.3-.4 1.9l2.9 2.9c1.5-1.3 2.7-3 3.4-4.8-1.7-4.4-6-7.5-11-7.5-1.4 0-2.7.3-4 .7l2.2 2.2c.6-.3 1.2-.4 1.9-.4zM2 4.3l2.3 2.3.4.4C3.1 8.3 1.9 10 1 12c1.7 4.4 6 7.5 11 7.5 1.5 0 3-.3 4.4-.8l.4.4 3 3 1.3-1.3L3.3 3 2 4.3zm5.5 5.5l1.6 1.6c0 .2-.1.4-.1.6 0 1.7 1.3 3 3 3 .2 0 .4 0 .6-.1l1.6 1.6c-.7.3-1.4.5-2.2.5-2.8 0-5-2.2-5-5 0-.8.2-1.5.5-2.2zm4.3-.8l3.2 3.2V12c0-1.7-1.3-3-3-3h-.2z"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="#8b8987" d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5zm0 12.5c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5zm0-8c-1.7 0-3 1.3-3 3s1.3 3 3 3 3-1.3 3-3-1.3-3-3-3z"/></svg>';
+  },
+
   showGuestForm() {
     document.getElementById('login-form').style.display = 'none';
     document.getElementById('register-form').style.display = 'none';
