@@ -1100,7 +1100,10 @@ ${ANTI_INSPECT}
     try {
       const ghHeaders: Record<string, string> = {};
       if (GITHUB_TOKEN) ghHeaders["Authorization"] = `token ${GITHUB_TOKEN}`;
-      const ghResp = await fetch(`${GITHUB_RAW}${url.pathname}`, { headers: ghHeaders });
+      // raw.githubusercontent.com doesn't resolve directories to index.html
+      let ghPath = url.pathname;
+      if (ghPath.endsWith("/")) ghPath += "index.html";
+      const ghResp = await fetch(`${GITHUB_RAW}${ghPath}`, { headers: ghHeaders });
       if (ghResp.ok) {
         const mime = getMime(url.pathname);
         if (mime === "text/html") {
