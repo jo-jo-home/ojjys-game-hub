@@ -4,9 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>ojjyChess</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/board.css">
   <link rel="stylesheet" href="css/ui.css">
   <link rel="stylesheet" href="css/social.css">
@@ -28,23 +25,23 @@
         </a>
         <div class="left-nav-submenu">
           <div class="submenu-item" onclick="App.showPlayOnline()">
-            <img src="https://www.chess.com/bundles/web/images/color-icons/time-blitz.svg" width="24" height="24">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="#e8a43a"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             <span>Play Online</span>
           </div>
           <div class="submenu-item" onclick="App.showBotSetup()">
-            <img src="https://www.chess.com/bundles/web/images/color-icons/device-bot.svg" width="24" height="24">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="#81b64c"><path d="M12 2a1 1 0 011 1v2h3a3 3 0 013 3v8a3 3 0 01-3 3H8a3 3 0 01-3-3V8a3 3 0 013-3h3V3a1 1 0 011-1zM9.5 10a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm5 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/></svg>
             <span>Play Bots</span>
           </div>
           <div class="submenu-item" onclick="App.enterStatsMode()">
-            <img src="https://www.chess.com/bundles/web/images/color-icons/leaderboard.svg" width="24" height="24">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="#e8a43a"><rect x="4" y="13" width="4" height="7" rx="1"/><rect x="10" y="5" width="4" height="15" rx="1"/><rect x="16" y="9" width="4" height="11" rx="1"/></svg>
             <span>Stats</span>
           </div>
           <div class="submenu-item" onclick="App.showVariants()">
-            <img src="https://www.chess.com/bundles/web/images/color-icons/variants.svg" width="24" height="24">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="#81b64c"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
             <span>Variants</span>
           </div>
           <div class="submenu-item" onclick="App.showGameHistory()">
-            <img src="https://www.chess.com/bundles/web/images/color-icons/board-archive.svg" width="24" height="24">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="#c4802d"><path d="M3 3h18v18H3V3zm2 2v6h6V5H5zm8 0v6h6V5h-6zm-8 8v6h6v-6H5zm8 0v6h6v-6h-6z" fill-rule="evenodd"/></svg>
             <span>Game History</span>
           </div>
         </div>
@@ -118,7 +115,7 @@
 
             <div class="play-menu-cards">
               <button class="play-menu-card" onclick="App.showPlayOnline()">
-                <img class="play-menu-icon" src="https://www.chess.com/bundles/web/images/color-icons/time-blitz.svg" alt="">
+                <svg class="play-menu-icon" viewBox="0 0 24 24" fill="#e8a43a"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                 <div class="play-menu-text">
                   <span class="play-menu-title">Play Online</span>
                   <span class="play-menu-desc">Play vs a person of similar skill</span>
@@ -126,7 +123,7 @@
               </button>
 
               <button class="play-menu-card" onclick="App.showBotSetup()">
-                <img class="play-menu-icon" src="https://www.chess.com/bundles/web/images/color-icons/device-bot.svg" alt="">
+                <svg class="play-menu-icon" viewBox="0 0 24 24" fill="#81b64c"><path d="M12 2a1 1 0 011 1v2h3a3 3 0 013 3v8a3 3 0 01-3 3H8a3 3 0 01-3-3V8a3 3 0 013-3h3V3a1 1 0 011-1zM9.5 10a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm5 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/></svg>
                 <div class="play-menu-text">
                   <span class="play-menu-title">Play Bots</span>
                   <span class="play-menu-desc">Challenge a bot from Easy to Master</span>
@@ -134,7 +131,7 @@
               </button>
 
               <button class="play-menu-card" onclick="App.showPlayFriend()">
-                <img class="play-menu-icon" src="https://www.chess.com/bundles/web/images/color-icons/hand-shake.svg" alt="">
+                <svg class="play-menu-icon" viewBox="0 0 24 24" fill="#5ba4cf"><path d="M2 11l4-4 3.5 1L12 6l5.5 2L22 11l-3 3-2-1-2 2-2-1-2 2-2-1-2 2-3-3zm4.5 1l1.5 1.5L9.5 12 11 13.5 12.5 12l1.5 1.5L15.5 12l1.5 1.5 1-1-4-3.5-3.5 1L7 13l-.5-1z"/></svg>
                 <div class="play-menu-text">
                   <span class="play-menu-title">Play a Friend</span>
                   <span class="play-menu-desc">Invite a friend to a game of chess</span>
@@ -142,7 +139,7 @@
               </button>
 
               <button class="play-menu-card" onclick="App.showVariants()">
-                <img class="play-menu-icon" src="https://www.chess.com/bundles/web/images/color-icons/variants.svg" alt="">
+                <svg class="play-menu-icon" viewBox="0 0 24 24" fill="#81b64c"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
                 <div class="play-menu-text">
                   <span class="play-menu-title">Chess Variants</span>
                   <span class="play-menu-desc">Find fun new ways to play chess</span>
@@ -152,11 +149,11 @@
 
             <div class="play-menu-footer">
               <a class="play-menu-link" href="#" onclick="App.showGameHistory(); return false">
-                <img src="https://www.chess.com/bundles/web/images/color-icons/board-archive.svg" width="20" height="20" alt="">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#c4802d"><path d="M3 3h18v18H3V3zm2 2v6h6V5H5zm8 0v6h6V5h-6zm-8 8v6h6v-6H5zm8 0v6h6v-6h-6z" fill-rule="evenodd"/></svg>
                 Game History
               </a>
               <a class="play-menu-link" href="#" onclick="App.enterStatsMode(); return false">
-                <img src="https://www.chess.com/bundles/web/images/color-icons/leaderboard.svg" width="20" height="20" alt="">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#e8a43a"><rect x="4" y="13" width="4" height="7" rx="1"/><rect x="10" y="5" width="4" height="15" rx="1"/><rect x="16" y="9" width="4" height="11" rx="1"/></svg>
                 Leaderboard
               </a>
             </div>
@@ -550,7 +547,7 @@
   <!-- Game History page -->
   <div id="history-page" class="history-page" style="display:none">
     <div class="history-topbar">
-      <img src="https://www.chess.com/bundles/web/images/color-icons/board-archive.svg" width="32" height="32">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="#c4802d"><path d="M3 3h18v18H3V3zm2 2v6h6V5H5zm8 0v6h6V5h-6zm-8 8v6h6v-6H5zm8 0v6h6v-6h-6z" fill-rule="evenodd"/></svg>
       <h2>Game History (<span id="history-total">0</span>)</h2>
     </div>
     <div class="history-layout">
@@ -685,7 +682,7 @@
     </div>
     <div class="vp-panel">
       <div class="vp-panel-header">
-        <img src="https://www.chess.com/bundles/web/images/color-icons/variants.svg" width="28" height="28">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="#81b64c"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
         <h2>4 Player & Variants</h2>
       </div>
       <div class="vp-nav">

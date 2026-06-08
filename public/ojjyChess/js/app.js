@@ -2,7 +2,7 @@
 const Sound = {
   muted: localStorage.getItem('ojjychess-muted') === 'true',
   _cache: {},
-  _base: 'https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/',
+  _base: 'assets/sounds/',
   _names: ['game-start','game-end','capture','castle','move-self','move-opponent','move-check','promote','illegal','notify','tenseconds'],
   play(name) {
     if (this.muted) return;
