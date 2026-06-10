@@ -1225,10 +1225,10 @@ ${ANTI_INSPECT}
   if (ct.includes("text/html")) {
     const html = await resp.text();
     const injected = html.replace("</head>", ANTI_INSPECT + "</head>");
-    return new Response(injected, {
-      status: resp.status,
-      headers: { ...Object.fromEntries(resp.headers), "Cache-Control": "no-store" },
-    });
+    const hdrs = new Headers(resp.headers);
+    hdrs.delete("content-length");
+    hdrs.set("Cache-Control", "no-store");
+    return new Response(injected, { status: resp.status, headers: hdrs });
   }
 
   // Let non-HTML game assets cache normally
