@@ -489,6 +489,7 @@ const GAMES = [
   { id: "coreball", name: "Coreball", desc: "pin the pins", icon: true },
   { id: "cookieclicker", name: "Cookie Clicker", desc: "click the cookie", icon: true },
   { id: "ojjyChess", name: "ojjyChess", desc: "chess.com-style chess", icon: true },
+  { id: "resentclient", name: "Resent Client", desc: "eaglercraft pvp client", icon: true },
 ];
 
 function buildHubPage(token: string): string {
