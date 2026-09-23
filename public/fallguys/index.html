@@ -4211,7 +4211,10 @@
   </script>
   <script type="module">
     "use strict";
-    window.C3_RegisterSW = async function() {
+    // Renamed to disable: see the note in ovo/index.html. Its sw.js was a
+    // failed download that was committed as text, so registration always
+    // threw anyway. The hub's worker at / handles offline mode.
+    window.C3_RegisterSW_disabled = async function() {
       if (navigator.serviceWorker) try {
         const e = await navigator.serviceWorker.register("sw.js", {
           scope: "./"

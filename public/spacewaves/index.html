@@ -37,9 +37,12 @@
 	
     <script>
 	  window.addEventListener("load", function () {
-        if ("serviceWorker" in navigator) {
-          navigator.serviceWorker.register("ServiceWorker.js");
-        }
+        // Disabled: ServiceWorker.js was never shipped with this game, so
+        // this 404'd on every load, and the hub proxies misses through to
+        // GitHub. The hub's own worker at / handles offline mode.
+        // if ("serviceWorker" in navigator) {
+        //   navigator.serviceWorker.register("ServiceWorker.js");
+        // }
       });
 	  
 	  const container = document.querySelector("#unity-container");

@@ -123,7 +123,12 @@
 		
 		// Runtime calls this global method when ready to start caching (i.e. after startup).
 		// This registers the service worker which caches resources for offline support.
-		window.C2_RegisterSW = function C2_RegisterSW()
+		// Renamed to disable: this registered a worker at scope /ovo/, and the
+		// most specific scope wins, so it shadowed the hub's own worker at /
+		// and offline downloads for OvO were never served. The call site in
+		// c2runtime.js is guarded by if (window["C2_RegisterSW"]), so under a
+		// different name it is simply never called.
+		window.C2_RegisterSW_disabled = function C2_RegisterSW()
 		{
 			if (!navigator.serviceWorker)
 				return;		// no SW support, ignore call
