@@ -14,7 +14,45 @@ const MIME: Record<string, string> = {
   ".wasm": "application/wasm", ".unityweb": "application/octet-stream",
   ".data": "application/octet-stream", ".swf": "application/x-shockwave-flash",
   ".xml": "application/xml", ".txt": "text/plain", ".mem": "application/octet-stream",
+  ".webmanifest": "application/manifest+json",
 };
+
+// Offline mode files, served before the password check on purpose: the
+// browser re-fetches sw.js periodically to look for updates, and if a cold
+// isolate answered that with a redirect to /login the browser would throw
+// the service worker away and offline mode would quietly stop working.
+// Nothing here is secret — the game list is already on the hub page.
+const OFFLINE_FILES: Record<string, string> = {
+  "/sw.js": "application/javascript",
+  "/offline.js": "application/javascript",
+  "/offline-manifest.json": "application/json",
+  "/manifest.webmanifest": "application/manifest+json",
+};
+
+// The commit sha offline downloads are pinned to. Branch refs on
+// raw.githubusercontent.com have been seen to 404 for files that resolve
+// fine by sha, and a sha also stops a push mid-download from mixing two
+// versions of a game together. Cached for an hour per isolate.
+let _rev = { sha: "", at: 0 };
+async function getRev(): Promise<string> {
+  if (_rev.sha && Date.now() - _rev.at < 3600_000) return _rev.sha;
+  try {
+    const headers: Record<string, string> = {
+      "Accept": "application/vnd.github+json",
+      "User-Agent": "ojjys-game-hub",
+    };
+    if (GITHUB_TOKEN) headers["Authorization"] = `token ${GITHUB_TOKEN}`;
+    const resp = await fetch(
+      "https://api.github.com/repos/jo-jo-home/ojjys-game-hub/commits/master",
+      { headers },
+    );
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.sha) _rev = { sha: data.sha, at: Date.now() };
+    }
+  } catch { /* keep whatever we had */ }
+  return _rev.sha || "master";
+}
 
 function getMime(path: string): string {
   const i = path.lastIndexOf(".");
@@ -507,9 +545,11 @@ function buildHubPage(token: string): string {
 ${THEME_CSS}
 ${THEME_SCRIPT}
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);min-height:100vh;display:flex;flex-direction:column}header{text-align:center;padding:3rem 1rem 2rem;position:relative;animation:fin .5s ease}header h1{font-size:2.4rem;font-weight:300;color:var(--text);letter-spacing:.05em}header p{margin-top:.5rem;font-size:.95rem;color:var(--dim)}.hdr-btns{position:absolute;top:1.2rem;right:1.2rem;display:flex;gap:8px}.stg-btn{background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:10px;padding:6px 14px;color:var(--dim);font-size:.8rem;cursor:pointer;transition:background .2s,border-color .2s,color .2s;text-decoration:none}.stg-btn:hover{background:var(--bg3);border-color:var(--accent);color:var(--text2)}main{flex:1;max-width:900px;width:100%;margin:0 auto;padding:2rem 1.5rem}.sr{display:block;width:100%;max-width:400px;margin:0 auto 2rem;padding:.7rem 1.2rem;border:1px solid var(--border);border-radius:999px;background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--text);font-size:1rem;outline:none;transition:border-color .2s,box-shadow .2s}.sr:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}.sr::placeholder{color:var(--faint)}.gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.2rem;animation:fin .5s ease}.gc{background:color-mix(in srgb,var(--bg2) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:16px;padding:2rem 1.5rem;text-align:center;text-decoration:none;color:var(--text2);transition:background .2s,border-color .2s,transform .2s,box-shadow .2s;position:relative}.gc:hover{background:var(--bg3);border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 18%,transparent)}.gc img{width:64px;height:64px;object-fit:contain;margin-bottom:.8rem}.gc h2{font-size:1.15rem;font-weight:500;color:var(--text)}.gc p{margin-top:.4rem;font-size:.85rem;color:var(--dim)}.sb{position:absolute;top:8px;right:8px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--faint);line-height:1;padding:4px;transition:color .2s,transform .15s}.sb:hover{color:#f0c040;transform:scale(1.15)}.sb.a{color:#f0c040;animation:pop .25s ease}@keyframes pop{50%{transform:scale(1.35)}}footer{text-align:center;padding:2rem 1rem;font-size:.85rem;color:var(--faint);border-top:1px solid var(--border)}footer a{color:var(--faint);margin-left:.5rem;text-decoration:none;cursor:pointer;transition:color .2s}footer a:hover{color:var(--dim)}.cm-ov{position:fixed;top:0;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:900;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem}.cm-ov.open{display:flex}.cm{width:100%;max-width:520px;margin-top:2rem;animation:fin .3s ease}.cm-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}.cm-hd h2{font-size:1.4rem;font-weight:300;color:var(--text);letter-spacing:.03em}.cm-hd button{background:none;border:none;color:var(--dim);font-size:1.5rem;cursor:pointer;padding:4px 8px;line-height:1}.cm-hd button:hover{color:var(--text)}.cm-sum{font-size:.85rem;color:var(--dim);margin-bottom:1.2rem}.cm-it{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;margin-bottom:.7rem;transition:border-color .2s}.cm-it:hover{border-color:var(--accent)}.cm-it-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}.cm-it-name{font-size:.95rem;color:var(--text);font-weight:500}.cm-it-btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 12px;color:var(--text2);font-size:.78rem;cursor:pointer;transition:background .2s,border-color .2s}.cm-it-btn:hover{background:var(--border);border-color:var(--accent)}.cm-it-meta{display:flex;gap:.8rem;font-size:.78rem;color:var(--dim);flex-wrap:wrap}.cm-it-meta span{display:flex;align-items:center;gap:3px}.cm-it-keys{margin-top:.5rem;font-size:.75rem;color:var(--faint);word-break:break-all}.cm-sep{border:none;border-top:1px solid var(--border);margin:1.2rem 0}.cm-da{display:flex;justify-content:center;margin-top:.5rem}.cm-da button{background:#2a1a1a;border:1px solid #4a2020;border-radius:10px;padding:8px 24px;color:#e05555;font-size:.85rem;cursor:pointer;transition:background .2s}.cm-da button:hover{background:#3a2020}.cm-empty{text-align:center;color:var(--faint);padding:2rem;font-size:.9rem}.cm-it-tags{display:flex;gap:5px;margin-top:.4rem;flex-wrap:wrap}.cm-tag{display:inline-block;font-size:.65rem;font-weight:400;color:var(--dim);background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 7px}.cz-sec{margin-bottom:1.4rem}.cz-lbl{font-size:.8rem;color:var(--dim);margin-bottom:.6rem;letter-spacing:.04em}.cz-row{display:flex;gap:8px;flex-wrap:wrap}.cz-opt{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 14px;color:var(--text2);font-size:.85rem;cursor:pointer;transition:background .2s,border-color .2s,color .2s;display:inline-flex;align-items:center}.cz-opt:hover{border-color:var(--accent)}.cz-opt.on{border-color:var(--accent);background:var(--bg3);color:var(--text)}.cz-sw{display:inline-flex;gap:3px;margin-right:7px}.cz-dot{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(128,128,128,.3)}.cz-colors{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:.8rem}.cz-color{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:.8rem;color:var(--text2);cursor:pointer}.cz-color input{width:34px;height:26px;border:none;background:none;cursor:pointer;padding:0}.cz-file{display:none}</style>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0a1628">
 </head>
 <body>
-<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns"><a class="stg-btn" onclick="openCZ()">customize</a><a class="stg-btn" onclick="openCM()">manage storage</a></div></header>
+<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns"><a class="stg-btn" onclick="openCZ()">customize</a><a class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">offline</a><a class="stg-btn" onclick="openCM()">manage storage</a></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off">
 <div class="gg" id="g">${cards}</div>
@@ -645,6 +685,7 @@ function openCM(){document.getElementById('cm-ov').classList.add('open');renderC
 function closeCM(){document.getElementById('cm-ov').classList.remove('open')}
 document.getElementById('cm-ov').addEventListener('click',function(e){if(e.target===this)closeCM()});
 </script>
+<script src="/offline.js"></script>
 </body>
 </html>`;
 }
@@ -678,6 +719,31 @@ Deno.serve(async (req: Request) => {
   if (url.pathname === "/login") {
     return new Response(LOGIN_PAGE, {
       headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+    });
+  }
+
+  // --- Offline mode (before the auth check, see OFFLINE_FILES) ---
+  if (OFFLINE_FILES[url.pathname]) {
+    try {
+      const body = await Deno.readFile(`public${url.pathname}`);
+      return new Response(body, {
+        headers: {
+          "Content-Type": OFFLINE_FILES[url.pathname],
+          // no-cache, not no-store: the browser may revalidate but must
+          // never serve a stale service worker from disk.
+          "Cache-Control": "no-cache",
+        },
+      });
+    } catch {
+      return new Response("Not Found", { status: 404 });
+    }
+  }
+
+  // Commit sha that the offline downloader pins raw.githubusercontent.com
+  // URLs to. Tiny response, so this costs effectively no bandwidth.
+  if (url.pathname === "/api/offline/rev") {
+    return new Response(JSON.stringify({ rev: await getRev() }), {
+      headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=600" },
     });
   }
 
@@ -1300,12 +1366,15 @@ Deno.serve(async (req: Request) => {
 ${THEME_CSS}
 ${THEME_SCRIPT}
 <style>*{margin:0;padding:0;box-sizing:border-box}body{color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:1rem}h1{font-weight:300;letter-spacing:.05em;animation:fin .5s ease}button{padding:.8rem 2rem;border:1px solid var(--border);border-radius:12px;background:var(--bg3);color:var(--text);font-size:1.1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}a{color:var(--accent);font-size:.9rem}</style>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0a1628">
 </head><body>
 <h1>ojjy's game hub</h1>
 <button onclick="var w=window.open('about:blank','_blank');if(w){w.document.write('<!DOCTYPE html><html><head><title>ojjy\\'s game hub</title><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src=&quot;'+window.location.origin+'/hub?token=${token}&quot; allowfullscreen></iframe></body></html>');w.document.close()}else{window.location.href='/hub'}">open in about:blank</button>
 <a href="/hub">or open normally</a>
 ${ANTI_INSPECT}
 ${BG_SCRIPT}
+<script src="/offline.js"></script>
 </body></html>`;
     return new Response(launcher, {
       headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
