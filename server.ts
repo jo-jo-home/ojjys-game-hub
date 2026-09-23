@@ -22,11 +22,15 @@ const MIME: Record<string, string> = {
 // isolate answered that with a redirect to /login the browser would throw
 // the service worker away and offline mode would quietly stop working.
 // Nothing here is secret — the game list is already on the hub page.
+// The two app icons are here too: the browser reads them when offering to
+// install, and an installed app's icon must not depend on a live session.
 const OFFLINE_FILES: Record<string, string> = {
   "/sw.js": "application/javascript",
   "/offline.js": "application/javascript",
   "/offline-manifest.json": "application/json",
   "/manifest.webmanifest": "application/manifest+json",
+  "/icons/hub-192.png": "image/png",
+  "/icons/hub-512.png": "image/png",
 };
 
 // The commit sha offline downloads are pinned to. Branch refs on

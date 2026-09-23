@@ -22,6 +22,8 @@ const SHELL_URLS = [
   "/offline.js",
   "/offline-manifest.json",
   "/manifest.webmanifest",
+  "/icons/hub-192.png",
+  "/icons/hub-512.png",
 ];
 
 const OFFLINE_HTML = `<!DOCTYPE html>
