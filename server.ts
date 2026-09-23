@@ -27,6 +27,7 @@ const MIME: Record<string, string> = {
 const OFFLINE_FILES: Record<string, string> = {
   "/sw.js": "application/javascript",
   "/offline.js": "application/javascript",
+  "/cloak.js": "application/javascript",
   "/offline-manifest.json": "application/json",
   "/manifest.webmanifest": "application/manifest+json",
   "/icons/hub-192.png": "image/png",
@@ -445,6 +446,24 @@ function handleWebSocket(ws: WebSocket, username: string) {
 // Anti-inspect script injected into all HTML pages
 const ANTI_INSPECT = `<script>(function(){document.addEventListener('contextmenu',function(e){e.preventDefault()});document.addEventListener('keydown',function(e){if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'||e.key==='C'))||(e.ctrlKey&&e.key==='u')||(e.metaKey&&e.altKey&&(e.key==='i'||e.key==='j'||e.key==='c'))||(e.metaKey&&e.altKey&&e.key==='u'))e.preventDefault()})})();</script>`;
 
+// Applied before first paint so the real title never flashes. Deliberately
+// inline and tiny rather than part of cloak.js, which would load too late.
+// The stored value already holds the resolved title and favicon, so this
+// needs no knowledge of the presets. Games set their own titles at various
+// points, hence the head observer and the short burst of retries.
+const CLOAK_SCRIPT = `<script>(function(){try{
+var c=JSON.parse(localStorage.getItem('hub_cloak')||'null');if(!c||!c.title)return;
+var ic=c.icon||'data:,',link=null;
+function ap(){if(document.title!==c.title)document.title=c.title;
+if(!link||!link.parentNode){link=document.querySelector("link[rel~='icon']");
+if(!link){link=document.createElement('link');link.rel='icon';(document.head||document.documentElement).appendChild(link)}}
+if(link.getAttribute('href')!==ic)link.setAttribute('href',ic)}
+ap();document.addEventListener('DOMContentLoaded',ap);
+var n=0,iv=setInterval(function(){ap();if(++n>40)clearInterval(iv)},250);
+if(window.MutationObserver&&document.head)new MutationObserver(ap).observe(document.head,{childList:true,subtree:true,characterData:true});
+}catch(e){}})();</script>`;
+
+
 // ===== Theme engine (client-side customization, shared by login/landing/hub) =====
 const THEME_CSS = `<style>
 :root{--bg:#0a1628;--bg2:#111d2e;--bg3:#162a42;--border:#1e3a5f;--accent:#2e6bbd;--text:#e2e8f0;--text2:#c8d6e5;--dim:#64748b;--faint:#475569;--overlay:rgba(10,22,40,.55)}
@@ -525,6 +544,7 @@ const LOGIN_PAGE = `<!DOCTYPE html>
 <title>ojjy's game hub</title>
 ${THEME_CSS}
 ${THEME_SCRIPT}
+${CLOAK_SCRIPT}
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);min-height:100vh;display:flex;align-items:center;justify-content:center}.l{background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:16px;padding:2.5rem;width:100%;max-width:360px;text-align:center;animation:fin .5s ease}h1{font-size:1.8rem;font-weight:300;color:var(--text);letter-spacing:.05em;margin-bottom:1.5rem}input[type="password"]{display:block;width:100%;padding:.7rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:1rem;outline:none;margin-bottom:1rem;transition:border-color .2s,box-shadow .2s}input[type="password"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}input[type="password"]::placeholder{color:var(--faint)}button{width:100%;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}.e{color:#ef4444;font-size:.85rem;margin-bottom:1rem;display:none}</style>
 </head>
 <body>
@@ -589,6 +609,7 @@ function buildHubPage(token: string): string {
 <title>ojjy's game hub</title>
 ${THEME_CSS}
 ${THEME_SCRIPT}
+${CLOAK_SCRIPT}
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);min-height:100vh;display:flex;flex-direction:column}header{text-align:center;padding:3rem 1rem 2rem;position:relative;animation:fin .5s ease}header h1{font-size:2.4rem;font-weight:300;color:var(--text);letter-spacing:.05em}header p{margin-top:.5rem;font-size:.95rem;color:var(--dim)}.hdr-btns{position:absolute;top:1.2rem;right:1.2rem;display:flex;gap:8px}.stg-btn{background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:10px;padding:6px 14px;color:var(--dim);font-size:.8rem;cursor:pointer;transition:background .2s,border-color .2s,color .2s;text-decoration:none}.stg-btn:hover{background:var(--bg3);border-color:var(--accent);color:var(--text2)}main{flex:1;max-width:900px;width:100%;margin:0 auto;padding:2rem 1.5rem}.sr{display:block;width:100%;max-width:400px;margin:0 auto 2rem;padding:.7rem 1.2rem;border:1px solid var(--border);border-radius:999px;background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--text);font-size:1rem;outline:none;transition:border-color .2s,box-shadow .2s}.sr:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}.sr::placeholder{color:var(--faint)}.gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.2rem;animation:fin .5s ease}.gc{background:color-mix(in srgb,var(--bg2) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:16px;padding:2rem 1.5rem;text-align:center;text-decoration:none;color:var(--text2);transition:background .2s,border-color .2s,transform .2s,box-shadow .2s;position:relative}.gc:hover{background:var(--bg3);border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 18%,transparent)}.gc img{width:64px;height:64px;object-fit:contain;margin-bottom:.8rem}.gc h2{font-size:1.15rem;font-weight:500;color:var(--text)}.gc p{margin-top:.4rem;font-size:.85rem;color:var(--dim)}.sb{position:absolute;top:8px;right:8px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--faint);line-height:1;padding:4px;transition:color .2s,transform .15s}.sb:hover{color:#f0c040;transform:scale(1.15)}.sb.a{color:#f0c040;animation:pop .25s ease}@keyframes pop{50%{transform:scale(1.35)}}footer{text-align:center;padding:2rem 1rem;font-size:.85rem;color:var(--faint);border-top:1px solid var(--border)}footer a{color:var(--faint);margin-left:.5rem;text-decoration:none;cursor:pointer;transition:color .2s}footer a:hover{color:var(--dim)}.cm-ov{position:fixed;top:0;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:900;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem}.cm-ov.open{display:flex}.cm{width:100%;max-width:520px;margin-top:2rem;animation:fin .3s ease}.cm-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}.cm-hd h2{font-size:1.4rem;font-weight:300;color:var(--text);letter-spacing:.03em}.cm-hd button{background:none;border:none;color:var(--dim);font-size:1.5rem;cursor:pointer;padding:4px 8px;line-height:1}.cm-hd button:hover{color:var(--text)}.cm-sum{font-size:.85rem;color:var(--dim);margin-bottom:1.2rem}.cm-it{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;margin-bottom:.7rem;transition:border-color .2s}.cm-it:hover{border-color:var(--accent)}.cm-it-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}.cm-it-name{font-size:.95rem;color:var(--text);font-weight:500}.cm-it-btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 12px;color:var(--text2);font-size:.78rem;cursor:pointer;transition:background .2s,border-color .2s}.cm-it-btn:hover{background:var(--border);border-color:var(--accent)}.cm-it-meta{display:flex;gap:.8rem;font-size:.78rem;color:var(--dim);flex-wrap:wrap}.cm-it-meta span{display:flex;align-items:center;gap:3px}.cm-it-keys{margin-top:.5rem;font-size:.75rem;color:var(--faint);word-break:break-all}.cm-sep{border:none;border-top:1px solid var(--border);margin:1.2rem 0}.cm-da{display:flex;justify-content:center;margin-top:.5rem}.cm-da button{background:#2a1a1a;border:1px solid #4a2020;border-radius:10px;padding:8px 24px;color:#e05555;font-size:.85rem;cursor:pointer;transition:background .2s}.cm-da button:hover{background:#3a2020}.cm-empty{text-align:center;color:var(--faint);padding:2rem;font-size:.9rem}.cm-it-tags{display:flex;gap:5px;margin-top:.4rem;flex-wrap:wrap}.cm-tag{display:inline-block;font-size:.65rem;font-weight:400;color:var(--dim);background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 7px}.cz-sec{margin-bottom:1.4rem}.cz-lbl{font-size:.8rem;color:var(--dim);margin-bottom:.6rem;letter-spacing:.04em}.cz-row{display:flex;gap:8px;flex-wrap:wrap}.cz-opt{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 14px;color:var(--text2);font-size:.85rem;cursor:pointer;transition:background .2s,border-color .2s,color .2s;display:inline-flex;align-items:center}.cz-opt:hover{border-color:var(--accent)}.cz-opt.on{border-color:var(--accent);background:var(--bg3);color:var(--text)}.cz-sw{display:inline-flex;gap:3px;margin-right:7px}.cz-dot{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(128,128,128,.3)}.cz-colors{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:.8rem}.cz-color{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:.8rem;color:var(--text2);cursor:pointer}.cz-color input{width:34px;height:26px;border:none;background:none;cursor:pointer;padding:0}.cz-file{display:none}</style>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
@@ -644,7 +665,7 @@ h+='</div><div class="cz-row" style="margin-top:.8rem">';
 h+='<button class="cz-opt'+(bg==='image'?' on':'')+'" onclick="document.getElementById(\\'cz-file\\').click()">upload image</button>';
 if(bg==='image')h+='<button class="cz-opt" onclick="removeBG()">remove image</button>';
 h+='</div><input type="file" id="cz-file" class="cz-file" accept="image/*" onchange="uploadBG(this)"></div>';
-el.innerHTML=h;
+el.innerHTML=h+(window.__hubCloak?window.__hubCloak.section():'');
 }
 function openCZ(){document.getElementById('cz-ov').classList.add('open');renderCZ()}
 function closeCZ(){document.getElementById('cz-ov').classList.remove('open')}
@@ -730,6 +751,7 @@ function openCM(){document.getElementById('cm-ov').classList.add('open');renderC
 function closeCM(){document.getElementById('cm-ov').classList.remove('open')}
 document.getElementById('cm-ov').addEventListener('click',function(e){if(e.target===this)closeCM()});
 </script>
+<script src="/cloak.js"></script>
 <script src="/offline.js"></script>
 </body>
 </html>`;
@@ -1410,15 +1432,17 @@ Deno.serve(async (req: Request) => {
 <html><head><meta charset="UTF-8"><title>ojjy's game hub</title>
 ${THEME_CSS}
 ${THEME_SCRIPT}
+${CLOAK_SCRIPT}
 <style>*{margin:0;padding:0;box-sizing:border-box}body{color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:1rem}h1{font-weight:300;letter-spacing:.05em;animation:fin .5s ease}button{padding:.8rem 2rem;border:1px solid var(--border);border-radius:12px;background:var(--bg3);color:var(--text);font-size:1.1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}a{color:var(--accent);font-size:.9rem}</style>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
 </head><body>
 <h1>ojjy's game hub</h1>
-<button onclick="var w=window.open('about:blank','_blank');if(w){w.document.write('<!DOCTYPE html><html><head><title>ojjy\\'s game hub</title><style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style></head><body><iframe src=&quot;'+window.location.origin+'/hub?token=${token}&quot; allowfullscreen></iframe></body></html>');w.document.close()}else{window.location.href='/hub'}">open in about:blank</button>
+<button onclick="window.__hubCloak?window.__hubCloak.openBlank('${token}'):(window.location.href='/hub')">open in about:blank</button>
 <a href="/hub">or open normally</a>
 ${ANTI_INSPECT}
 ${BG_SCRIPT}
+<script src="/cloak.js"></script>
 <script src="/offline.js"></script>
 </body></html>`;
     return new Response(launcher, {
@@ -1442,7 +1466,7 @@ ${BG_SCRIPT}
         const mime = getMime(ghPath);
         if (mime === "text/html") {
           const html = await ghResp.text();
-          return new Response(html.replace("</head>", ANTI_INSPECT + "</head>"), {
+          return new Response(html.replace("</head>", ANTI_INSPECT + CLOAK_SCRIPT + "</head>"), {
             headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
           });
         }
@@ -1457,7 +1481,7 @@ ${BG_SCRIPT}
   const ct = resp.headers.get("content-type") || "";
   if (ct.includes("text/html")) {
     const html = await resp.text();
-    const injected = html.replace("</head>", ANTI_INSPECT + "</head>");
+    const injected = html.replace("</head>", ANTI_INSPECT + CLOAK_SCRIPT + "</head>");
     const hdrs = new Headers(resp.headers);
     hdrs.delete("content-length");
     hdrs.set("Cache-Control", "no-store");

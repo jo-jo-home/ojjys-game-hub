@@ -20,6 +20,7 @@ const SHELL_URLS = [
   "/",
   "/hub",
   "/offline.js",
+  "/cloak.js",
   "/offline-manifest.json",
   "/manifest.webmanifest",
   "/icons/hub-192.png",
