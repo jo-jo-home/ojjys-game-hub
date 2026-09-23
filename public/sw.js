@@ -26,18 +26,35 @@ const SHELL_URLS = [
   "/icons/hub-512.png",
 ];
 
-const OFFLINE_HTML = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>ojjy's game hub</title>
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a1628;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;text-align:center}div{max-width:300px;padding:2rem}h1{font-weight:300;font-size:1.4rem;margin:0 0 .6rem}p{color:#64806f;font-size:.9rem;line-height:1.5;margin:0}</style>
-</head><body><div><h1>nothing cached yet</h1>
-<p>connect to the internet once and open the hub, then your downloaded games will work offline.</p>
-</div></body></html>`;
+function page(title, body) {
+  return new Response(
+    `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>offline</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a1628;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;text-align:center}div{max-width:320px;padding:2rem}h1{font-weight:300;font-size:1.35rem;margin:0 0 .7rem;letter-spacing:.03em}p{color:#8296ab;font-size:.9rem;line-height:1.55;margin:0 0 1.4rem}a{display:inline-block;padding:.6rem 1.4rem;border:1px solid #1e3a5f;border-radius:10px;background:#152238;color:#e2e8f0;font-size:.9rem;text-decoration:none}a:hover{border-color:#2e6bbd}</style>
+</head><body><div><h1>${title}</h1><p>${body}</p>
+<a href="/hub">back to the hub</a></div></body></html>`,
+    { status: 200, headers: { "Content-Type": "text/html", "Cache-Control": "no-store" } },
+  );
+}
 
+// Shown when the hub itself was never cached.
 function offlineResponse() {
-  return new Response(OFFLINE_HTML, {
-    status: 200,
-    headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
-  });
+  return page(
+    "nothing cached yet",
+    "connect to the internet once and open the hub, then your downloaded games will work offline.",
+  );
+}
+
+// Shown when a game that was never downloaded is opened with no network.
+// Falling back to the cached hub here used to render what looked like a
+// second copy of the hub sitting at the game's own URL.
+function notDownloadedResponse(name) {
+  return page(
+    name + " isn't downloaded",
+    "this game wasn't saved for offline play. reconnect and use the offline " +
+      "button on the hub to download it.",
+  );
 }
 
 // Only ever store a real, final 200. Anything else — the 302 to /login, a
@@ -97,10 +114,21 @@ async function handlePage(request) {
     }
     return response;
   } catch {
-    return (await lookup(request)) ||
-      (await lookup(new Request("/hub"))) ||
-      (await lookup(new Request("/"))) ||
-      offlineResponse();
+    const hit = await lookup(request);
+    if (hit) return hit;
+
+    // Only the hub's own pages stand in for each other. A game path must not
+    // fall back to the hub: the landing page carries the same title and the
+    // about:blank button, so it read as a duplicate hub at the game's URL.
+    const path = new URL(request.url).pathname;
+    if (path === "/" || path === "/hub" || path === "/index.html") {
+      // Plain paths, not new Request(...): Cache.match takes a URL string,
+      // and the Request constructor needs a base URL that isn't always there.
+      return (await lookup("/hub")) || (await lookup("/")) || offlineResponse();
+    }
+
+    const game = path.split("/").filter(Boolean)[0] || "this game";
+    return notDownloadedResponse(game);
   }
 }
 
