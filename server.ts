@@ -63,8 +63,28 @@ function getMime(path: string): string {
   return i >= 0 ? (MIME[path.substring(i).toLowerCase()] || "application/octet-stream") : "application/octet-stream";
 }
 
+// Sent on every HTML page. Session tokens travel in ?token= on /hub URLs,
+// and no-referrer stops that URL being handed to any third party a game
+// happens to load (ads, analytics, fonts) in a Referer header.
+const HTML_HEADERS: Record<string, string> = {
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+};
+
 const PASSWORD_HASH = "1779c0ce5c9ca5c69110d3853843a70e797bf3264fbeafa6c65de398fb423b4c";
-const sessions = new Set<string>();
+
+// Sessions live in KV, not in memory. Deno Deploy starts and stops isolates
+// freely and runs several at once, so an in-memory Set meant everyone was
+// logged out whenever that happened, and a login on one isolate was not
+// recognised by another.
+const SESSION_TTL_MS = 86_400_000; // matches the cookie's Max-Age
+
+// A page pulls hundreds of files and every one passes the auth check, so
+// tokens verified against KV are remembered briefly to keep that to one read
+// rather than one per request.
+const SESSION_CACHE_MS = 60_000;
+const verifiedSessions = new Map<string, number>();
+
 let _kv: Deno.Kv | null = null;
 async function getKv(): Promise<Deno.Kv> {
   if (!_kv) _kv = await Deno.openKv();
@@ -89,17 +109,38 @@ function getSessionFromCookie(req: Request): string | null {
   return match ? match[1] : null;
 }
 
-function getSessionToken(req: Request): string | null {
+async function addSession(token: string): Promise<void> {
+  await (await getKv()).set(["hub_sessions", token], { at: Date.now() }, {
+    expireIn: SESSION_TTL_MS,
+  });
+  verifiedSessions.set(token, Date.now());
+}
+
+async function hasSession(token: string): Promise<boolean> {
+  const seen = verifiedSessions.get(token);
+  if (seen && Date.now() - seen < SESSION_CACHE_MS) return true;
+  const entry = await (await getKv()).get(["hub_sessions", token]);
+  if (entry.value === null) {
+    verifiedSessions.delete(token);
+    return false;
+  }
+  verifiedSessions.set(token, Date.now());
+  return true;
+}
+
+async function getSessionToken(req: Request): Promise<string | null> {
   const cookie = getSessionFromCookie(req);
-  if (cookie && sessions.has(cookie)) return cookie;
+  if (cookie && await hasSession(cookie)) return cookie;
   const url = new URL(req.url);
   const param = url.searchParams.get("token");
-  if (param && sessions.has(param)) return param;
+  // Checked against the same shape as the cookie so a junk query string
+  // can't turn into a KV lookup.
+  if (param && /^[a-f0-9]{64}$/.test(param) && await hasSession(param)) return param;
   return null;
 }
 
-function isAuthenticated(req: Request): boolean {
-  return getSessionToken(req) !== null;
+async function isAuthenticated(req: Request): Promise<boolean> {
+  return (await getSessionToken(req)) !== null;
 }
 
 // ========== Online chess multiplayer state ==========
@@ -704,7 +745,7 @@ Deno.serve(async (req: Request) => {
     const hashed = await sha256(password);
     if (hashed === PASSWORD_HASH) {
       const token = generateToken();
-      sessions.add(token);
+      await addSession(token);
       return new Response(null, {
         status: 302,
         headers: {
@@ -722,7 +763,7 @@ Deno.serve(async (req: Request) => {
   // Serve login page
   if (url.pathname === "/login") {
     return new Response(LOGIN_PAGE, {
-      headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+      headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
     });
   }
 
@@ -1347,7 +1388,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // Check auth for everything else
-  if (!isAuthenticated(req)) {
+  if (!await isAuthenticated(req)) {
     return new Response(null, {
       status: 302,
       headers: { "Location": "/login" },
@@ -1356,15 +1397,15 @@ Deno.serve(async (req: Request) => {
 
   // Serve actual hub page at /hub
   if (url.pathname === "/hub") {
-    const token = getSessionToken(req)!;
+    const token = (await getSessionToken(req))!;
     return new Response(buildHubPage(token), {
-      headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+      headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
     });
   }
 
   // Landing page opens hub in about:blank
   if (url.pathname === "/" || url.pathname === "/index.html") {
-    const token = getSessionToken(req)!;
+    const token = (await getSessionToken(req))!;
     const launcher = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>ojjy's game hub</title>
 ${THEME_CSS}
@@ -1381,7 +1422,7 @@ ${BG_SCRIPT}
 <script src="/offline.js"></script>
 </body></html>`;
     return new Response(launcher, {
-      headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+      headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
     });
   }
 
@@ -1402,7 +1443,7 @@ ${BG_SCRIPT}
         if (mime === "text/html") {
           const html = await ghResp.text();
           return new Response(html.replace("</head>", ANTI_INSPECT + "</head>"), {
-            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
           });
         }
         return new Response(ghResp.body, {
@@ -1420,6 +1461,7 @@ ${BG_SCRIPT}
     const hdrs = new Headers(resp.headers);
     hdrs.delete("content-length");
     hdrs.set("Cache-Control", "no-store");
+    for (const [k, v] of Object.entries(HTML_HEADERS)) hdrs.set(k, v);
     return new Response(injected, { status: resp.status, headers: hdrs });
   }
 
