@@ -13,7 +13,8 @@ Tiers describe how well a game survives with no network:
   full      - no external runtime dependencies, works completely
   degraded  - only ads/analytics/fonts are external, they just fail
   partial   - single player works, online features need the server
-  online    - multiplayer only, loads but has nothing to connect to
+  online    - needs the network to play at all: multiplayer, or a runtime
+              (like the Ruffle flash emulator) that is loaded cross-origin
 """
 
 import json
@@ -37,7 +38,11 @@ TIERS = {
     "ducklife2": "full",
     "ducklife3": "full",
     "ducklife4": "full",
-    "ducklife5": "full",
+    # Ducklife 5 is the odd one out: 1-4 and 6 ship Unity WebGL builds and run
+    # from local files, but 5 is a bare .swf played through Ruffle, which it
+    # loads from unpkg.com. No emulator, no game — so downloading it cannot
+    # make it work offline and the hub should not offer to.
+    "ducklife5": "online",
     "ducklife6": "full",
     "fallguys": "degraded",
     "geometrydash": "full",

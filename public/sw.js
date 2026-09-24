@@ -97,13 +97,32 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
+// A download stores a game by file path — /coreball/index.html — but the hub
+// links to the directory, /coreball/. Without resolving one to the other, a
+// game that was downloaded but never also opened online would miss the cache
+// and be reported as not downloaded. The server already does this same
+// resolution for the GitHub proxy.
+function candidates(target) {
+  const path = typeof target === "string"
+    ? new URL(target, self.location.origin).pathname
+    : new URL(target.url).pathname;
+  const out = [target];
+  const last = path.split("/").pop();
+  if (path.endsWith("/")) out.push(path + "index.html");
+  else if (last && !last.includes(".")) out.push(path + "/index.html");
+  return out;
+}
+
 // Session tokens ride along as ?token=..., so a cache lookup has to ignore
 // the query string or every new session would miss and refill the cache.
 async function lookup(request) {
+  const targets = candidates(request);
   for (const name of [GAMES, SHELL]) {
     const cache = await caches.open(name);
-    const hit = await cache.match(request, { ignoreSearch: true });
-    if (hit) return hit;
+    for (const target of targets) {
+      const hit = await cache.match(target, { ignoreSearch: true });
+      if (hit) return hit;
+    }
   }
   return null;
 }
