@@ -162,6 +162,62 @@
     remember(id, null);
   }
 
+  // ---- panel filtering ---------------------------------------------------
+  // 31 rows is too many to scan. Searching uses the hub's matcher so "duck
+  // life" and "ducklife" both work here exactly as they do on the grid,
+  // rather than this file growing its own rules.
+
+  var panelQuery = "";
+  var panelFilter = "all";
+  var FILTERS = [["all", "all"], ["saved", "downloaded"], ["not", "not yet"]];
+
+  function hayFor(id, game) {
+    var parts = [id, game.name || "", (TIERS[game.tier] || TIERS.full)[0]];
+    if (window.__hubUI && window.__hubUI.haystack) return window.__hubUI.haystack(parts);
+    // hub-ui.js missing (it only loads on the hub) — fall back to plain text
+    return { text: parts.join(" ").toLowerCase(), squashed: "" };
+  }
+
+  function hayMatch(hay, query) {
+    if (window.__hubUI && window.__hubUI.match) return window.__hubUI.match(hay, query);
+    return hay.text.indexOf((query || "").trim().toLowerCase()) >= 0;
+  }
+
+  function esc(v) {
+    return String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // The decision for one row, kept pure so it can be tested without a DOM.
+  function rowVisible(id, game, have, query, which) {
+    var passes = which === "all" ||
+      (which === "saved" && have) || (which === "not" && !have);
+    return passes && hayMatch(hayFor(id, game), query);
+  }
+
+  // Toggles rows in place rather than re-rendering, so typing doesn't lose
+  // focus or the caret position.
+  function applyFilter() {
+    if (!manifest) return;
+    var saved = registry();
+    var ids = Object.keys(manifest.games);
+    var shown = 0;
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i];
+      var on = rowVisible(id, manifest.games[id], !!saved[id], panelQuery, panelFilter);
+      var row = document.getElementById("of-" + id);
+      if (row) row.style.display = on ? "" : "none";
+      if (on) shown++;
+    }
+    var note = document.getElementById("of-shown");
+    if (note) {
+      note.textContent = shown === ids.length
+        ? ""
+        : shown ? "showing " + shown + " of " + ids.length
+        : "nothing matches";
+    }
+  }
+
   // ---- ui ----------------------------------------------------------------
 
   function el(html) {
@@ -225,7 +281,19 @@
       '<div class="cm-sum">' + count + " of " + ids.length + " games downloaded" +
       (quota ? " &middot; using " + size(used) + " of " + size(quota) : "") +
       (persisted ? " &middot; protected from cleanup" : "") +
-      "</div>";
+      "</div>" +
+      '<input class="of-find" id="of-find" type="text" placeholder="search ' +
+      ids.length + ' games..." autocomplete="off" spellcheck="false" ' +
+      'aria-label="search games" value="' + esc(panelQuery) + '" ' +
+      'oninput="window.__hubOffline.find(this.value)">' +
+      '<div class="of-chips">';
+    for (var f = 0; f < FILTERS.length; f++) {
+      head += '<button type="button" class="hu-opt' +
+        (panelFilter === FILTERS[f][0] ? " on" : "") +
+        '" onclick="window.__hubOffline.setFilter(\'' + FILTERS[f][0] + '\')">' +
+        FILTERS[f][1] + "</button>";
+    }
+    head += '</div><div class="cm-sum" id="of-shown"></div>';
 
     var body = "";
     for (var i = 0; i < ids.length; i++) {
@@ -250,6 +318,7 @@
     }
 
     panel.innerHTML = head + body;
+    applyFilter();
   }
 
   function message(id, text) {
@@ -310,6 +379,12 @@
     "border-radius:0 0 15px 15px}",
     "html.hub-no-net .gc[data-playable=\"0\"]::after{content:'not downloaded'}",
     "html.hub-no-net .gc[data-playable=\"net\"]::after{content:'needs internet'}",
+    // the offline panel's own search + filter row
+    ".of-find{display:block;width:100%;margin:0 0 .8rem;padding:.55rem .9rem;",
+    "border:1px solid var(--border);border-radius:10px;background:var(--bg);",
+    "color:var(--text);font-size:.88rem;font-family:inherit;outline:none}",
+    ".of-find:focus{border-color:var(--accent)}",
+    ".of-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.6rem}",
   ].join("");
 
   // Inline SVG rather than unicode glyphs, which rendered at different weights
@@ -445,6 +520,18 @@
     open: async function () {
       overlay().classList.add("open");
       await render();
+      var box = document.getElementById("of-find");
+      if (box) box.focus();
+    },
+
+    find: function (value) {
+      panelQuery = value || "";
+      applyFilter();
+    },
+
+    setFilter: function (which) {
+      panelFilter = which;
+      render();
     },
     close: close,
     // A big game takes a while and navigating away kills it, so the button
@@ -504,6 +591,7 @@
 
   // Exposed for the tile tests, which drive states directly.
   api._setTile = setTile;
+  api._rowVisible = rowVisible;
   api._installTiles = installTiles;
 
   window.__hubOffline = api;
