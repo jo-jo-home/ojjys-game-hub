@@ -29,6 +29,7 @@ const OFFLINE_FILES: Record<string, string> = {
   "/offline.js": "application/javascript",
   "/cloak.js": "application/javascript",
   "/themes.js": "application/javascript",
+  "/hub-ui.js": "application/javascript",
   "/theme-presets.js": "application/javascript",
   "/chess-theme.css": "text/css",
   "/bg.js": "application/javascript",
@@ -508,6 +509,7 @@ var a=t.active||'p:default',cu=a.slice(0,2)==='c:'?(t.themes||{})[a.slice(2)]||n
 de.setAttribute('data-theme',(cu?cu.base:a.slice(2))||'default');
 if(cu){de.setAttribute('data-custom','1');var c=cu.colors||{};for(var k in M)if(c[k])de.style.setProperty(M[k],k==='overlay'?'color-mix(in srgb,'+c[k]+' 55%,transparent)':c[k])}else de.removeAttribute('data-custom');
 de.setAttribute('data-chess-theme',t.chess==='hub'?'hub':'own');
+var D={density:'comfortable',font:'system',motion:'auto'};for(var g in D){if(t[g]&&t[g]!==D[g])de.setAttribute('data-'+g,t[g]);else de.removeAttribute('data-'+g)}
 var mt=document.querySelector('meta[name="theme-color"]');
 if(mt){var bg=getComputedStyle(de).getPropertyValue('--bg').trim();if(bg)mt.setAttribute('content',bg)}
 }catch(e){}})();</script>`;
@@ -714,6 +716,7 @@ document.getElementById('cm-ov').addEventListener('click',function(e){if(e.targe
 </script>
 <script src="/theme-presets.js"></script>
 <script src="/themes.js"></script>
+<script src="/hub-ui.js"></script>
 <script src="/cloak.js"></script>
 <script src="/offline.js"></script>
 </body>

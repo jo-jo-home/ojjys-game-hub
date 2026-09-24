@@ -75,7 +75,11 @@
 
   var rmq = null;
   try { rmq = matchMedia("(prefers-reduced-motion: reduce)"); } catch (e) { /* old browser */ }
-  function reduced() { return !!(rmq && rmq.matches); }
+  // Either the OS preference or the hub's own switch stops the animation.
+  function reduced() {
+    if (de.getAttribute("data-motion") === "off") return true;
+    return !!(rmq && rmq.matches);
+  }
 
   // ---- sizing ------------------------------------------------------------
   // W and H stay in CSS pixels so the drawing code is unchanged; the backing

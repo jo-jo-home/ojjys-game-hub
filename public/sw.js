@@ -22,6 +22,7 @@ const SHELL_URLS = [
   "/theme.css",
   "/theme-presets.js",
   "/themes.js",
+  "/hub-ui.js",
   "/chess-theme.css",
   "/hub.css",
   "/bg.js",

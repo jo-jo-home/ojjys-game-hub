@@ -38,6 +38,17 @@
   };
   var BGS = ["none", "particles", "gradient", "starfield", "shapes"];
 
+  // Layout, typography and motion. Each is applied as a data-* attribute on
+  // <html> and styled in hub.css; the default value sets no attribute at all,
+  // so the stylesheet's own defaults stand.
+  var PREFS = {
+    density: { def: "comfortable", options: [["comfortable", "comfortable"],
+      ["compact", "compact"], ["roomy", "roomy"]] },
+    font: { def: "system", options: [["system", "system"], ["serif", "serif"],
+      ["mono", "mono"], ["easy", "easy read"]] },
+    motion: { def: "auto", options: [["auto", "follow my system"], ["off", "off"]] },
+  };
+
   // ---- store -------------------------------------------------------------
 
   function get() {
@@ -106,6 +117,12 @@
     }
 
     de.setAttribute("data-chess-theme", t.chess === "hub" ? "hub" : "own");
+
+    for (var pref in PREFS) {
+      var chosen = t[pref];
+      if (chosen && chosen !== PREFS[pref].def) de.setAttribute("data-" + pref, chosen);
+      else de.removeAttribute("data-" + pref);
+    }
 
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
@@ -383,6 +400,14 @@
       apply();
     },
 
+    setPref: function (key, value) {
+      if (!PREFS[key]) return;
+      var t = get();
+      t[key] = value;
+      set(t);
+      apply();
+    },
+
     setChess: function (mode) {
       var t = get();
       t.chess = mode === "hub" ? "hub" : "own";
@@ -564,6 +589,27 @@
         : "") +
       '</div><input type="file" id="cz-file" class="cz-file" accept="image/*" ' +
       'onchange="__hubTheme.uploadBG(this)"></div>';
+
+    // layout, typography, motion
+    for (var pref in PREFS) {
+      var chosen = t[pref] || PREFS[pref].def;
+      var opts = PREFS[pref].options;
+      h += '<div class="cz-sec"><div class="cz-lbl">' +
+        (pref === "font" ? "text" : pref) + '</div><div class="cz-row">';
+      for (i = 0; i < opts.length; i++) {
+        h += '<button class="cz-opt' + (chosen === opts[i][0] ? " on" : "") +
+          '" onclick="__hubTheme.setPref(\'' + pref + '\',\'' + opts[i][0] + '\')">' +
+          opts[i][1] + "</button>";
+      }
+      h += "</div>" +
+        (pref === "motion"
+          ? '<div class="cz-lbl" style="margin-top:.7rem;font-size:.72rem">' +
+            "off stops the animated background and all transitions. following your " +
+            "system already turns them off if you've asked for reduced motion." +
+            "</div>"
+          : "") +
+        "</div>";
+    }
 
     // ojjyChess reach
     h += '<div class="cz-sec"><div class="cz-lbl">ojjyChess</div><div class="cz-row">' +
