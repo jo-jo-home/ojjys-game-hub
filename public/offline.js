@@ -262,6 +262,132 @@
     if (node) node.innerHTML = html;
   }
 
+  // ---- game tile buttons -------------------------------------------------
+
+  // Styles live here rather than in the hub's inline CSS so everything to do
+  // with offline mode stays in one file.
+  var TILE_CSS = [
+    ".ob{position:absolute;top:8px;left:8px;width:26px;height:26px;padding:0;",
+    "border:1px solid var(--border);border-radius:50%;background:var(--bg3);",
+    "color:var(--faint);font-size:.85rem;line-height:1;cursor:pointer;display:flex;",
+    "align-items:center;justify-content:center;transition:color .2s,border-color .2s}",
+    ".ob:hover{color:var(--text);border-color:var(--accent)}",
+    '.ob[data-state="ready"]{color:#4ade80;border-color:#4ade80}',
+    '.ob[data-state="fail"]{color:#e0a355;border-color:#e0a355}',
+    '.ob[data-state="confirm"]{color:#ef4444;border-color:#ef4444;background:#2a1a1a}',
+    '.ob[data-state="busy"]{font-size:.52rem;font-weight:600;color:var(--text);cursor:pointer}',
+    // With no network, a game that was never downloaded can't open, so say so
+    // on the tile instead of letting the click land on a dead end.
+    'html.hub-no-net .gc[data-playable="0"],html.hub-no-net .gc[data-playable="net"]',
+    "{opacity:.32;pointer-events:none}",
+    "html.hub-no-net .gc[data-playable]::after{position:absolute;bottom:8px;left:0;right:0;",
+    "text-align:center;font-size:.68rem;color:var(--faint)}",
+    "html.hub-no-net .gc[data-playable=\"0\"]::after{content:'not downloaded'}",
+    "html.hub-no-net .gc[data-playable=\"net\"]::after{content:'needs internet'}",
+  ].join("");
+
+  var GLYPH = { idle: "↓", ready: "✓", fail: "↻", confirm: "✕" };
+  var HINT = {
+    idle: "save for offline",
+    ready: "saved for offline — click to remove",
+    fail: "some files failed — click to retry",
+    confirm: "click again to remove",
+    busy: "downloading — click to cancel",
+  };
+  var confirmTimers = {};
+
+  function tile(id) {
+    return document.querySelector('.ob[data-g="' + id + '"]');
+  }
+
+  function setTile(id, state, pct) {
+    var b = tile(id);
+    if (!b) return;
+    b.setAttribute("data-state", state);
+    b.title = HINT[state] || "";
+    if (state === "busy") {
+      b.textContent = Math.round(pct) + "%";
+      b.style.background = "conic-gradient(var(--accent) " + pct + "%, var(--bg3) 0)";
+    } else {
+      b.style.background = "";
+      b.textContent = GLYPH[state] || GLYPH.idle;
+    }
+  }
+
+  // Marks whether a tile can actually be opened with no network, which is
+  // what the dimming above keys on.
+  function markPlayable(id) {
+    var card = document.querySelector('.gc[data-n="' + id + '"]');
+    if (card) card.setAttribute("data-playable", registry()[id] ? "1" : "0");
+  }
+
+  function installTiles() {
+    if (!manifest) return;
+    var style = document.getElementById("ob-css");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "ob-css";
+      style.textContent = TILE_CSS;
+      document.head.appendChild(style);
+    }
+
+    var saved = registry();
+    var cards = document.querySelectorAll(".gc");
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      var id = card.getAttribute("data-n");
+      var game = manifest.games[id];
+      if (!game) continue;
+
+      var tierInfo = TIERS[game.tier] || TIERS.full;
+
+      // Multiplayer-only games would load offline with nothing to connect
+      // to, so they get no button at all rather than a misleading one, and
+      // are labelled as needing a connection rather than a download.
+      if (!tierInfo[1]) { card.setAttribute("data-playable", "net"); continue; }
+      card.setAttribute("data-playable", saved[id] ? "1" : "0");
+      if (card.querySelector(".ob")) { setTile(id, saved[id] ? "ready" : "idle"); continue; }
+
+      var b = document.createElement("button");
+      b.className = "ob";
+      b.setAttribute("data-g", id);
+      card.appendChild(b);
+      setTile(id, saved[id] ? "ready" : "idle");
+      b.addEventListener("click", onTileClick);
+    }
+  }
+
+  function onTileClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var b = e.currentTarget;
+    var id = b.getAttribute("data-g");
+    var state = b.getAttribute("data-state");
+
+    if (state === "busy") { api.cancel(id); return; }
+
+    // Two steps to remove, rather than a confirm() — a native dialog blocks
+    // everything, including a download running in another tile.
+    if (state === "ready") {
+      setTile(id, "confirm");
+      clearTimeout(confirmTimers[id]);
+      confirmTimers[id] = setTimeout(function () {
+        setTile(id, registry()[id] ? "ready" : "idle");
+      }, 3000);
+      return;
+    }
+    if (state === "confirm") {
+      clearTimeout(confirmTimers[id]);
+      api.remove(id);
+      return;
+    }
+    api.get(id);
+  }
+
+  function syncNet() {
+    document.documentElement.classList.toggle("hub-no-net", !navigator.onLine);
+  }
+
   var api = {
     open: async function () {
       overlay().classList.add("open");
@@ -282,20 +408,26 @@
       message(id, "starting...");
       setButton(id, '<button class="cm-it-btn" onclick="window.__hubOffline.cancel(\'' +
         id + '\')">cancel</button>');
+      setTile(id, "busy", 0);
       try {
         var result = await download(id, function (done, total, bytes) {
           message(id, "downloading " + done + " / " + total + " files (" + size(bytes) + ")");
+          setTile(id, "busy", (done / total) * 100);
         });
-        if (result.cancelled) message(id, "cancelled");
+        if (result.cancelled) { message(id, "cancelled"); setTile(id, "idle"); }
         else if (result.failed) {
           message(id, result.failed + " of " + result.total + " files failed — press download again to retry");
+          setTile(id, "fail");
         } else {
           message(id, "done, playable offline");
+          setTile(id, "ready");
         }
       } catch (e) {
         message(id, "failed: " + (e && e.message ? e.message : "unknown error"));
+        setTile(id, "fail");
       }
       delete active[id];
+      markPlayable(id);
       // Restores the row: a download button after a failure or cancel, a
       // remove button once it succeeded.
       setButton(id, '<button class="cm-it-btn" onclick="window.__hubOffline.get(\'' +
@@ -304,11 +436,15 @@
     },
     remove: async function (id) {
       message(id, "removing...");
+      setTile(id, "busy", 0);
       try {
         await remove(id);
-        await render();
+        setTile(id, "idle");
+        markPlayable(id);
+        if (document.getElementById("of-ov")) await render();
       } catch (e) {
         message(id, "couldn't remove");
+        setTile(id, "ready");
       }
     },
   };
@@ -321,5 +457,23 @@
         /* unsupported or blocked — the hub still works, just not offline */
       });
     });
+  }
+
+  // Tiles only exist on the hub. Elsewhere this file is just the worker
+  // registration, so there is nothing to set up.
+  function start() {
+    syncNet();
+    addEventListener("online", syncNet);
+    addEventListener("offline", syncNet);
+    if (!document.querySelector(".gc")) return;
+    getManifest().then(installTiles).catch(function () {
+      /* no manifest, no per-tile buttons; the panel explains why */
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
   }
 })();
