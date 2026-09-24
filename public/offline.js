@@ -266,33 +266,72 @@
 
   // Styles live here rather than in the hub's inline CSS so everything to do
   // with offline mode stays in one file.
+  //
+  // The control is hidden until the tile is hovered, so 31 cards aren't
+  // covered in buttons. Once a game is saved the badge stays visible, because
+  // "which of these work offline" is worth seeing at a glance.
   var TILE_CSS = [
-    ".ob{position:absolute;top:8px;left:8px;width:26px;height:26px;padding:0;",
+    ".ob{position:absolute;top:8px;left:8px;width:22px;height:22px;padding:0;",
     "border:1px solid var(--border);border-radius:50%;background:var(--bg3);",
-    "color:var(--faint);font-size:.85rem;line-height:1;cursor:pointer;display:flex;",
-    "align-items:center;justify-content:center;transition:color .2s,border-color .2s}",
+    "color:var(--text2);line-height:0;cursor:pointer;display:flex;",
+    "align-items:center;justify-content:center;opacity:0;",
+    "transition:opacity .18s,color .2s,border-color .2s,background .2s}",
+    ".gc:hover .ob,.ob:focus-visible{opacity:1}",
+    ".ob:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".ob:hover{color:var(--text);border-color:var(--accent)}",
-    '.ob[data-state="ready"]{color:#4ade80;border-color:#4ade80}',
-    '.ob[data-state="fail"]{color:#e0a355;border-color:#e0a355}',
-    '.ob[data-state="confirm"]{color:#ef4444;border-color:#ef4444;background:#2a1a1a}',
-    '.ob[data-state="busy"]{font-size:.52rem;font-weight:600;color:var(--text);cursor:pointer}',
+    // A saved or in-flight tile always shows its state, hover or not.
+    '.ob[data-state="ready"],.ob[data-state="busy"],',
+    '.ob[data-state="fail"],.ob[data-state="confirm"]{opacity:1}',
+    '.ob[data-state="ready"]{width:18px;height:18px;background:var(--ok);',
+    "border-color:var(--ok);color:var(--bg);animation:pop .25s ease}",
+    '.ob[data-state="fail"]{color:var(--warn);border-color:var(--warn)}',
+    '.ob[data-state="confirm"]{color:var(--danger);border-color:var(--danger);',
+    "background:var(--danger-bg)}",
+    '.ob[data-state="busy"]{color:var(--accent);border-color:var(--accent)}',
+    // Touch devices have no hover, so there the control is simply always there.
+    "@media (hover:none){.ob{opacity:1}}",
+    // Progress rides the card's bottom edge instead of squeezing a percentage
+    // into a 22px circle. pointer-events:none so it never eats a card click.
+    ".ob-pt{position:absolute;left:0;right:0;bottom:0;height:3px;overflow:hidden;",
+    "border-radius:0 0 15px 15px;pointer-events:none;opacity:0;transition:opacity .2s}",
+    ".ob-pt.on{opacity:1}",
+    ".ob-pb{display:block;height:100%;width:0;background:var(--accent);",
+    "transition:width .25s linear}",
     // With no network, a game that was never downloaded can't open, so say so
     // on the tile instead of letting the click land on a dead end.
     'html.hub-no-net .gc[data-playable="0"],html.hub-no-net .gc[data-playable="net"]',
-    "{opacity:.32;pointer-events:none}",
-    "html.hub-no-net .gc[data-playable]::after{position:absolute;bottom:8px;left:0;right:0;",
-    "text-align:center;font-size:.68rem;color:var(--faint)}",
+    "{opacity:.4;pointer-events:none}",
+    // A full-width band, and the card gets extra bottom padding, so the label
+    // never sits on top of the game's description.
+    "html.hub-no-net .gc{padding-bottom:2.6rem}",
+    "html.hub-no-net .gc[data-playable]::after{position:absolute;left:0;right:0;bottom:0;",
+    "padding:5px 0;text-align:center;font-size:.68rem;color:var(--text2);",
+    "background:color-mix(in srgb,var(--bg) 78%,transparent);",
+    "border-radius:0 0 15px 15px}",
     "html.hub-no-net .gc[data-playable=\"0\"]::after{content:'not downloaded'}",
     "html.hub-no-net .gc[data-playable=\"net\"]::after{content:'needs internet'}",
   ].join("");
 
-  var GLYPH = { idle: "↓", ready: "✓", fail: "↻", confirm: "✕" };
+  // Inline SVG rather than unicode glyphs, which rendered at different weights
+  // and sizes depending on the font that happened to resolve.
+  function svg(body, size) {
+    return '<svg width="' + (size || 13) + '" height="' + (size || 13) +
+      '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + "</svg>";
+  }
+  var ICON = {
+    idle: svg('<path d="M12 4v11M7 11l5 5 5-5M4 20h16"/>'),
+    ready: svg('<path d="M4 12.5l5.5 5.5L20 7"/>', 11),
+    fail: svg('<path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4"/>'),
+    confirm: svg('<path d="M6 6l12 12M18 6L6 18"/>', 11),
+    busy: svg('<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>', 11),
+  };
   var HINT = {
     idle: "save for offline",
-    ready: "saved for offline — click to remove",
-    fail: "some files failed — click to retry",
+    ready: "saved for offline \u2014 click to remove",
+    fail: "some files failed \u2014 click to retry",
     confirm: "click again to remove",
-    busy: "downloading — click to cancel",
+    busy: "downloading \u2014 click to cancel",
   };
   var confirmTimers = {};
 
@@ -305,12 +344,15 @@
     if (!b) return;
     b.setAttribute("data-state", state);
     b.title = HINT[state] || "";
-    if (state === "busy") {
-      b.textContent = Math.round(pct) + "%";
-      b.style.background = "conic-gradient(var(--accent) " + pct + "%, var(--bg3) 0)";
-    } else {
-      b.style.background = "";
-      b.textContent = GLYPH[state] || GLYPH.idle;
+    b.setAttribute("aria-label", HINT[state] || "");
+    b.innerHTML = ICON[state] || ICON.idle;
+
+    var track = document.querySelector('.ob-pt[data-g="' + id + '"]');
+    if (track) {
+      var busy = state === "busy";
+      track.classList.toggle("on", busy);
+      if (busy) track.firstChild.style.width = Math.max(0, Math.min(100, pct)) + "%";
+      else track.firstChild.style.width = "0";
     }
   }
 
@@ -350,8 +392,19 @@
 
       var b = document.createElement("button");
       b.className = "ob";
+      b.type = "button";
       b.setAttribute("data-g", id);
       card.appendChild(b);
+
+      // One track per card, created alongside the button so setTile can always
+      // find it. Guarded by the .ob check above, so repeated installTiles()
+      // calls never stack up duplicates.
+      var track = document.createElement("i");
+      track.className = "ob-pt";
+      track.setAttribute("data-g", id);
+      track.appendChild(document.createElement("i")).className = "ob-pb";
+      card.appendChild(track);
+
       setTile(id, saved[id] ? "ready" : "idle");
       b.addEventListener("click", onTileClick);
     }
@@ -448,6 +501,10 @@
       }
     },
   };
+
+  // Exposed for the tile tests, which drive states directly.
+  api._setTile = setTile;
+  api._installTiles = installTiles;
 
   window.__hubOffline = api;
 
