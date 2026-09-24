@@ -781,6 +781,17 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // The <head> content this server injects into a game page. A downloaded copy
+  // is fetched raw from GitHub and so never passes through that injection; the
+  // downloader asks for this once and inserts it itself. A few hundred bytes,
+  // so it costs no meaningful bandwidth.
+  if (url.pathname === "/api/offline/head") {
+    const game = (url.searchParams.get("game") || "").replace(/[^A-Za-z0-9_-]/g, "");
+    return new Response(ANTI_INSPECT + CLOAK_SCRIPT + (THEMED_GAMES[game] || ""), {
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" },
+    });
+  }
+
   // Commit sha that the offline downloader pins raw.githubusercontent.com
   // URLs to. Tiny response, so this costs effectively no bandwidth.
   if (url.pathname === "/api/offline/rev") {

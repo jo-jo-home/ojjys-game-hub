@@ -81,6 +81,25 @@
     return manifest;
   }
 
+  // A downloaded page is raw GitHub bytes, so it never went through the
+  // server's head injection. Without this a cached game loses the anti-inspect
+  // script, and a downloaded ojjyChess loses the stylesheets that let it follow
+  // the hub theme. (The tab disguise itself is unaffected — that comes from the
+  // about:blank wrapper the hub writes client-side, which works offline.)
+  //
+  // Only applied to HTML small enough for the rewrite to be worth it. Three
+  // games are a single 7-35 MB HTML file, and turning those into a string to
+  // splice one tag is not a trade worth making on a Chromebook.
+  var HEAD_LIMIT = 1048576;
+
+  async function headFor(id) {
+    try {
+      var response = await fetch("/api/offline/head?game=" + encodeURIComponent(id));
+      if (response.ok) return await response.text();
+    } catch (e) { /* offline or blocked — cache the page unmodified */ }
+    return "";
+  }
+
   // The commit sha comes from the server, which caches it. Falling back to
   // the branch name keeps downloads working if that lookup ever fails.
   async function getRev() {
@@ -97,6 +116,7 @@
   async function download(id, progress) {
     var game = (await getManifest()).games[id];
     var sha = await getRev();
+    var head = await headFor(id);
     var cache = await caches.open(GAMES_CACHE);
 
     // Ask to be exempt from eviction. Eviction is all or nothing per origin,
@@ -123,9 +143,18 @@
             var response = await fetch(REPO + "/" + sha + "/public" + encodeURI(path));
             if (!response.ok) throw new Error("HTTP " + response.status);
             var blob = await response.blob();
-            await cache.put(path, new Response(blob, {
+            var body = blob;
+            var type = mime(path);
+            if (head && type === "text/html" && blob.size <= HEAD_LIMIT) {
+              var text = await blob.text();
+              // A page with no </head> is left exactly as it came.
+              if (text.indexOf("</head>") >= 0) {
+                body = text.replace("</head>", head + "</head>");
+              }
+            }
+            await cache.put(path, new Response(body, {
               status: 200,
-              headers: { "Content-Type": mime(path), "Cache-Control": "no-store" },
+              headers: { "Content-Type": type, "Cache-Control": "no-store" },
             }));
             bytes += blob.size;
           }
@@ -592,6 +621,7 @@
   // Exposed for the tile tests, which drive states directly.
   api._setTile = setTile;
   api._rowVisible = rowVisible;
+  api._headFor = headFor;
   api._installTiles = installTiles;
 
   window.__hubOffline = api;
