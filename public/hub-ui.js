@@ -65,6 +65,33 @@
     } catch (e) { return []; }
   }
 
+  // ---- matching -----------------------------------------------------------
+  // The old search did card.dataset.n.includes(query) — the folder id only,
+  // case-sensitively. So "duck life", "retro bowl", "geometry dash" and
+  // "ojjychess" all returned nothing, and descriptions were never searched.
+
+  // Precomputed per card: the text to search, plus the same text with all
+  // punctuation and spacing removed.
+  function haystack(parts) {
+    var text = parts.join(" ").toLowerCase();
+    return { text: text, squashed: text.replace(/[^a-z0-9]+/g, "") };
+  }
+
+  // Matches when every word of the query appears somewhere, or when the query
+  // with its spacing removed appears in the squashed text. The second rule is
+  // what makes "duck life" find ducklife1 and "ducklife" find "Duck Life 1".
+  function match(hay, query) {
+    var q = (query || "").trim().toLowerCase();
+    if (!q) return true;
+    var squashed = q.replace(/[^a-z0-9]+/g, "");
+    if (squashed && hay.squashed.indexOf(squashed) >= 0) return true;
+    var terms = q.split(/\s+/);
+    for (var i = 0; i < terms.length; i++) {
+      if (hay.text.indexOf(terms[i]) < 0) return false;
+    }
+    return true;
+  }
+
   // ---- sorting -----------------------------------------------------------
 
   var grid = null, cards = [], originalOrder = [];
@@ -108,6 +135,27 @@
   function label(card) {
     var h = card.querySelector("h2");
     return (h ? h.textContent : card.getAttribute("data-n") || "").toLowerCase();
+  }
+
+  // ---- filtering ---------------------------------------------------------
+
+  var search = null, empty = null;
+
+  function filter() {
+    if (!search) return;
+    var q = search.value || "";
+    var shown = 0;
+    for (var i = 0; i < cards.length; i++) {
+      var on = match(cards[i].__hay, q);
+      cards[i].style.display = on ? "" : "none";
+      if (on) shown++;
+    }
+    if (empty) {
+      empty.style.display = shown ? "none" : "";
+      var trimmed = q.trim();
+      empty.textContent = trimmed ? 'nothing matches "' + trimmed + '"' : "";
+    }
+    focusIndex = -1;
   }
 
   // ---- toolbar -----------------------------------------------------------
@@ -222,6 +270,18 @@
     cards = [].slice.call(grid.querySelectorAll(".gc"));
     originalOrder = cards.map(function (c) { return c.getAttribute("data-n"); });
 
+    // Build each card's searchable text once: the folder id, the display name
+    // and the description.
+    for (var k = 0; k < cards.length; k++) {
+      var card = cards[k];
+      var h2 = card.querySelector("h2"), pEl = card.querySelector("p");
+      card.__hay = haystack([
+        card.getAttribute("data-n") || "",
+        h2 ? h2.textContent : "",
+        pEl ? pEl.textContent : "",
+      ]);
+    }
+
     // Cards are anchors, so Enter already activates them once focused; they
     // only need to be reachable and to show where focus is.
     for (var i = 0; i < cards.length; i++) {
@@ -251,10 +311,24 @@
     window._s = sortCards;
     sortCards();
 
+    search = document.getElementById("s");
+    if (search) {
+      empty = document.createElement("div");
+      empty.className = "hu-empty";
+      empty.style.display = "none";
+      grid.parentNode.insertBefore(empty, grid.nextSibling);
+      search.addEventListener("input", filter);
+      filter();
+    }
+
     document.addEventListener("keydown", onKey);
   }
 
   window.__hubUI = {
+    // shared with the offline panel so both search by the same rules
+    haystack: haystack,
+    match: match,
+    filter: filter,
     sortCards: sortCards,
     recordPlay: recordPlay,
     plays: plays,
