@@ -170,20 +170,37 @@
       return h;
     },
 
-    // Used by the landing page button so the about:blank tab it writes gets
-    // the disguise too, instead of a hardcoded "ojjy's game hub".
-    openBlank: function (token) {
+    // The <head> for an about:blank wrapper. A tab's title comes from the
+    // wrapper document, not from the page inside the iframe, so anything
+    // writing one of these must use this — otherwise the disguise is lost the
+    // moment a game is opened.
+    head: function () {
       var c = read();
       var title = c && c.title ? c.title : "ojjy's game hub";
       var icon = c && c.icon ? c.icon : "";
-      var w = window.open("about:blank", "_blank");
-      if (!w) { window.location.href = "/hub"; return; }
-      var head = "<title>" + title.replace(/</g, "&lt;") + "</title>" +
-        (icon ? '<link rel="icon" href="' + icon + '">' : "") +
+      return "<title>" + title.replace(/</g, "&lt;") + "</title>" +
+        (icon ? '<link rel="icon" href="' + icon.replace(/"/g, "&quot;") + '">' : "") +
         "<style>*{margin:0;padding:0}html,body,iframe{width:100%;height:100%;border:none;overflow:hidden}</style>";
-      w.document.write("<!DOCTYPE html><html><head>" + head + "</head><body><iframe src=\"" +
-        window.location.origin + "/hub?token=" + token + "\" allowfullscreen></iframe></body></html>");
+    },
+
+    // Opens url in an about:blank tab wrapped in a full-page iframe, carrying
+    // the disguise. guard adds the beforeunload handler the game tiles use so
+    // the tab can't be closed by an accidental keystroke.
+    openIframe: function (url, guard) {
+      var w = window.open("about:blank", "_blank");
+      if (!w) { window.location.href = url; return false; }
+      var body = '<iframe src="' + url.replace(/"/g, "&quot;") + '" allowfullscreen></iframe>' +
+        (guard
+          ? '<script>window.addEventListener("beforeunload",function(e){e.preventDefault()});<\/script>'
+          : "");
+      w.document.write("<!DOCTYPE html><html><head>" + api.head() + "</head><body>" +
+        body + "</body></html>");
       w.document.close();
+      return true;
+    },
+
+    openBlank: function (token) {
+      return api.openIframe(window.location.origin + "/hub?token=" + token, false);
     },
   };
 
