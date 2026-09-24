@@ -37,6 +37,23 @@ const OFFLINE_FILES: Record<string, string> = {
   "/icons/hub-512.png": "image/png",
 };
 
+// Read once per isolate and kept with a content ETag. These files can't
+// change under a running deployment, so there is no reason to touch the disk
+// or rehash them per request.
+type StaticFile = { body: Uint8Array<ArrayBuffer>; etag: string };
+const staticFiles = new Map<string, StaticFile>();
+async function getStaticFile(path: string): Promise<StaticFile> {
+  const hit = staticFiles.get(path);
+  if (hit) return hit;
+  const body = await Deno.readFile(`public${path}`);
+  const digest = await crypto.subtle.digest("SHA-1", body);
+  const etag = `"${Array.from(new Uint8Array(digest)).slice(0, 10)
+    .map((b) => b.toString(16).padStart(2, "0")).join("")}"`;
+  const entry = { body, etag };
+  staticFiles.set(path, entry);
+  return entry;
+}
+
 // The commit sha offline downloads are pinned to. Branch refs on
 // raw.githubusercontent.com have been seen to 404 for files that resolve
 // fine by sha, and a sha also stops a push mid-download from mixing two
@@ -730,13 +747,22 @@ Deno.serve(async (req: Request) => {
   // --- Offline mode (before the auth check, see OFFLINE_FILES) ---
   if (OFFLINE_FILES[url.pathname]) {
     try {
-      const body = await Deno.readFile(`public${url.pathname}`);
-      return new Response(body, {
+      const file = await getStaticFile(url.pathname);
+      // no-cache, not no-store: the browser must check with us before reusing
+      // these, but an ETag turns that check into a 304 instead of a fresh
+      // download. Without it, no-cache means re-sending every byte on every
+      // load, which would make extracting these files pointless.
+      if (req.headers.get("if-none-match") === file.etag) {
+        return new Response(null, {
+          status: 304,
+          headers: { "ETag": file.etag, "Cache-Control": "no-cache" },
+        });
+      }
+      return new Response(file.body, {
         headers: {
           "Content-Type": OFFLINE_FILES[url.pathname],
-          // no-cache, not no-store: the browser may revalidate but must
-          // never serve a stale service worker from disk.
           "Cache-Control": "no-cache",
+          "ETag": file.etag,
         },
       });
     } catch {
