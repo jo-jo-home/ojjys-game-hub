@@ -1,5 +1,7 @@
 {
-  "unstable": ["kv"],
+  "unstable": [
+    "kv"
+  ],
   "tasks": {
     "start": "deno run --allow-net --allow-read --unstable-kv server.ts"
   },
@@ -7,6 +9,7 @@
     "project": "ojjys-game-hub",
     "entrypoint": "server.ts",
     "exclude": [
+      "public/basketrandom",
       "public/bitlife",
       "public/chess",
       "public/cookieclicker",
@@ -22,16 +25,20 @@
       "public/ducklife5",
       "public/ducklife6",
       "public/fallguys",
+      "public/funnyshooter2",
       "public/geometrydash",
       "public/geometrydashlite",
       "public/gettingoverit",
       "public/gladihoppers",
+      "public/holeio",
       "public/leveldevil",
       "public/motox3m",
       "public/ngon",
       "public/ojjyclient",
       "public/ovo",
+      "public/polytrack",
       "public/retrobowl",
+      "public/retrobowlcollege",
       "public/rocketgoalio",
       "public/spacewaves",
       "public/stickmanhook",

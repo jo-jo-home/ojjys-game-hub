@@ -611,6 +611,11 @@ const GAMES = [
   { id: "cookieclicker", name: "Cookie Clicker", desc: "click the cookie", icon: true },
   { id: "ojjyChess", name: "ojjyChess", desc: "chess.com-style chess", icon: true },
   { id: "resentclient", name: "Resent Client", desc: "eaglercraft pvp client", icon: true },
+  { id: "basketrandom", name: "Basket Random", desc: "ragdoll basketball", icon: false },
+  { id: "funnyshooter2", name: "Funny Shooter 2", desc: "ragdoll shooting chaos", icon: false },
+  { id: "holeio", name: "Hole.io", desc: "swallow the whole city", icon: false },
+  { id: "polytrack", name: "PolyTrack", desc: "low-poly time trials", icon: false },
+  { id: "retrobowlcollege", name: "Retro Bowl College", desc: "coach the college team", icon: false },
 ];
 
 function buildHubPage(token: string): string {

@@ -26,6 +26,7 @@ SKIP_DIRS = {"icons"}
 SKIP_FILES = {".DS_Store"}
 
 TIERS = {
+    "basketrandom": "full",
     "bitlife": "degraded",
     "chess": "degraded",
     "cookieclicker": "degraded",
@@ -44,19 +45,23 @@ TIERS = {
     # make it work offline and the hub should not offer to.
     "ducklife5": "online",
     "ducklife6": "full",
+    "funnyshooter2": "degraded",
     "fallguys": "degraded",
     "geometrydash": "full",
     "geometrydashlite": "degraded",
     "gettingoverit": "full",
     "gladihoppers": "full",
+    "holeio": "degraded",
     "leveldevil": "full",
     "motox3m": "degraded",
     "ngon": "degraded",
     "ojjyChess": "partial",
     "ojjyclient": "partial",
     "ovo": "degraded",
+    "polytrack": "degraded",
     "resentclient": "online",
-    "retrobowl": "degraded",
+    "retrobowl": "full",
+    "retrobowlcollege": "degraded",
     "rocketgoalio": "online",
     "spacewaves": "full",
     "stickmanhook": "full",
