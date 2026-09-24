@@ -39,7 +39,10 @@
 
   var rgb = [46, 107, 189];
   var bgHex = "#0a1628";
-  var fillDot, fillTri, strokeTri, glowIn, glowOut;
+  // Stars follow the theme too: white on dark themes, dark ink on light ones,
+  // where white-on-white was invisible.
+  var spark = [255, 255, 255], sparkPrefix = "rgba(255,255,255,";
+  var fillDot, fillTri, strokeTri, glowIn, glowOut, sparkFade, sparkBright;
 
   function hex2rgb(h) {
     h = h.replace("#", "");
@@ -56,6 +59,10 @@
     var cs = getComputedStyle(de);
     rgb = hex2rgb(cs.getPropertyValue("--accent").trim() || "#2e6bbd");
     bgHex = cs.getPropertyValue("--bg").trim() || "#0a1628";
+    spark = hex2rgb(cs.getPropertyValue("--spark").trim() || "#ffffff");
+    sparkPrefix = "rgba(" + spark[0] + "," + spark[1] + "," + spark[2] + ",";
+    sparkFade = sparkPrefix + "0)";
+    sparkBright = sparkPrefix + ".85)";
     // The fixed alphas can be built once; only link lines vary per pair.
     fillDot = rgba(0.55);
     fillTri = rgba(0.05);
@@ -267,7 +274,7 @@
         var tw = 0.35 + 0.65 * Math.abs(Math.sin(s.p + t * 0.001 * s.s));
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, 6.28);
-        ctx.fillStyle = "rgba(255,255,255," + (tw * 0.8).toFixed(3) + ")";
+        ctx.fillStyle = sparkPrefix + (tw * 0.8).toFixed(3) + ")";
         ctx.fill();
       }
       if (!shoot && t > shootAt) {
@@ -278,8 +285,8 @@
         shoot.l += 14;
         var sx = shoot.x + shoot.l, sy = shoot.y + shoot.l * 0.45;
         var g = ctx.createLinearGradient(sx - 70, sy - 31, sx, sy);
-        g.addColorStop(0, "rgba(255,255,255,0)");
-        g.addColorStop(1, "rgba(255,255,255,.85)");
+        g.addColorStop(0, sparkFade);
+        g.addColorStop(1, sparkBright);
         ctx.strokeStyle = g;
         ctx.lineWidth = 1.6;
         ctx.beginPath();

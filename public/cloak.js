@@ -159,7 +159,7 @@
         var swatch = p.icon
           ? '<img src="' + p.icon + '" width="14" height="14" alt="" ' +
             'style="margin-right:7px;vertical-align:-2px">'
-          : '<span class="cz-sw"><span class="cz-dot" style="background:#8296ab"></span></span>';
+          : '<span class="cz-sw"><span class="cz-dot" style="background:var(--dim)"></span></span>';
         h += '<button class="cz-opt' + (active === p.id ? " on" : "") +
           '" onclick="window.__hubCloak.set(\'' + p.id + '\')">' +
           swatch + p.name + "</button>";
