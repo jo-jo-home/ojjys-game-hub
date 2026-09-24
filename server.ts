@@ -597,7 +597,7 @@ const GAMES = [
 function buildHubPage(token: string): string {
   const cards = GAMES.map(g => {
     const iconHtml = g.icon ? `<img src="/icons/${g.id}.png" alt="${g.name}" width="64" height="64" loading="lazy" decoding="async">` : "";
-    return `<a href="/${g.id}/" class="gc" data-n="${g.id}"><button class="sb" data-g="${g.id}">&#9734;</button>${iconHtml}<h2>${g.name}</h2><p>${g.desc}</p></a>`;
+    return `<a href="/${g.id}/" class="gc" data-n="${g.id}"><button type="button" class="sb" data-g="${g.id}" aria-pressed="false" aria-label="add ${g.name} to favourites">&#9734;</button>${iconHtml}<h2>${g.name}</h2><p>${g.desc}</p></a>`;
   }).join("");
 
   return `<!DOCTYPE html>
@@ -614,9 +614,9 @@ ${CLOAK_SCRIPT}
 <meta name="theme-color" content="#0a1628">
 </head>
 <body>
-<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns"><a class="stg-btn" onclick="openCZ()">customize</a><a class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">offline</a><a class="stg-btn" onclick="openCM()">manage storage</a></div></header>
+<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns"><button type="button" class="stg-btn" onclick="openCZ()">customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">offline</button><button type="button" class="stg-btn" onclick="openCM()">manage storage</button></div></header>
 <main>
-<input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off">
+<input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
 <div class="gg" id="g">${cards}</div>
 </main>
 <footer>made by Jonas Lee</footer>
@@ -627,7 +627,7 @@ ${ANTI_INSPECT}
 <script>
 var _t='${token}';
 var _0x=[JSON.parse(localStorage.getItem('favorites')||'[]'),document.getElementById('g'),document.getElementById('s'),[].slice.call(document.querySelectorAll('.gc')).map(function(c){return c.dataset.n})];
-function _r(){document.querySelectorAll('.sb').forEach(function(b){var c=b.closest('.gc'),n=c.dataset.n;if(_0x[0].includes(n)){b.classList.add('a');b.innerHTML='\\u2605'}else{b.classList.remove('a');b.innerHTML='\\u2606'}})}
+function _r(){document.querySelectorAll('.sb').forEach(function(b){var c=b.closest('.gc'),n=c.dataset.n,t=(c.querySelector('h2')||{}).textContent||n,f=_0x[0].includes(n);if(f){b.classList.add('a');b.innerHTML='\\u2605'}else{b.classList.remove('a');b.innerHTML='\\u2606'}b.setAttribute('aria-pressed',f?'true':'false');b.setAttribute('aria-label',(f?'remove ':'add ')+t+(f?' from favourites':' to favourites'))})}
 function _s(){var c=[].slice.call(_0x[1].children);var o=_0x[3];c.sort(function(a,b){var af=_0x[0].includes(a.dataset.n)?0:1;var bf=_0x[0].includes(b.dataset.n)?0:1;if(af!==bf)return af-bf;return o.indexOf(a.dataset.n)-o.indexOf(b.dataset.n)});c.forEach(function(x){_0x[1].appendChild(x)})}
 document.querySelectorAll('.sb').forEach(function(b){b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var n=b.dataset.g,i=_0x[0].indexOf(n);if(i>=0)_0x[0].splice(i,1);else _0x[0].push(n);localStorage.setItem('favorites',JSON.stringify(_0x[0]));_r();_s()})});
 document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.sb')||e.target.closest('.ob'))return;e.preventDefault();var u=window.location.origin+c.getAttribute('href')+'?token='+_t;if(window.__hubCloak)window.__hubCloak.openIframe(u,true);else window.location.href=u})});
