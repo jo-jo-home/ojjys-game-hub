@@ -535,6 +535,25 @@ function extraHead(pathname: string): string {
 
 // Animated background engine: canvas modes + gradient + custom image (IndexedDB)
 
+const NOT_FOUND_PAGE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>not found</title>
+<link rel="stylesheet" href="/theme.css">
+${THEME_SCRIPT}
+<style>html{background:var(--bg)}body{background:transparent}*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);text-align:center}div{max-width:320px;padding:2rem}h1{font-size:1.4rem;font-weight:300;color:var(--text);letter-spacing:.03em;margin-bottom:.7rem}p{font-size:.9rem;color:var(--dim);line-height:1.55;margin-bottom:1.4rem}a{display:inline-block;padding:.6rem 1.4rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:.9rem;text-decoration:none;transition:border-color .2s}a:hover{border-color:var(--accent)}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}</style>
+</head>
+<body><div>
+<h1>nothing here</h1>
+<p>that page doesn't exist. it may have been a game that moved.</p>
+<a href="/hub">back to the hub</a>
+</div>
+${ANTI_INSPECT}
+</body>
+</html>`;
+
 const LOGIN_PAGE = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1473,6 +1492,16 @@ ${ANTI_INSPECT}
     hdrs.set("Cache-Control", "no-store");
     for (const [k, v] of Object.entries(HTML_HEADERS)) hdrs.set(k, v);
     return new Response(injected, { status: resp.status, headers: hdrs });
+  }
+
+  // A missed navigation used to land on serveDir's plain-text "Not Found".
+  // Anything that isn't a page — a missing sprite, say — keeps that, because a
+  // styled HTML body in place of an image is worse than a bare 404.
+  if (resp.status === 404 && (req.headers.get("accept") || "").includes("text/html")) {
+    return new Response(NOT_FOUND_PAGE, {
+      status: 404,
+      headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
+    });
   }
 
   // Let non-HTML game assets cache normally
