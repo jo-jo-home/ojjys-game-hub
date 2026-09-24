@@ -28,6 +28,9 @@ const OFFLINE_FILES: Record<string, string> = {
   "/sw.js": "application/javascript",
   "/offline.js": "application/javascript",
   "/cloak.js": "application/javascript",
+  "/themes.js": "application/javascript",
+  "/theme-presets.js": "application/javascript",
+  "/chess-theme.css": "text/css",
   "/bg.js": "application/javascript",
   "/theme.css": "text/css",
   "/hub.css": "text/css",
@@ -487,7 +490,46 @@ if(window.MutationObserver&&document.head)new MutationObserver(ap).observe(docum
 // ===== Theme engine (client-side customization, shared by login/landing/hub) =====
 
 // Pre-paint: applies saved theme before first render to avoid flash
-const THEME_SCRIPT = `<script>(function(){try{var t=JSON.parse(localStorage.getItem('hub_theme')||'{}');var p=t.preset||'default';var de=document.documentElement;if(p==='custom'){de.setAttribute('data-theme','default');de.setAttribute('data-custom','1');var c=t.colors||{};var m={bg:'--bg',card:'--bg2',border:'--border',accent:'--accent',text:'--text'};for(var k in m)if(c[k])de.style.setProperty(m[k],c[k])}else{de.setAttribute('data-theme',p)}}catch(e){}})();</script>`;
+// Runs before the first paint on every page, and on the ojjyChess page via the
+// game-HTML injection. It owns two jobs nothing else can do this early:
+// migrating the stored shape to v2, and resolving the active theme to
+// attributes plus inline properties. Everything after it can assume v2.
+const THEME_SCRIPT = `<script>(function(){try{
+var K='hub_theme',de=document.documentElement,t=null;
+try{t=JSON.parse(localStorage.getItem(K)||'null')}catch(e){}
+if(!t||typeof t!=='object')t={};
+if(t.v!==2){var o=t,th={},ac='p:default';
+if(o.preset==='custom'&&o.colors){var q=o.colors;th.c1={id:'c1',name:'custom',base:'default',colors:{bg:q.bg||null,card:q.card||null,border:q.border||null,accent:q.accent||null,text:q.text||null,bg3:null,text2:null,dim:null,faint:null,overlay:null}};ac='c:c1'}
+else if(o.preset&&o.preset!=='custom')ac='p:'+o.preset;
+t={v:2,active:ac,bg:o.bg||'none',chess:o.chess||'own',adv:false,order:Object.keys(th),themes:th};
+try{localStorage.setItem(K,JSON.stringify(t))}catch(e){}}
+var M={bg:'--bg',card:'--bg2',border:'--border',accent:'--accent',text:'--text',bg3:'--bg3',text2:'--text2',dim:'--dim',faint:'--faint',overlay:'--overlay'};
+var a=t.active||'p:default',cu=a.slice(0,2)==='c:'?(t.themes||{})[a.slice(2)]||null:null;
+de.setAttribute('data-theme',(cu?cu.base:a.slice(2))||'default');
+if(cu){de.setAttribute('data-custom','1');var c=cu.colors||{};for(var k in M)if(c[k])de.style.setProperty(M[k],k==='overlay'?'color-mix(in srgb,'+c[k]+' 55%,transparent)':c[k])}else de.removeAttribute('data-custom');
+de.setAttribute('data-chess-theme',t.chess==='hub'?'hub':'own');
+var mt=document.querySelector('meta[name="theme-color"]');
+if(mt){var bg=getComputedStyle(de).getPropertyValue('--bg').trim();if(bg)mt.setAttribute('content',bg)}
+}catch(e){}})();</script>`;
+
+// Extra <head> content for games we own and therefore can theme. Keyed on the
+// first path segment, deliberately a whitelist: theme.css is variables-only
+// (no element rules), but injecting stylesheets into a third-party game is
+// still not something to do blindly.
+//
+// ojjyChess's own CSS now reads var(--ct-*, #original). Those variables are
+// only defined by chess-theme.css under html[data-chess-theme="hub"], which
+// THEME_SCRIPT sets when the user turns the toggle on. Off — the default —
+// every fallback is the colour that was always there.
+const THEMED_GAMES: Record<string, string> = {
+  ojjyChess: '<link rel="stylesheet" href="/theme.css">' +
+    '<link rel="stylesheet" href="/chess-theme.css">' + THEME_SCRIPT,
+};
+
+function extraHead(pathname: string): string {
+  const seg = pathname.split("/").filter(Boolean)[0] || "";
+  return THEMED_GAMES[seg] || "";
+}
 
 // Animated background engine: canvas modes + gradient + custom image (IndexedDB)
 
@@ -500,7 +542,7 @@ const LOGIN_PAGE = `<!DOCTYPE html>
 <link rel="stylesheet" href="/theme.css">
 ${THEME_SCRIPT}
 ${CLOAK_SCRIPT}
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);min-height:100vh;display:flex;align-items:center;justify-content:center}.l{background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:16px;padding:2.5rem;width:100%;max-width:360px;text-align:center;animation:fin .5s ease}h1{font-size:1.8rem;font-weight:300;color:var(--text);letter-spacing:.05em;margin-bottom:1.5rem}input[type="password"]{display:block;width:100%;padding:.7rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:1rem;outline:none;margin-bottom:1rem;transition:border-color .2s,box-shadow .2s}input[type="password"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}input[type="password"]::placeholder{color:var(--faint)}button{width:100%;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}.e{color:#ef4444;font-size:.85rem;margin-bottom:1rem;display:none}</style>
+<style>html{background:var(--bg)}body{background:transparent}@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);min-height:100vh;display:flex;align-items:center;justify-content:center}.l{background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:16px;padding:2.5rem;width:100%;max-width:360px;text-align:center;animation:fin .5s ease}h1{font-size:1.8rem;font-weight:300;color:var(--text);letter-spacing:.05em;margin-bottom:1.5rem}input[type="password"]{display:block;width:100%;padding:.7rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:1rem;outline:none;margin-bottom:1rem;transition:border-color .2s,box-shadow .2s}input[type="password"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}input[type="password"]::placeholder{color:var(--faint)}button{width:100%;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}.e{color:var(--danger);font-size:.85rem;margin-bottom:1rem;display:none}</style>
 </head>
 <body>
 <form class="l" method="POST" action="/login">
@@ -589,42 +631,6 @@ document.querySelectorAll('.sb').forEach(function(b){b.addEventListener('click',
 document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.sb')||e.target.closest('.ob'))return;e.preventDefault();var u=window.location.origin+c.getAttribute('href')+'?token='+_t;if(window.__hubCloak)window.__hubCloak.openIframe(u,true);else window.location.href=u})});
 _0x[2].addEventListener('input',function(){var q=_0x[2].value.toLowerCase();document.querySelectorAll('.gc').forEach(function(c){c.style.display=c.dataset.n.includes(q)?'':'none'})});
 _r();_s();
-var _cz={get:function(){try{return JSON.parse(localStorage.getItem('hub_theme')||'{}')}catch(e){return{}}},set:function(t){localStorage.setItem('hub_theme',JSON.stringify(t))}};
-var _czPresets={'default':['#0a1628','#111d2e','#2e6bbd'],'light':['#f1f5fa','#ffffff','#2e6bbd'],'midnight':['#08070e','#100f1c','#8b5cf6'],'forest':['#0b1410','#122019','#4ade80'],'sunset':['#160d0a','#221410','#f97316']};
-function applyTheme(){var t=_cz.get(),de=document.documentElement;de.style.cssText='';if((t.preset||'default')==='custom'){de.setAttribute('data-theme','default');de.setAttribute('data-custom','1');var c=t.colors||{},m={bg:'--bg',card:'--bg2',border:'--border',accent:'--accent',text:'--text'};for(var k in m)if(c[k])de.style.setProperty(m[k],c[k])}else{de.removeAttribute('data-custom');de.setAttribute('data-theme',t.preset||'default')}window.__hubBG(t.bg||'none');if(document.getElementById('cz-ov').classList.contains('open'))renderCZ()}
-function setPreset(p){var t=_cz.get();t.preset=p;if(p==='custom'&&!t.colors)t.colors={bg:'#0a1628',card:'#111d2e',border:'#1e3a5f',accent:'#2e6bbd',text:'#e2e8f0'};_cz.set(t);applyTheme()}
-function setCustomColor(k,v){var t=_cz.get();t.colors=t.colors||{};t.colors[k]=v;t.preset='custom';_cz.set(t);applyTheme()}
-function setBG(m){var t=_cz.get();t.bg=m;_cz.set(t);applyTheme()}
-function _czIdb(cb){var r=indexedDB.open('hub_prefs',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){cb(r.result)};r.onerror=function(){cb(null)}}
-function uploadBG(inp){var f=inp.files[0];if(!f)return;_czIdb(function(db){if(!db)return;var tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(f,'bgimage');tx.oncomplete=function(){setBG('image')}});inp.value=''}
-function removeBG(){_czIdb(function(db){if(!db)return;var tx=db.transaction('kv','readwrite');tx.objectStore('kv').delete('bgimage');tx.oncomplete=function(){setBG('none')}})}
-function renderCZ(){
-var t=_cz.get(),p=t.preset||'default',bg=t.bg||'none';
-var el=document.getElementById('cz');
-var h='<div class="cm-hd"><h2>customize</h2><button onclick="closeCZ()">&times;</button></div>';
-h+='<div class="cz-sec"><div class="cz-lbl">mode</div><div class="cz-row">';
-h+='<button class="cz-opt'+(p!=='light'?' on':'')+'" onclick="setPreset(\\'default\\')">dark</button>';
-h+='<button class="cz-opt'+(p==='light'?' on':'')+'" onclick="setPreset(\\'light\\')">light</button></div></div>';
-h+='<div class="cz-sec"><div class="cz-lbl">theme</div><div class="cz-row">';
-var names=['default','light','midnight','forest','sunset','custom'];
-for(var i=0;i<names.length;i++){var n=names[i],sw='';
-if(_czPresets[n]){sw='<span class="cz-sw">';for(var j=0;j<3;j++)sw+='<span class="cz-dot" style="background:'+_czPresets[n][j]+'"></span>';sw+='</span>'}
-h+='<button class="cz-opt'+(p===n?' on':'')+'" onclick="setPreset(\\''+n+'\\')">'+sw+n+'</button>'}
-h+='</div>';
-if(p==='custom'){var c=t.colors||{},defs={bg:'#0a1628',card:'#111d2e',border:'#1e3a5f',accent:'#2e6bbd',text:'#e2e8f0'};h+='<div class="cz-colors">';for(var k in defs)h+='<label class="cz-color"><input type="color" value="'+(c[k]||defs[k])+'" onchange="setCustomColor(\\''+k+'\\',this.value)">'+k+'</label>';h+='</div>'}
-h+='</div>';
-h+='<div class="cz-sec"><div class="cz-lbl">background</div><div class="cz-row">';
-var bgs=['none','particles','gradient','starfield','shapes'];
-for(var i=0;i<bgs.length;i++)h+='<button class="cz-opt'+(bg===bgs[i]?' on':'')+'" onclick="setBG(\\''+bgs[i]+'\\')">'+bgs[i]+'</button>';
-h+='</div><div class="cz-row" style="margin-top:.8rem">';
-h+='<button class="cz-opt'+(bg==='image'?' on':'')+'" onclick="document.getElementById(\\'cz-file\\').click()">upload image</button>';
-if(bg==='image')h+='<button class="cz-opt" onclick="removeBG()">remove image</button>';
-h+='</div><input type="file" id="cz-file" class="cz-file" accept="image/*" onchange="uploadBG(this)"></div>';
-el.innerHTML=h+(window.__hubCloak?window.__hubCloak.section():'');
-}
-function openCZ(){document.getElementById('cz-ov').classList.add('open');renderCZ()}
-function closeCZ(){document.getElementById('cz-ov').classList.remove('open')}
-document.getElementById('cz-ov').addEventListener('click',function(e){if(e.target===this)closeCZ()});
 var _km={
 'favorites':'hub favorites','ojjychess_token':'ojjyChess','hub_theme':'hub settings',
 'CookieClickerGame':'Cookie Clicker','CookieClickerGameBeta':'Cookie Clicker','CookieClickerGameBetaDungeons':'Cookie Clicker','CookieClickerGameOld':'Cookie Clicker','CookieClickerGamev10466':'Cookie Clicker',
@@ -706,6 +712,8 @@ function openCM(){document.getElementById('cm-ov').classList.add('open');renderC
 function closeCM(){document.getElementById('cm-ov').classList.remove('open')}
 document.getElementById('cm-ov').addEventListener('click',function(e){if(e.target===this)closeCM()});
 </script>
+<script src="/theme-presets.js"></script>
+<script src="/themes.js"></script>
 <script src="/cloak.js"></script>
 <script src="/offline.js"></script>
 </body>
@@ -1397,7 +1405,7 @@ Deno.serve(async (req: Request) => {
 <link rel="stylesheet" href="/theme.css">
 ${THEME_SCRIPT}
 ${CLOAK_SCRIPT}
-<style>*{margin:0;padding:0;box-sizing:border-box}body{color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:1rem}h1{font-weight:300;letter-spacing:.05em;animation:fin .5s ease}button{padding:.8rem 2rem;border:1px solid var(--border);border-radius:12px;background:var(--bg3);color:var(--text);font-size:1.1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}a{color:var(--accent);font-size:.9rem}</style>
+<style>html{background:var(--bg)}body{background:transparent}@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{margin:0;padding:0;box-sizing:border-box}body{color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:1rem}h1{font-weight:300;letter-spacing:.05em;animation:fin .5s ease}button{padding:.8rem 2rem;border:1px solid var(--border);border-radius:12px;background:var(--bg3);color:var(--text);font-size:1.1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}a{color:var(--accent);font-size:.9rem}</style>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
 </head><body>
@@ -1430,7 +1438,7 @@ ${ANTI_INSPECT}
         const mime = getMime(ghPath);
         if (mime === "text/html") {
           const html = await ghResp.text();
-          return new Response(html.replace("</head>", ANTI_INSPECT + CLOAK_SCRIPT + "</head>"), {
+          return new Response(html.replace("</head>", ANTI_INSPECT + CLOAK_SCRIPT + extraHead(url.pathname) + "</head>"), {
             headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
           });
         }
@@ -1445,7 +1453,7 @@ ${ANTI_INSPECT}
   const ct = resp.headers.get("content-type") || "";
   if (ct.includes("text/html")) {
     const html = await resp.text();
-    const injected = html.replace("</head>", ANTI_INSPECT + CLOAK_SCRIPT + "</head>");
+    const injected = html.replace("</head>", ANTI_INSPECT + CLOAK_SCRIPT + extraHead(url.pathname) + "</head>");
     const hdrs = new Headers(resp.headers);
     hdrs.delete("content-length");
     hdrs.set("Cache-Control", "no-store");
