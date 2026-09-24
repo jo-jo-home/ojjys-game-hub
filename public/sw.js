@@ -19,6 +19,9 @@ const KEEP = [SHELL, GAMES];
 const SHELL_URLS = [
   "/",
   "/hub",
+  "/theme.css",
+  "/hub.css",
+  "/bg.js",
   "/offline.js",
   "/cloak.js",
   "/offline-manifest.json",
