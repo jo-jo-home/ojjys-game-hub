@@ -10,7 +10,7 @@
 // GAMES is in KEEP below and must stay there. Dropping it means every
 // service worker update silently deletes everything the user downloaded.
 
-const SHELL = "hub-shell-v2";
+const SHELL = "hub-shell-v3";
 const GAMES = "hub-games-v1";
 const KEEP = [SHELL, GAMES];
 
@@ -167,14 +167,44 @@ function isShellAsset(pathname) {
   return pathname.startsWith("/icons/") || pathname.lastIndexOf("/") === 0;
 }
 
-// Downloaded game files never change under a given commit, so cache wins
-// and the download actually buys something.
+// The hub's own code and styles change whenever the hub does. Serving those
+// cache-first meant an update never reached anyone already running the worker
+// until the cache name happened to change — five stylesheet changes went out
+// that way, and the header ended up with fresh markup being laid out by a
+// stylesheet from several deploys earlier.
+//
+// They are small and carry an ETag, so asking the network first costs a 304
+// and the cache goes back to being purely the offline fallback. Game and app
+// files are immutable under a given commit, so those stay cache-first — that
+// is the entire point of downloading them.
+function isMutableShell(pathname) {
+  return pathname.lastIndexOf("/") === 0 &&
+    /\.(css|js|json|webmanifest)$/.test(pathname);
+}
+
 async function handleAsset(request) {
+  const path = new URL(request.url).pathname;
+
+  if (isMutableShell(path)) {
+    try {
+      const response = await fetch(request);
+      if (storable(response)) {
+        const cache = await caches.open(SHELL);
+        await cache.put(path, response.clone());
+      }
+      return response;
+    } catch {
+      // Offline: the cached copy is exactly what we want.
+      return (await lookup(request)) ||
+        new Response("", { status: 504, statusText: "offline" });
+    }
+  }
+
   const hit = await lookup(request);
   if (hit) return hit;
   try {
     const response = await fetch(request);
-    if (storable(response) && isShellAsset(new URL(request.url).pathname)) {
+    if (storable(response) && isShellAsset(path)) {
       const cache = await caches.open(SHELL);
       await cache.put(request, response.clone());
     }
