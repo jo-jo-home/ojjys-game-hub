@@ -46,8 +46,41 @@
 
   async function load() {
     var res = await fetch("/api/admin/state", { cache: "no-store" });
-    if (!res.ok) throw new Error("no access");
+    if (!res.ok) {
+      var err = new Error("no access");
+      err.status = res.status;
+      throw err;
+    }
     state = await res.json();
+  }
+
+  // The panel used to blank itself on any failure, which made "it doesn't
+  // work" the only possible report. Every failure now says which one it was.
+  function explain(status) {
+    if (status === 404) {
+      return "this session isn't an admin session.\n\n" +
+        "the panel only opens for a session that signed in with ADMIN_CODE. " +
+        "if you just set that variable in deno deploy, the site has to be " +
+        "redeployed before it takes effect — it is read once when the server " +
+        "starts. check /api/session: it answers {\"ok\":true,\"admin\":true} " +
+        "for an admin session.";
+    }
+    if (status) return "the server answered " + status + ".";
+    return "couldn't reach the server. this page needs to be online.";
+  }
+
+  function fatal(status) {
+    var el = document.getElementById("ad");
+    if (!el) return;
+    el.innerHTML = '<h2>admin</h2><div class="dim" style="white-space:pre-line">' +
+      esc(explain(status)) + "</div>";
+  }
+
+  function notify(message) {
+    var box = document.getElementById("ad-shown");
+    if (!box) return;
+    box.className = "new show";
+    box.innerHTML = '<div class="dim">' + esc(message) + "</div>";
   }
 
   function render() {
@@ -158,7 +191,13 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: label }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      notify(res.status === 404
+        ? "that didn't work — this session is no longer an admin session. " +
+          "sign in again with your admin code."
+        : "that didn't work — the server answered " + res.status + ". no code was created.");
+      return;
+    }
     var made = await res.json();
     if (input) input.value = "";
     await load();
@@ -186,13 +225,14 @@
     }
     pendingRevoke = null;
     clearTimeout(revokeTimer);
-    await fetch("/api/admin/revoke", {
+    var res = await fetch("/api/admin/revoke", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ hash: hash }),
     });
     await load();
     render();
+    if (!res.ok) notify("that revoke didn't go through — the server answered " + res.status + ".");
   }
 
   async function onShared(e) {
@@ -219,8 +259,7 @@
       await load();
       render();
     } catch (e) {
-      var el = document.getElementById("ad");
-      if (el) el.textContent = "";
+      fatal(e && e.status);
     }
   }
 

@@ -10,7 +10,7 @@
 // GAMES is in KEEP below and must stay there. Dropping it means every
 // service worker update silently deletes everything the user downloaded.
 
-const SHELL = "hub-shell-v3";
+const SHELL = "hub-shell-v4";   // v4 drops the /admin page the old worker cached
 const GAMES = "hub-games-v1";
 const KEEP = [SHELL, GAMES];
 

@@ -105,7 +105,11 @@ const PASSWORD_HASH = "1779c0ce5c9ca5c69110d3853843a70e797bf3264fbeafa6c65de398f
 // freely and runs several at once, so an in-memory Set meant everyone was
 // logged out whenever that happened, and a login on one isolate was not
 // recognised by another.
-const SESSION_TTL_MS = 86_400_000; // matches the cookie's Max-Age
+// A day was too short: the cookie was never refreshed, so everybody was
+// logged out roughly 24 hours after signing in, which reads as "it logs me
+// out at random". It is a month now, and it slides — every page load pushes
+// it forward, so only real inactivity ends a session.
+const SESSION_TTL_MS = 30 * 86_400_000; // matches the cookie's Max-Age
 
 // A page pulls hundreds of files and every one passes the auth check, so
 // tokens verified against KV are remembered briefly to keep that to one read
@@ -189,10 +193,25 @@ async function touchCode(hash: string, opened: boolean): Promise<void> {
   await (await getKv()).set(["hub_codes", hash], record);
 }
 
-// Is the built-in shared password still accepted?
+// Is the built-in shared password still accepted? Cached briefly, and it
+// answers "yes" if the database cannot be reached: the alternative is that a
+// KV hiccup locks every single person out of the site at once. The cost of
+// failing this way round is that a freshly retired password may keep working
+// for up to a minute.
+// Short, because retiring the shared password should take effect now rather
+// than eventually. The isolate that makes the change clears it immediately;
+// this window only applies to the others.
+const SHARED_FLAG_CACHE_MS = 10_000;
+let sharedFlag: { at: number; on: boolean } | null = null;
 async function sharedPasswordEnabled(): Promise<boolean> {
-  const entry = await (await getKv()).get<{ off: boolean }>(["hub_settings", "shared"]);
-  return !entry.value?.off;
+  if (sharedFlag && Date.now() - sharedFlag.at < SHARED_FLAG_CACHE_MS) return sharedFlag.on;
+  try {
+    const entry = await (await getKv()).get<{ off: boolean }>(["hub_settings", "shared"]);
+    sharedFlag = { at: Date.now(), on: !entry.value?.off };
+    return sharedFlag.on;
+  } catch {
+    return sharedFlag ? sharedFlag.on : true;
+  }
 }
 
 // Resolves what was typed into the login box. Returns null when it is not
@@ -206,17 +225,23 @@ async function identify(input: string): Promise<SessionInfo | null> {
     return { at: Date.now(), code: "owner", label: "owner", role: "admin" };
   }
 
-  // a minted access code
-  const hash = await sha256(normaliseCode(typed));
-  const record = await getCode(hash);
-  if (record && !record.revokedAt) {
-    return { at: Date.now(), code: hash, label: record.label, role: record.role };
-  }
-
-  // the original shared password, unless it has been retired
+  // The original shared password, unless it has been retired. Checked before
+  // the code lookup because it is pure computation: until this was reordered,
+  // signing in with the password everyone already uses depended on two
+  // database reads that the old code never needed, so a KV blip looked
+  // exactly like "the password stopped working".
   if ((await sha256(typed)) === PASSWORD_HASH && await sharedPasswordEnabled()) {
     return { at: Date.now(), code: SHARED_CODE, label: "shared password", role: "user" };
   }
+
+  // a minted access code
+  try {
+    const hash = await sha256(normaliseCode(typed));
+    const record = await getCode(hash);
+    if (record && !record.revokedAt) {
+      return { at: Date.now(), code: hash, label: record.label, role: record.role };
+    }
+  } catch { /* unreachable database: fall through rather than reject the login */ }
 
   return null;
 }
@@ -243,6 +268,11 @@ function getSessionFromCookie(req: Request): string | null {
   const cookie = req.headers.get("cookie") || "";
   const match = cookie.match(/session=([a-f0-9]{64})/);
   return match ? match[1] : null;
+}
+
+function sessionCookie(token: string): string {
+  return `session=${token}; Path=/; HttpOnly; SameSite=None; Secure; ` +
+    `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`;
 }
 
 async function addSession(token: string, info: SessionInfo): Promise<void> {
@@ -273,21 +303,24 @@ async function readSession(token: string): Promise<SessionInfo | null> {
   return info;
 }
 
-// Records that this session is still being used. Rate-limited, and it keeps
-// the original expiry rather than extending it — being active shouldn't
-// silently turn a one-day session into a permanent one.
+// Records that this session is still being used, and pushes its expiry out.
+// Rate-limited, and it never throws: nothing about a request should fail
+// because the bookkeeping did.
 async function touchSession(req: Request): Promise<void> {
-  const token = await getSessionToken(req);
-  if (!token) return;
-  const info = await readSession(token);
-  if (!info) return;
+  let token: string | null = null;
+  let info: SessionInfo | null = null;
+  try {
+    token = await getSessionToken(req);
+    info = token ? await readSession(token) : null;
+  } catch { return; }
+  if (!token || !info) return;
   const now = Date.now();
   if (now - (info.seen || info.at) < SEEN_INTERVAL_MS) return;
-  const remaining = SESSION_TTL_MS - (now - info.at);
-  if (remaining <= 0) return;
   info.seen = now;
   try {
-    await (await getKv()).set(["hub_sessions", token], info, { expireIn: remaining });
+    // A full window from now, not what was left of the old one: the session
+    // should end after a month of not being used, not a month after signing in.
+    await (await getKv()).set(["hub_sessions", token], info, { expireIn: SESSION_TTL_MS });
     verifiedSessions.set(token, { at: now, info });
   } catch { /* the heartbeat is never worth failing a request over */ }
 }
@@ -1066,11 +1099,17 @@ Deno.serve(async (req: Request) => {
       const token = generateToken();
       await addSession(token, info);
       await touchCode(info.code, false);
+      // The token goes in the URL as well as the cookie. Games open inside an
+      // about:blank wrapper, and a cookie set in that context is a third-party
+      // cookie as far as Chrome is concerned — on a managed Chromebook it gets
+      // dropped, and the only symptom is being bounced straight back to the
+      // login screen as though the password were wrong. Every route already
+      // accepts ?token=, so this makes signing in work either way.
       return new Response(null, {
         status: 302,
         headers: {
-          "Location": "/",
-          "Set-Cookie": `session=${token}; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=86400`,
+          "Location": `/?token=${token}`,
+          "Set-Cookie": sessionCookie(token),
         },
       });
     }
@@ -1219,6 +1258,7 @@ Deno.serve(async (req: Request) => {
       } catch { /* nothing to do */ }
       if (hash === SHARED_CODE) {
         await kv.set(["hub_settings", "shared"], { off: true });
+        sharedFlag = null;
       } else if (/^[a-f0-9]{64}$/.test(hash)) {
         const record = await getCode(hash);
         if (record) {
@@ -1243,6 +1283,7 @@ Deno.serve(async (req: Request) => {
         on = !!((await req.json()) || {}).on;
       } catch { /* default to leaving it on */ }
       await kv.set(["hub_settings", "shared"], { off: !on });
+      sharedFlag = null;
       return new Response("{}", { headers: JSON_CT });
     }
 
@@ -1253,10 +1294,23 @@ Deno.serve(async (req: Request) => {
   // and lives under /api/ so the service worker passes it straight to the
   // network — a cached answer would defeat the point.
   if (url.pathname === "/api/session") {
-    const ok = await isAuthenticated(req);
-    if (ok) await touchSession(req);
-    return new Response(JSON.stringify({ ok }), {
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    const info = await getSession(req);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    };
+    if (info) {
+      await touchSession(req);
+      // Re-issued on every page load so the browser's copy never ages out
+      // while the session is still in use.
+      const token = await getSessionToken(req);
+      if (token) headers["Set-Cookie"] = sessionCookie(token);
+    }
+    // `admin` is here so the panel — and whoever is setting ADMIN_CODE up —
+    // can tell an unset environment variable apart from a broken panel. It
+    // says nothing a session doesn't already know about itself.
+    return new Response(JSON.stringify({ ok: !!info, admin: info?.role === "admin" }), {
+      headers,
     });
   }
 
