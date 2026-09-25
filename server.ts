@@ -578,6 +578,27 @@ ${ANTI_INSPECT}
 </body>
 </html>`;
 
+// Simple line icons for the header controls. Inline so they need no request
+// and inherit the button's colour, and stroked rather than filled so they read
+// at the same weight as the text beside them.
+function navIcon(body: string): string {
+  return `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" ` +
+    `stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+}
+
+const NAV_ICONS: Record<string, string> = {
+  // four tiles
+  apps: navIcon('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
+  // a gamepad
+  games: navIcon('<path d="M7 12h4M9 10v4M15.5 11.5h.01M18 14h.01"/><rect x="2" y="6" width="20" height="12" rx="5"/>'),
+  // sliders
+  customize: navIcon('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'),
+  // download into a tray, matching the tile control
+  offline: navIcon('<path d="M12 3v10M8 9l4 4 4-4M4 19h16"/>'),
+  // stacked drives
+  storage: navIcon('<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>'),
+};
+
 // Apps live under /apps/<id>/ and get their own page at /apps. They are kept
 // separate from GAMES so the two catalogues can never collide on a name, and
 // so the offline downloader — which walks the top level of public/ — does not
@@ -674,8 +695,8 @@ ${CLOAK_SCRIPT}
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
 </head>
-<body>
-<header><h1>ojjy's apps</h1><p>tools and emulators, ${APPS.length} of them</p><div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">games</a><button type="button" class="stg-btn" onclick="openCZ()">customize</button></div></header>
+<body data-scope="app">
+<header><h1>ojjy's apps</h1><p>tools and emulators, ${APPS.length} of them</p><div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}games</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${APPS.length} apps..." autocomplete="off" aria-label="search apps">
 <div class="gg" id="g">${cards}</div>
@@ -691,6 +712,7 @@ document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',
 <script src="/themes.js"></script>
 <script src="/hub-ui.js"></script>
 <script src="/cloak.js"></script>
+<script src="/offline.js"></script>
 <script src="/bg.js"></script>
 </body>
 </html>`;
@@ -715,8 +737,8 @@ ${CLOAK_SCRIPT}
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
 </head>
-<body>
-<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns"><a class="stg-btn" href="/apps?token=${token}">apps</a><button type="button" class="stg-btn" onclick="openCZ()">customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">offline</button><button type="button" class="stg-btn" onclick="openCM()">manage storage</button></div></header>
+<body data-scope="game">
+<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns"><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
 <div class="gg" id="g">${cards}</div>
@@ -881,6 +903,15 @@ Deno.serve(async (req: Request) => {
     } catch {
       return new Response("Not Found", { status: 404 });
     }
+  }
+
+  // Is this session still good? Deliberately answers rather than redirecting,
+  // and lives under /api/ so the service worker passes it straight to the
+  // network — a cached answer would defeat the point.
+  if (url.pathname === "/api/session") {
+    return new Response(JSON.stringify({ ok: await isAuthenticated(req) }), {
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
   }
 
   // The <head> content this server injects into a game page. A downloaded copy

@@ -187,15 +187,47 @@
     // the disguise. guard adds the beforeunload handler the game tiles use so
     // the tab can't be closed by an accidental keystroke.
     openIframe: function (url, guard) {
+      // Opened synchronously so it still counts as the click the user made;
+      // anything async here and the popup blocker takes it.
       var w = window.open("about:blank", "_blank");
       if (!w) { window.location.href = url; return false; }
-      var body = '<iframe src="' + url.replace(/"/g, "&quot;") + '" allowfullscreen></iframe>' +
-        (guard
-          ? '<script>window.addEventListener("beforeunload",function(e){e.preventDefault()});<\/script>'
-          : "");
-      w.document.write("<!DOCTYPE html><html><head>" + api.head() + "</head><body>" +
-        body + "</body></html>");
-      w.document.close();
+
+      // The disguise goes up immediately, so the tab never shows about:blank
+      // while the session is being checked.
+      try {
+        w.document.write("<!DOCTYPE html><html><head>" + api.head() + "</head><body></body></html>");
+        w.document.close();
+      } catch (e) { /* the tab was closed already */ }
+
+      function fill() {
+        try {
+          var body = '<iframe src="' + url.replace(/"/g, "&quot;") + '" allowfullscreen></iframe>' +
+            (guard
+              ? '<script>window.addEventListener("beforeunload",function(e){e.preventDefault()});<\/script>'
+              : "");
+          w.document.open();
+          w.document.write("<!DOCTYPE html><html><head>" + api.head() + "</head><body>" +
+            body + "</body></html>");
+          w.document.close();
+        } catch (e) { /* the tab was closed already */ }
+      }
+
+      // A hub page can come from the service worker's cache, and it carries
+      // whatever session token it held when it was cached. If that session has
+      // since expired the game request redirects to /login, and the iframe
+      // renders the login screen inside a brand new tab — where it is useless.
+      // Ask first: if the session is gone, close the tab and send this one to
+      // the login page instead. /api/ is never cached, so the answer is real.
+      try {
+        fetch("/api/session", { credentials: "same-origin", cache: "no-store" })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d && d.ok) { fill(); return; }
+            try { w.close(); } catch (e) { /* already gone */ }
+            window.location.href = "/login";
+          })
+          .catch(fill);   // offline: the worker serves the game from cache
+      } catch (e) { fill(); }
       return true;
     },
 

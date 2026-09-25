@@ -63,6 +63,20 @@
   var rev = null;
   var active = {};
 
+  // Games and apps share one catalogue so the downloader, the worker and the
+  // panel need no second code path. This is what keeps each page's panel
+  // showing only its own list; the tiles are scoped already, since they are
+  // built from the cards actually on the page.
+  var scope = "game";
+
+  function inScope(entry) {
+    return (entry.kind || "game") === scope;
+  }
+
+  function scopedIds(data) {
+    return Object.keys(data.games).filter(function (id) { return inScope(data.games[id]); });
+  }
+
   function registry() {
     try { return JSON.parse(localStorage.getItem(REGISTRY) || "{}"); } catch (e) { return {}; }
   }
@@ -229,7 +243,7 @@
   function applyFilter() {
     if (!manifest) return;
     var saved = registry();
-    var ids = Object.keys(manifest.games);
+    var ids = scopedIds(manifest);
     var shown = 0;
     for (var i = 0; i < ids.length; i++) {
       var id = ids[i];
@@ -286,7 +300,7 @@
     }
 
     var saved = registry();
-    var ids = Object.keys(data.games).sort(function (a, b) {
+    var ids = scopedIds(data).sort(function (a, b) {
       var sa = saved[a] ? 0 : 1, sb = saved[b] ? 0 : 1;
       if (sa !== sb) return sa - sb;
       return data.games[a].bytes - data.games[b].bytes;
@@ -304,7 +318,7 @@
       }
     } catch (e) { /* not supported */ }
 
-    var count = Object.keys(saved).length;
+    var count = ids.filter(function (id) { return saved[id]; }).length;
     var head = '<div class="cm-hd"><h2>offline mode</h2>' +
       '<button onclick="window.__hubOffline.close()">&times;</button></div>' +
       '<div class="cm-sum">' + count + " of " + ids.length + " games downloaded" +
@@ -621,6 +635,7 @@
   // Exposed for the tile tests, which drive states directly.
   api._setTile = setTile;
   api._rowVisible = rowVisible;
+  api._setScope = function (v) { scope = v; };
   api._headFor = headFor;
   api._installTiles = installTiles;
 
@@ -636,7 +651,28 @@
 
   // Tiles only exist on the hub. Elsewhere this file is just the worker
   // registration, so there is nothing to set up.
+  // Any of our pages can be served from the worker's cache, carrying whatever
+  // session token it held when it was cached. If that session has since
+  // expired, every link on the page is already dead — so find out on load
+  // rather than letting the first click open a tab full of login screen.
+  // This file is only on the hub, the apps page and the landing page; game
+  // frames never run it, so it can't redirect anything from inside a game.
+  function verifySession() {
+    if (!navigator.onLine) return;   // offline, the cache is what we want
+    try {
+      fetch("/api/session", { credentials: "same-origin", cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.ok === false) window.location.href = "/login";
+        })
+        .catch(function () { /* can't tell; leave the page alone */ });
+    } catch (e) { /* ditto */ }
+  }
+
   function start() {
+    var declared = document.body && document.body.getAttribute("data-scope");
+    if (declared === "app" || declared === "game") scope = declared;
+    verifySession();
     syncNet();
     addEventListener("online", syncNet);
     addEventListener("offline", syncNet);

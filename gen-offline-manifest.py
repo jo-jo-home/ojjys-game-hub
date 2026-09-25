@@ -27,6 +27,33 @@ PUBLIC = "public"
 SKIP_DIRS = {"icons", "apps"}
 SKIP_FILES = {".DS_Store"}
 
+# Apps live under public/apps/ and are catalogued alongside the games with a
+# "kind" so each page's panel shows only its own. Four of them load their real
+# machinery from a CDN and so cannot work offline at all:
+#   htmlcoder           its whole editor comes from jsdelivr/cdnjs/jquery
+#   thirtydollarwebsite jquery and jquery-ui from googleapis and cdnjs
+#   ruffle              injects the flash player from unpkg at runtime
+#   emulatorjs          cores come from cdn.emulatorjs.org
+APP_TIERS = {
+    "calculator": "full",
+    "emulatorjs": "online",
+    "etchasketch": "full",
+    "fluidsim": "full",
+    "godoblocks": "full",
+    "htmlcoder": "online",
+    "ruffle": "online",
+    "thirtydollarwebsite": "online",
+    # turbowarp pulls a tutorial video from wistia; the editor itself is local
+    "turbowarp": "degraded",
+    "turbowarppkg": "full",
+    "turbowarpunpkg": "full",
+    "v86": "full",
+    "weavesilk": "full",
+    "webretro": "full",
+    "windows11": "full",
+    "zipopener": "full",
+}
+
 TIERS = {
     "basketrandom": "full",
     "boxelrebound": "full",
@@ -80,7 +107,7 @@ TIERS = {
 
 
 def display_names() -> dict[str, str]:
-    """Read the pretty game names out of the GAMES array in server.ts.
+    """Read the pretty names out of the GAMES and APPS arrays in server.ts.
 
     Parsed rather than duplicated here so the two can't drift apart.
     """
@@ -91,43 +118,71 @@ def display_names() -> dict[str, str]:
     return names
 
 
-def entry_point(game: str, files: list[str]) -> str:
-    """Pick the file a game boots from."""
-    index = f"/{game}/index.html"
+def entry_point(prefix: str, files: list[str]) -> str:
+    """Pick the file something boots from."""
+    index = f"{prefix}/index.html"
     if index in files:
         return index
     htmls = [f for f in files if f.endswith(".html")]
     return htmls[0] if htmls else files[0]
 
 
+def collect(path: str) -> tuple[list[str], int]:
+    """Every file under path, as URLs relative to public/, plus the total size."""
+    files, total = [], 0
+    for root, _, filenames in os.walk(path):
+        for filename in sorted(filenames):
+            if filename in SKIP_FILES:
+                continue
+            full = os.path.join(root, filename)
+            files.append("/" + os.path.relpath(full, PUBLIC))
+            total += os.path.getsize(full)
+    return files, total
+
+
 def main() -> None:
     names = display_names()
     games = {}
+
     for name in sorted(os.listdir(PUBLIC)):
         path = os.path.join(PUBLIC, name)
         if not os.path.isdir(path) or name in SKIP_DIRS:
             continue
-
-        files, total = [], 0
-        for root, _, filenames in os.walk(path):
-            for filename in sorted(filenames):
-                if filename in SKIP_FILES:
-                    continue
-                full = os.path.join(root, filename)
-                files.append("/" + os.path.relpath(full, PUBLIC))
-                total += os.path.getsize(full)
-
+        files, total = collect(path)
         if not files:
             continue
-
         games[name] = {
             "name": names.get(name, name),
-            "entry": entry_point(name, files),
+            "kind": "game",
+            "entry": entry_point(f"/{name}", files),
             "icon": f"/icons/{name}.png",
             "tier": TIERS.get(name, "full"),
             "bytes": total,
             "files": files,
         }
+
+    # Apps share the catalogue so the downloader, the service worker and the
+    # panel need no second code path; "kind" is what keeps each page's panel
+    # showing only its own list. Ids are guaranteed not to collide by the
+    # catalogue drift test.
+    apps_dir = os.path.join(PUBLIC, "apps")
+    if os.path.isdir(apps_dir):
+        for name in sorted(os.listdir(apps_dir)):
+            path = os.path.join(apps_dir, name)
+            if not os.path.isdir(path):
+                continue
+            files, total = collect(path)
+            if not files:
+                continue
+            games[name] = {
+                "name": names.get(name, name),
+                "kind": "app",
+                "entry": entry_point(f"/apps/{name}", files),
+                "icon": f"/icons/app-{name}.png",
+                "tier": APP_TIERS.get(name, "full"),
+                "bytes": total,
+                "files": files,
+            }
 
     manifest = {"version": 1, "games": games}
     out = os.path.join(PUBLIC, "offline-manifest.json")
