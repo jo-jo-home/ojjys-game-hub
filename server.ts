@@ -616,6 +616,14 @@ const GAMES = [
   { id: "holeio", name: "Hole.io", desc: "swallow the whole city", icon: false },
   { id: "polytrack", name: "PolyTrack", desc: "low-poly time trials", icon: false },
   { id: "retrobowlcollege", name: "Retro Bowl College", desc: "coach the college team", icon: false },
+  { id: "boxelrebound", name: "Boxel Rebound", desc: "bounce through the gaps", icon: false },
+  { id: "chromedino", name: "Chrome Dino", desc: "the no-internet dinosaur", icon: false },
+  { id: "clusterrush", name: "Cluster Rush", desc: "leap between the trucks", icon: false },
+  { id: "cupcake2048", name: "Cupcake 2048", desc: "merge the cupcakes", icon: false },
+  { id: "deathrun3d", name: "Death Run 3D", desc: "dodge the neon walls", icon: false },
+  { id: "doodlejump", name: "Doodle Jump", desc: "bounce ever upward", icon: false },
+  { id: "flappybird", name: "Flappy Bird", desc: "mind the pipes", icon: false },
+  { id: "hexgl", name: "HexGL", desc: "futuristic hover racing", icon: false },
 ];
 
 function buildHubPage(token: string): string {

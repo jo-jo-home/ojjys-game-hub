@@ -27,6 +27,14 @@ SKIP_FILES = {".DS_Store"}
 
 TIERS = {
     "basketrandom": "full",
+    "boxelrebound": "full",
+    "chromedino": "degraded",
+    "clusterrush": "full",
+    "cupcake2048": "degraded",
+    "deathrun3d": "full",
+    "doodlejump": "full",
+    "flappybird": "full",
+    "hexgl": "full",
     "bitlife": "degraded",
     "chess": "degraded",
     "cookieclicker": "degraded",
