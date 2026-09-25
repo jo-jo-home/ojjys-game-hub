@@ -221,9 +221,13 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Login and the chess APIs are live-only. Caching either would strand
-  // people on a stale page or serve stale game state.
-  if (url.pathname === "/login" || url.pathname.startsWith("/api/")) return;
+  // Login, the chess APIs and the admin panel are live-only. Caching any of
+  // them would strand people on a stale page, serve stale game state, or —
+  // for the panel — show who had access and what they played at some point in
+  // the past as though it were current. The panel is worthless without the
+  // server anyway, so offline it should fail plainly rather than lie.
+  if (url.pathname === "/login" || url.pathname === "/admin" ||
+      url.pathname.startsWith("/api/")) return;
 
   // The worker itself must always come from the network or updates stop.
   if (url.pathname === "/sw.js") return;

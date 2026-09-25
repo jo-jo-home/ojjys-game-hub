@@ -43,6 +43,19 @@
   }
 
   function recordPlay(id) {
+    // Tell the server too, so the admin panel can show who is playing what.
+    // Fire and forget with keepalive, because the click is about to open a new
+    // tab and the request must survive that. A failure changes nothing.
+    try {
+      fetch("/api/played", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id }),
+        keepalive: true,
+        credentials: "same-origin",
+      }).catch(function () { /* nothing depends on this */ });
+    } catch (e) { /* ditto */ }
+
     try {
       var p = plays();
       p[id] = Date.now();

@@ -30,6 +30,7 @@ const OFFLINE_FILES: Record<string, string> = {
   "/cloak.js": "application/javascript",
   "/themes.js": "application/javascript",
   "/hub-ui.js": "application/javascript",
+  "/admin.js": "application/javascript",
   "/theme-presets.js": "application/javascript",
   "/chess-theme.css": "text/css",
   "/bg.js": "application/javascript",
@@ -88,6 +89,8 @@ function getMime(path: string): string {
   return i >= 0 ? (MIME[path.substring(i).toLowerCase()] || "application/octet-stream") : "application/octet-stream";
 }
 
+const JSON_CT = { "Content-Type": "application/json" };
+
 // Sent on every HTML page. Session tokens travel in ?token= on /hub URLs,
 // and no-referrer stops that URL being handed to any third party a game
 // happens to load (ads, analytics, fonts) in a Referer header.
@@ -108,7 +111,115 @@ const SESSION_TTL_MS = 86_400_000; // matches the cookie's Max-Age
 // tokens verified against KV are remembered briefly to keep that to one read
 // rather than one per request.
 const SESSION_CACHE_MS = 60_000;
-const verifiedSessions = new Map<string, number>();
+// `at` is when they signed in and fixes the expiry; `seen` is the last time
+// they loaded a page, which is what tells the panel who is actually here.
+type SessionInfo = { at: number; code: string; label: string; role: string; seen?: number };
+const SEEN_INTERVAL_MS = 300_000;   // don't write KV more often than this
+const verifiedSessions = new Map<string, { at: number; info: SessionInfo }>();
+
+// ---- who has access -------------------------------------------------------
+//
+// The hub had one shared password and sessions recorded nothing but a
+// timestamp, so every visitor was indistinguishable: there was no way to see
+// who was using it and no way to remove one person without changing the
+// password for everybody.
+//
+// Access is now a set of codes, one per person, each with a label only the
+// owner sees. KV holds a hash of the code, never the code itself, so a dump of
+// the database does not hand out access.
+//
+//   ["hub_codes", sha256(code)]        { label, role, createdAt, revokedAt,
+//                                        lastSeen, opens }
+//   ["hub_sessions", token]            { at, code, label, role, seen }
+//   ["hub_activity", ts, code, row]    { game, label }   expires on its own
+//
+// Activity is keyed by time first because KV sorts by the whole key: with the
+// code first, "the newest rows" would mean the newest rows of whichever code
+// sorts last, not the newest overall.
+//
+// The old shared password still works, as a built-in code labelled "shared
+// password", so nothing breaks the day this ships. It can be switched off from
+// the admin panel once everyone has their own.
+const ACTIVITY_TTL_MS = 14 * 86_400_000;
+const SHARED_CODE = "shared";
+
+// Set ADMIN_CODE in the deployment's environment to bootstrap. It is checked
+// directly rather than stored, so the first admin needs no seeded database,
+// and it keeps working even if every code in KV is revoked.
+const ADMIN_CODE = Deno.env.get("ADMIN_CODE") || "";
+
+type CodeRecord = {
+  label: string;
+  role: "user" | "admin";
+  createdAt: number;
+  revokedAt: number | null;
+  lastSeen: number;
+  opens: number;
+};
+
+// No 0/O/1/I/L: these get read aloud and typed by hand.
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function generateCode(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < 16; i++) {
+    out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+    if (i % 4 === 3 && i < 15) out += "-";
+  }
+  return out;   // e.g. 7K2P-QW9F-MN3T-XR6B
+}
+
+function normaliseCode(input: string): string {
+  return input.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+async function getCode(hash: string): Promise<CodeRecord | null> {
+  const entry = await (await getKv()).get<CodeRecord>(["hub_codes", hash]);
+  return entry.value ?? null;
+}
+
+async function touchCode(hash: string, opened: boolean): Promise<void> {
+  if (hash === SHARED_CODE || hash === "owner") return;   // not KV-backed
+  const record = await getCode(hash);
+  if (!record) return;
+  record.lastSeen = Date.now();
+  if (opened) record.opens = (record.opens || 0) + 1;
+  await (await getKv()).set(["hub_codes", hash], record);
+}
+
+// Is the built-in shared password still accepted?
+async function sharedPasswordEnabled(): Promise<boolean> {
+  const entry = await (await getKv()).get<{ off: boolean }>(["hub_settings", "shared"]);
+  return !entry.value?.off;
+}
+
+// Resolves what was typed into the login box. Returns null when it is not
+// anything we accept.
+async function identify(input: string): Promise<SessionInfo | null> {
+  const typed = input.trim();
+  if (!typed) return null;
+
+  // the bootstrap owner code, straight from the environment
+  if (ADMIN_CODE && normaliseCode(typed) === normaliseCode(ADMIN_CODE)) {
+    return { at: Date.now(), code: "owner", label: "owner", role: "admin" };
+  }
+
+  // a minted access code
+  const hash = await sha256(normaliseCode(typed));
+  const record = await getCode(hash);
+  if (record && !record.revokedAt) {
+    return { at: Date.now(), code: hash, label: record.label, role: record.role };
+  }
+
+  // the original shared password, unless it has been retired
+  if ((await sha256(typed)) === PASSWORD_HASH && await sharedPasswordEnabled()) {
+    return { at: Date.now(), code: SHARED_CODE, label: "shared password", role: "user" };
+  }
+
+  return null;
+}
 
 let _kv: Deno.Kv | null = null;
 async function getKv(): Promise<Deno.Kv> {
@@ -134,23 +245,66 @@ function getSessionFromCookie(req: Request): string | null {
   return match ? match[1] : null;
 }
 
-async function addSession(token: string): Promise<void> {
-  await (await getKv()).set(["hub_sessions", token], { at: Date.now() }, {
+async function addSession(token: string, info: SessionInfo): Promise<void> {
+  await (await getKv()).set(["hub_sessions", token], info, {
     expireIn: SESSION_TTL_MS,
   });
-  verifiedSessions.set(token, Date.now());
+  verifiedSessions.set(token, { at: Date.now(), info });
+}
+
+async function readSession(token: string): Promise<SessionInfo | null> {
+  const seen = verifiedSessions.get(token);
+  if (seen && Date.now() - seen.at < SESSION_CACHE_MS) return seen.info;
+  const entry = await (await getKv()).get<SessionInfo>(["hub_sessions", token]);
+  if (!entry.value) {
+    verifiedSessions.delete(token);
+    return null;
+  }
+  // Sessions created before access codes existed hold only { at }, so fill in
+  // the gaps rather than logging those people out.
+  const info: SessionInfo = {
+    at: entry.value.at || Date.now(),
+    code: entry.value.code || SHARED_CODE,
+    label: entry.value.label || "shared password",
+    role: entry.value.role || "user",
+    seen: entry.value.seen || entry.value.at || undefined,
+  };
+  verifiedSessions.set(token, { at: Date.now(), info });
+  return info;
+}
+
+// Records that this session is still being used. Rate-limited, and it keeps
+// the original expiry rather than extending it — being active shouldn't
+// silently turn a one-day session into a permanent one.
+async function touchSession(req: Request): Promise<void> {
+  const token = await getSessionToken(req);
+  if (!token) return;
+  const info = await readSession(token);
+  if (!info) return;
+  const now = Date.now();
+  if (now - (info.seen || info.at) < SEEN_INTERVAL_MS) return;
+  const remaining = SESSION_TTL_MS - (now - info.at);
+  if (remaining <= 0) return;
+  info.seen = now;
+  try {
+    await (await getKv()).set(["hub_sessions", token], info, { expireIn: remaining });
+    verifiedSessions.set(token, { at: now, info });
+  } catch { /* the heartbeat is never worth failing a request over */ }
 }
 
 async function hasSession(token: string): Promise<boolean> {
-  const seen = verifiedSessions.get(token);
-  if (seen && Date.now() - seen < SESSION_CACHE_MS) return true;
-  const entry = await (await getKv()).get(["hub_sessions", token]);
-  if (entry.value === null) {
-    verifiedSessions.delete(token);
-    return false;
-  }
-  verifiedSessions.set(token, Date.now());
-  return true;
+  return (await readSession(token)) !== null;
+}
+
+// The identity behind a request, or null when there isn't one.
+async function getSession(req: Request): Promise<SessionInfo | null> {
+  const token = await getSessionToken(req);
+  return token ? await readSession(token) : null;
+}
+
+async function isAdmin(req: Request): Promise<boolean> {
+  const info = await getSession(req);
+  return info?.role === "admin";
 }
 
 async function getSessionToken(req: Request): Promise<string | null> {
@@ -595,6 +749,8 @@ const NAV_ICONS: Record<string, string> = {
   customize: navIcon('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'),
   // download into a tray, matching the tile control
   offline: navIcon('<path d="M12 4v10M8 10l4 4 4-4M4 20h16"/>'),
+  // a key
+  admin: navIcon('<circle cx="8" cy="12" r="4"/><path d="M12 12h9M17 12v4M20.5 12v3"/>'),
   // stacked drives
   storage: navIcon('<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>'),
 };
@@ -674,6 +830,57 @@ const GAMES = [
 // same theme and cloak scripts, same card markup — so a theme, a disguise or a
 // density setting applies to both without any extra work. Apps have no
 // favourites and no offline downloads, so they get neither control.
+// The admin panel. Same shell as the hub so it inherits the theme, and the
+// same cm-* card styles the other panels use. All of its data comes from
+// /api/admin/state; nothing about who has access is baked into the HTML.
+function buildAdminPage(token: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>admin</title>
+<link rel="stylesheet" href="/theme.css">
+${THEME_SCRIPT}
+${CLOAK_SCRIPT}
+<link rel="stylesheet" href="/hub.css">
+<meta name="theme-color" content="#0a1628">
+<style>
+.ad{max-width:860px;margin:0 auto;padding:0 1.5rem 3rem}
+.ad h2{font-size:1rem;font-weight:500;color:var(--text);margin:2rem 0 .9rem;letter-spacing:.02em}
+.ad table{width:100%;border-collapse:collapse;font-size:.85rem}
+.ad th{text-align:left;font-weight:500;color:var(--faint);font-size:.75rem;
+letter-spacing:.04em;padding:0 .7rem .5rem 0;border-bottom:1px solid var(--border)}
+.ad td{padding:.6rem .7rem .6rem 0;border-bottom:1px solid var(--border);color:var(--text2)}
+.ad tr:last-child td{border-bottom:none}
+.ad .who{color:var(--text)}
+.ad .dim{color:var(--faint);font-size:.78rem}
+.ad .on{color:var(--ok)}
+.ad .gone{color:var(--faint);text-decoration:line-through}
+.ad .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:.9rem 0}
+.ad input[type=text]{background:var(--bg);border:1px solid var(--border);border-radius:9px;
+padding:7px 11px;color:var(--text);font:inherit;font-size:.85rem;outline:none}
+.ad input[type=text]:focus{border-color:var(--accent)}
+.ad .new{background:var(--bg3);border:1px solid var(--accent);border-radius:12px;
+padding:1rem 1.2rem;margin:1rem 0;display:none}
+.ad .new.show{display:block}
+.ad .new code{display:block;font-size:1.3rem;letter-spacing:.06em;color:var(--text);
+margin:.5rem 0 .3rem;user-select:all}
+.ad .bar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;min-width:60px}
+.ad .bar i{display:block;height:100%;background:var(--accent)}
+</style>
+</head>
+<body data-scope="admin">
+<header><h1>admin</h1><p>who has access, and what they're playing</p>
+<div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}back</a></div></header>
+<div class="ad" id="ad">loading...</div>
+${ANTI_INSPECT}
+<script src="/admin.js"></script>
+<script src="/bg.js"></script>
+</body>
+</html>`;
+}
+
 function buildAppsPage(token: string): string {
   const cards = APPS.map(a => {
     const iconHtml = a.icon
@@ -718,7 +925,7 @@ document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',
 </html>`;
 }
 
-function buildHubPage(token: string): string {
+function buildHubPage(token: string, admin = false): string {
   const cards = GAMES.map(g => {
     const iconHtml = g.icon ? `<img src="/icons/${g.id}.png" alt="${g.name}" width="64" height="64" loading="lazy" decoding="async">` : "";
     return `<a href="/${g.id}/" class="gc" data-n="${g.id}"><button type="button" class="sb" data-g="${g.id}" aria-pressed="false" aria-label="add ${g.name} to favourites">&#9734;</button>${iconHtml}<h2>${g.name}</h2><p>${g.desc}</p></a>`;
@@ -738,7 +945,7 @@ ${CLOAK_SCRIPT}
 <meta name="theme-color" content="#0a1628">
 </head>
 <body data-scope="game">
-<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns"><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
+<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
 <div class="gg" id="g">${cards}</div>
@@ -854,10 +1061,11 @@ Deno.serve(async (req: Request) => {
   if (url.pathname === "/login" && req.method === "POST") {
     const form = await req.formData();
     const password = form.get("password") as string || "";
-    const hashed = await sha256(password);
-    if (hashed === PASSWORD_HASH) {
+    const info = await identify(password);
+    if (info) {
       const token = generateToken();
-      await addSession(token);
+      await addSession(token, info);
+      await touchCode(info.code, false);
       return new Response(null, {
         status: 302,
         headers: {
@@ -905,11 +1113,149 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // Recorded when a game or app is opened, so the admin panel can show who is
+  // playing what. Keyed by code, and KV expires each row on its own after a
+  // fortnight — this is meant to show recent patterns, not keep a permanent
+  // log of anybody.
+  if (url.pathname === "/api/played" && req.method === "POST") {
+    const info = await getSession(req);
+    if (!info) return new Response("{}", { headers: JSON_CT });
+    let game = "";
+    try {
+      game = String(((await req.json()) || {}).id || "").slice(0, 64);
+    } catch { /* malformed body, nothing to record */ }
+    if (/^[A-Za-z0-9_-]+$/.test(game)) {
+      const now = Date.now();
+      // The timestamp comes FIRST in the key. KV sorts by the whole key, so
+      // keying by code first would make a reverse listing "newest row of the
+      // last code", not "newest row overall" — the panel would show one
+      // person's history and call it everyone's. The code is still in the key
+      // to keep two people opening something in the same millisecond distinct.
+      // A random tail keeps two opens in the same millisecond from sharing a
+      // key and silently overwriting each other — easy to hit, because a
+      // double click or a second tab reports twice in a row.
+      const row = crypto.randomUUID().slice(0, 8);
+      await (await getKv()).set(["hub_activity", now, info.code, row], {
+        game,
+        label: info.label,
+      }, { expireIn: ACTIVITY_TTL_MS });
+      await touchCode(info.code, true);
+    }
+    return new Response("{}", { headers: JSON_CT });
+  }
+
+  // ---- admin ----
+  // Every one of these 404s for anyone who isn't an admin, rather than
+  // answering 403, so the panel doesn't announce itself.
+  if (url.pathname.startsWith("/api/admin/") || url.pathname === "/admin") {
+    if (!await isAdmin(req)) return new Response("Not Found", { status: 404 });
+    const kv = await getKv();
+
+    if (url.pathname === "/admin") {
+      return new Response(buildAdminPage((await getSessionToken(req))!), {
+        headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
+      });
+    }
+
+    if (url.pathname === "/api/admin/state") {
+      const codes: unknown[] = [];
+      for await (const entry of kv.list<CodeRecord>({ prefix: ["hub_codes"] })) {
+        codes.push({ hash: entry.key[1], ...entry.value });
+      }
+
+      // recent opens, newest first
+      const activity: unknown[] = [];
+      const tally: Record<string, number> = {};
+      const week = Date.now() - 7 * 86_400_000;
+      for await (const entry of kv.list<{ game: string; label: string }>(
+        { prefix: ["hub_activity"] }, { reverse: true, limit: 400 },
+      )) {
+        const at = Number(entry.key[1]);
+        activity.push({ code: String(entry.key[2]), at, ...entry.value });
+        if (at >= week) tally[entry.value.game] = (tally[entry.value.game] || 0) + 1;
+      }
+
+      // sessions still alive, so "who is on right now" is real
+      const online: Record<string, number> = {};
+      for await (const entry of kv.list<SessionInfo>({ prefix: ["hub_sessions"] })) {
+        const v = entry.value;
+        if (!v) continue;
+        const code = v.code || SHARED_CODE;
+        online[code] = Math.max(online[code] || 0, v.seen || v.at || 0);
+      }
+
+      return new Response(JSON.stringify({
+        codes, activity: activity.slice(0, 120), online,
+        top: Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 12),
+        sharedEnabled: await sharedPasswordEnabled(),
+      }), { headers: { ...JSON_CT, "Cache-Control": "no-store" } });
+    }
+
+    if (url.pathname === "/api/admin/code" && req.method === "POST") {
+      let label = "";
+      try {
+        label = String(((await req.json()) || {}).label || "").trim().slice(0, 40);
+      } catch { /* fall through to the default */ }
+      const code = generateCode();
+      const record: CodeRecord = {
+        label: label || "unnamed",
+        role: "user",
+        createdAt: Date.now(),
+        revokedAt: null,
+        lastSeen: 0,
+        opens: 0,
+      };
+      await kv.set(["hub_codes", await sha256(normaliseCode(code))], record);
+      // Shown once. Only the hash is stored, so it cannot be recovered later.
+      return new Response(JSON.stringify({ code, label: record.label }), {
+        headers: JSON_CT,
+      });
+    }
+
+    if (url.pathname === "/api/admin/revoke" && req.method === "POST") {
+      let hash = "";
+      try {
+        hash = String(((await req.json()) || {}).hash || "");
+      } catch { /* nothing to do */ }
+      if (hash === SHARED_CODE) {
+        await kv.set(["hub_settings", "shared"], { off: true });
+      } else if (/^[a-f0-9]{64}$/.test(hash)) {
+        const record = await getCode(hash);
+        if (record) {
+          record.revokedAt = Date.now();
+          await kv.set(["hub_codes", hash], record);
+        }
+        // Sessions already issued to that code have to go too, or revoking
+        // only takes effect when their cookie expires.
+        for await (const entry of kv.list<SessionInfo>({ prefix: ["hub_sessions"] })) {
+          if (entry.value?.code === hash) {
+            await kv.delete(entry.key);
+            verifiedSessions.delete(String(entry.key[1]));
+          }
+        }
+      }
+      return new Response("{}", { headers: JSON_CT });
+    }
+
+    if (url.pathname === "/api/admin/shared" && req.method === "POST") {
+      let on = true;
+      try {
+        on = !!((await req.json()) || {}).on;
+      } catch { /* default to leaving it on */ }
+      await kv.set(["hub_settings", "shared"], { off: !on });
+      return new Response("{}", { headers: JSON_CT });
+    }
+
+    return new Response("Not Found", { status: 404 });
+  }
+
   // Is this session still good? Deliberately answers rather than redirecting,
   // and lives under /api/ so the service worker passes it straight to the
   // network — a cached answer would defeat the point.
   if (url.pathname === "/api/session") {
-    return new Response(JSON.stringify({ ok: await isAuthenticated(req) }), {
+    const ok = await isAuthenticated(req);
+    if (ok) await touchSession(req);
+    return new Response(JSON.stringify({ ok }), {
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     });
   }
@@ -1546,7 +1892,7 @@ Deno.serve(async (req: Request) => {
 
   if (url.pathname === "/hub") {
     const token = (await getSessionToken(req))!;
-    return new Response(buildHubPage(token), {
+    return new Response(buildHubPage(token, await isAdmin(req)), {
       headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
     });
   }
