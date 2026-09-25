@@ -9,6 +9,7 @@
     "project": "ojjys-game-hub",
     "entrypoint": "server.ts",
     "exclude": [
+      "public/apps",
       "public/basketrandom",
       "public/bitlife",
       "public/boxelrebound",

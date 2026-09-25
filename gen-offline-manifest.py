@@ -22,7 +22,9 @@ import os
 import re
 
 PUBLIC = "public"
-SKIP_DIRS = {"icons"}
+# "apps" holds the app catalogue, which has its own page and no offline
+# downloads — without this it would be catalogued as one 400 MB "game".
+SKIP_DIRS = {"icons", "apps"}
 SKIP_FILES = {".DS_Store"}
 
 TIERS = {

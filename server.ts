@@ -578,6 +578,29 @@ ${ANTI_INSPECT}
 </body>
 </html>`;
 
+// Apps live under /apps/<id>/ and get their own page at /apps. They are kept
+// separate from GAMES so the two catalogues can never collide on a name, and
+// so the offline downloader — which walks the top level of public/ — does not
+// treat 400 MB of emulators as a game.
+const APPS = [
+  { id: "calculator", name: "Calculator", desc: "a calculator, nothing more", icon: false },
+  { id: "etchasketch", name: "Etch A Sketch", desc: "draw, then shake to erase", icon: false },
+  { id: "htmlcoder", name: "HTML Coder", desc: "write html, see it live", icon: false },
+  { id: "zipopener", name: "Zip Opener", desc: "look inside a zip file", icon: false },
+  { id: "weavesilk", name: "Weave Silk", desc: "draw symmetrical light", icon: false },
+  { id: "fluidsim", name: "WebGL Fluids", desc: "smear colour through fluid", icon: false },
+  { id: "thirtydollarwebsite", name: "Thirty Dollar Website", desc: "build beats out of emoji", icon: false },
+  { id: "turbowarp", name: "TurboWarp", desc: "scratch, but much faster", icon: false },
+  { id: "turbowarppkg", name: "TurboWarp Packager", desc: "turn a project into a page", icon: false },
+  { id: "turbowarpunpkg", name: "TurboWarp Unpackager", desc: "pull a packaged project apart", icon: false },
+  { id: "godoblocks", name: "GodoBlocks", desc: "block coding in godot", icon: false },
+  { id: "ruffle", name: "Ruffle", desc: "run old flash files", icon: false },
+  { id: "emulatorjs", name: "EmulatorJS", desc: "play console roms in a tab", icon: false },
+  { id: "webretro", name: "webRetro", desc: "retroarch in the browser", icon: false },
+  { id: "v86", name: "Virtual x86", desc: "boot linux or windows 98", icon: false },
+  { id: "windows11", name: "Windows 11", desc: "a windows 11 lookalike", icon: false },
+];
+
 // Game data used to build the hub page dynamically on the server
 const GAMES = [
   { id: "bitlife", name: "BitLife", desc: "live your best life", icon: true },
@@ -626,6 +649,53 @@ const GAMES = [
   { id: "hexgl", name: "HexGL", desc: "futuristic hover racing", icon: false },
 ];
 
+// The apps page. Deliberately the same shell as the hub — same stylesheet,
+// same theme and cloak scripts, same card markup — so a theme, a disguise or a
+// density setting applies to both without any extra work. Apps have no
+// favourites and no offline downloads, so they get neither control.
+function buildAppsPage(token: string): string {
+  const cards = APPS.map(a => {
+    const iconHtml = a.icon
+      ? `<img src="/icons/app-${a.id}.png" alt="${a.name}" width="64" height="64" loading="lazy" decoding="async">`
+      : "";
+    return `<a href="/apps/${a.id}/" class="gc" data-n="${a.id}">${iconHtml}<h2>${a.name}</h2><p>${a.desc}</p></a>`;
+  }).join("");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ojjy's apps</title>
+<link rel="stylesheet" href="/theme.css">
+${THEME_SCRIPT}
+${CLOAK_SCRIPT}
+<link rel="stylesheet" href="/hub.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0a1628">
+</head>
+<body>
+<header><h1>ojjy's apps</h1><p>tools and emulators, ${APPS.length} of them</p><div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">games</a><button type="button" class="stg-btn" onclick="openCZ()">customize</button></div></header>
+<main>
+<input type="text" class="sr" id="s" placeholder="search ${APPS.length} apps..." autocomplete="off" aria-label="search apps">
+<div class="gg" id="g">${cards}</div>
+</main>
+<footer>made by Jonas Lee</footer>
+<div class="cm-ov" id="cz-ov"><div class="cm" id="cz"></div></div>
+${ANTI_INSPECT}
+<script>
+var _t='${token}';
+document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',function(e){e.preventDefault();var u=window.location.origin+c.getAttribute('href')+'?token='+_t;if(window.__hubCloak)window.__hubCloak.openIframe(u,true);else window.location.href=u})});
+</script>
+<script src="/theme-presets.js"></script>
+<script src="/themes.js"></script>
+<script src="/hub-ui.js"></script>
+<script src="/cloak.js"></script>
+<script src="/bg.js"></script>
+</body>
+</html>`;
+}
+
 function buildHubPage(token: string): string {
   const cards = GAMES.map(g => {
     const iconHtml = g.icon ? `<img src="/icons/${g.id}.png" alt="${g.name}" width="64" height="64" loading="lazy" decoding="async">` : "";
@@ -646,7 +716,7 @@ ${CLOAK_SCRIPT}
 <meta name="theme-color" content="#0a1628">
 </head>
 <body>
-<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns"><button type="button" class="stg-btn" onclick="openCZ()">customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">offline</button><button type="button" class="stg-btn" onclick="openCM()">manage storage</button></div></header>
+<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns"><a class="stg-btn" href="/apps?token=${token}">apps</a><button type="button" class="stg-btn" onclick="openCZ()">customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">offline</button><button type="button" class="stg-btn" onclick="openCM()">manage storage</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
 <div class="gg" id="g">${cards}</div>
@@ -1436,6 +1506,13 @@ Deno.serve(async (req: Request) => {
   }
 
   // Serve actual hub page at /hub
+  if (url.pathname === "/apps") {
+    const token = (await getSessionToken(req))!;
+    return new Response(buildAppsPage(token), {
+      headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
+    });
+  }
+
   if (url.pathname === "/hub") {
     const token = (await getSessionToken(req))!;
     return new Response(buildHubPage(token), {
