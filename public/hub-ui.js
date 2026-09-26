@@ -49,7 +49,10 @@
     try {
       fetch("/api/played", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: Object.assign(
+          { "Content-Type": "application/json" },
+          (window.__hubDevice ? window.__hubDevice() : {}),
+        ),
         body: JSON.stringify({ id: id }),
         keepalive: true,
         credentials: "same-origin",

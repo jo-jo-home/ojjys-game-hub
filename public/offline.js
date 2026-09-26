@@ -657,10 +657,25 @@
   // rather than letting the first click open a tab full of login screen.
   // This file is only on the hub, the apps page and the landing page; game
   // frames never run it, so it can't redirect anything from inside a game.
+  // The id the login page generated. Sent on the session check and on game
+  // opens so the owner can see which browsers a code is being used from.
+  function deviceHeader() {
+    try {
+      var id = localStorage.getItem("hub_device");
+      if (/^[A-Za-z0-9-]{8,64}$/.test(id || "")) return { "X-Device": id };
+    } catch (e) { /* blocked storage: the request just goes without it */ }
+    return {};
+  }
+  window.__hubDevice = deviceHeader;
+
   function verifySession() {
     if (!navigator.onLine) return;   // offline, the cache is what we want
     try {
-      fetch("/api/session", { credentials: "same-origin", cache: "no-store" })
+      fetch("/api/session", {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: deviceHeader(),
+      })
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d && d.ok === false) window.location.href = "/login";
