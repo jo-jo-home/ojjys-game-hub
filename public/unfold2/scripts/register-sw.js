@@ -1,0 +1,1 @@
+"use strict";window.C3_RegisterSW=async function(){if(navigator.serviceWorker)try{const a=await /* disabled: this shadowed the hub's service worker and broke offline downloads */ 0&&navigator.serviceWorker.register("sw.js",{scope:"./"});console.info("Registered service worker on "+a.scope)}catch(a){console.warn("Failed to register service worker: ",a)}};
