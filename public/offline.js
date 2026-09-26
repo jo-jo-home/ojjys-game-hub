@@ -668,10 +668,22 @@
   }
   window.__hubDevice = deviceHeader;
 
+  // The session check has to carry the token, not just rely on the cookie.
+  // Signing in redirects to /?token=… precisely because the cookie gets
+  // dropped in the about:blank wrapper — so a check that only sends the
+  // cookie answers "logged out" for a session that is perfectly alive, and
+  // the caller then helpfully sends you to the login screen.
+  function sessionUrl() {
+    var t = "";
+    try { t = document.body.getAttribute("data-token") || ""; } catch (e) { /* no body yet */ }
+    return /^[a-f0-9]{64}$/.test(t) ? "/api/session?token=" + t : "/api/session";
+  }
+  window.__hubSessionUrl = sessionUrl;
+
   function verifySession() {
     if (!navigator.onLine) return;   // offline, the cache is what we want
     try {
-      fetch("/api/session", {
+      fetch(sessionUrl(), {
         credentials: "same-origin",
         cache: "no-store",
         headers: deviceHeader(),

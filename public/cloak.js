@@ -219,7 +219,10 @@
       // Ask first: if the session is gone, close the tab and send this one to
       // the login page instead. /api/ is never cached, so the answer is real.
       try {
-        fetch("/api/session", { credentials: "same-origin", cache: "no-store" })
+        // Same reason as offline.js: without the token this answers "no" for
+        // a live session whose cookie was dropped, and the branch below then
+        // closes the game and throws the player back to the login page.
+        fetch(sessionUrl(), { credentials: "same-origin", cache: "no-store" })
           .then(function (r) { return r.json(); })
           .then(function (d) {
             if (d && d.ok) { fill(); return; }
@@ -235,6 +238,13 @@
       return api.openIframe(window.location.origin + "/hub?token=" + token, false);
     },
   };
+
+  function sessionUrl() {
+    if (window.__hubSessionUrl) return window.__hubSessionUrl();
+    var t = "";
+    try { t = document.body.getAttribute("data-token") || ""; } catch (e) { /* none */ }
+    return /^[a-f0-9]{64}$/.test(t) ? "/api/session?token=" + t : "/api/session";
+  }
 
   window.__hubCloak = api;
   apply();

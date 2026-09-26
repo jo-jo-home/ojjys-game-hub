@@ -1152,7 +1152,7 @@ letter-spacing:.04em;padding:0 .7rem .5rem 0;border-bottom:1px solid var(--borde
 .ad .note{font-size:.78rem;color:var(--faint);margin-top:.7rem;line-height:1.5}
 </style>
 </head>
-<body data-scope="admin">
+<body data-scope="admin" data-token="${token}">
 <header><h1>admin</h1><p>who has access, what they're playing, and which devices they use</p>
 <div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}back</a></div></header>
 <div class="ad" id="ad">loading...</div>
@@ -1184,7 +1184,7 @@ ${CLOAK_SCRIPT}
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
 </head>
-<body data-scope="app">
+<body data-scope="app" data-token="${token}">
 <header><h1>ojjy's apps</h1><p>tools and emulators, ${APPS.length} of them</p><div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}games</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${APPS.length} apps..." autocomplete="off" aria-label="search apps">
@@ -1242,7 +1242,7 @@ ${CLOAK_SCRIPT}
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
 </head>
-<body data-scope="game">
+<body data-scope="game" data-token="${token}">
 <header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
