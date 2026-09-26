@@ -192,6 +192,21 @@
       var w = window.open("about:blank", "_blank");
       if (!w) { window.location.href = url; return false; }
 
+      // Work out what to attribute playtime to, once, in the opener where
+      // localStorage is reachable. The heartbeat below runs inside the new tab
+      // and reports how long this game stays open.
+      var origin = window.location.origin;
+      var rel = url.indexOf(origin) === 0 ? url.slice(origin.length) : url;
+      var gameId = (rel.split("?")[0].split("/").filter(Boolean)[0]) || "";
+      var tokMatch = url.match(/token=([a-f0-9]{64})/);
+      var tok = tokMatch ? tokMatch[1] : "";
+      var dev = "";
+      try {
+        var stored = localStorage.getItem("hub_device") || "";
+        if (/^[A-Za-z0-9-]{8,64}$/.test(stored)) dev = stored;
+      } catch (e) { /* blocked storage: beat without a device */ }
+      var canBeat = guard && /^[A-Za-z0-9_-]+$/.test(gameId);
+
       // The disguise goes up immediately, so the tab never shows about:blank
       // while the session is being checked.
       try {
@@ -204,7 +219,8 @@
           var body = '<iframe src="' + url.replace(/"/g, "&quot;") + '" allowfullscreen></iframe>' +
             (guard
               ? '<script>window.addEventListener("beforeunload",function(e){e.preventDefault()});<\/script>'
-              : "");
+              : "") +
+            (canBeat ? beatScript(origin, gameId, tok, dev) : "");
           w.document.open();
           w.document.write("<!DOCTYPE html><html><head>" + api.head() + "</head><body>" +
             body + "</body></html>");
@@ -244,6 +260,23 @@
     var t = "";
     try { t = document.body.getAttribute("data-token") || ""; } catch (e) { /* none */ }
     return /^[a-f0-9]{64}$/.test(t) ? "/api/session?token=" + t : "/api/session";
+  }
+
+  // The script that runs inside the game tab. It reports playtime to the hub
+  // every 15s while the tab is actually visible, so a game left open in a
+  // background tab is not counted as time played. It sends nothing about the
+  // game itself — only that this session had this game open.
+  function beatScript(origin, game, token, device) {
+    var cfg = JSON.stringify({ o: origin, g: game, t: token, d: device });
+    return '<script>(function(){var c=' + cfg + ';' +
+      'function beat(){if(document.hidden)return;' +
+      'try{fetch(c.o+"/api/playing"+(c.t?("?token="+c.t):""),{method:"POST",' +
+      'headers:{"Content-Type":"application/json","X-Device":c.d},' +
+      'body:JSON.stringify({id:c.g}),keepalive:true,credentials:"same-origin"})' +
+      '.catch(function(){})}catch(e){}}' +
+      'beat();setInterval(beat,15000);' +
+      'document.addEventListener("visibilitychange",function(){if(!document.hidden)beat()});' +
+      '})();<\/script>';
   }
 
   window.__hubCloak = api;

@@ -30,6 +30,15 @@
     return days === 1 ? "yesterday" : days + " days ago";
   }
 
+  function dur(ms) {
+    var sec = Math.round((ms || 0) / 1000);
+    if (sec < 60) return sec + "s";
+    var m = Math.floor(sec / 60);
+    if (m < 60) return m + "m";
+    var h = Math.floor(m / 60);
+    return h + "h " + (m % 60) + "m";
+  }
+
   var LIVE = 900000;   // "online" means seen in the last quarter hour
   function isLive(at) { return at && Date.now() - at < LIVE; }
 
@@ -132,7 +141,8 @@
       (c.revokedAt ? '<span class="tag bad">revoked</span> ' : verdictTag(c)) +
       (live ? ' <span class="on">● online now</span>' : "") +
       '<div class="dim">added ' + ago(c.createdAt) + " · last seen " + ago(c.lastSeen) +
-      " · " + (c.opens || 0) + " games opened</div></div>";
+      " · " + (c.opens || 0) + " games opened · " +
+      dur((state.playtimeByCode || {})[c.hash] || 0) + " played</div></div>";
 
     h += '<div class="row">';
     if (!c.revokedAt) {
@@ -156,6 +166,12 @@
     var el = document.getElementById("ad");
     if (!el) return;
     var h = createSection();
+
+    // ---- playing right now ----
+    h += "<h2>playing right now</h2>";
+    h += '<div class="sub">who has a game open at this moment, updated live. ' +
+      "someone drops off a few seconds after they close the tab.</div>";
+    h += '<div id="ad-live" class="live"></div>';
 
     // ---- people ----
     h += "<h2>people</h2>";
@@ -211,6 +227,22 @@
       h += "</table>";
     }
 
+    h += "<h2>time played this season</h2>";
+    if (!state.playtimeTop || !state.playtimeTop.length) {
+      h += '<div class="sub">no playtime recorded yet. it starts counting when ' +
+        "someone opens a game from now on.</div>";
+    } else {
+      h += '<div class="sub">' + dur(state.totalMs || 0) + " across everyone. by game:</div>";
+      var pmost = state.playtimeTop[0][1] || 1;
+      h += "<table>";
+      state.playtimeTop.forEach(function (t) {
+        h += '<tr><td class="who" style="width:40%">' + esc(t[0]) + "</td>" +
+          '<td><div class="bar"><i style="width:' + Math.round((t[1] / pmost) * 100) + '%"></i></div></td>' +
+          '<td class="dim" style="width:5rem">' + dur(t[1]) + "</td></tr>";
+      });
+      h += "</table>";
+    }
+
     h += "<h2>recent</h2>";
     if (!state.activity.length) {
       h += '<div class="sub">nothing yet.</div>';
@@ -231,6 +263,34 @@
 
     el.innerHTML = h;
     wire();
+    renderLive(state.now || []);
+  }
+
+  function renderLive(list) {
+    var box = document.getElementById("ad-live");
+    if (!box) return;
+    var live = (list || []).filter(function (n) { return Date.now() - n.at < 60000; });
+    if (!live.length) {
+      box.innerHTML = '<div class="dim">nobody is in a game right now.</div>';
+      return;
+    }
+    var h = "";
+    live.sort(function (a, b) { return b.at - a.at; }).forEach(function (n) {
+      h += '<div class="nowrow"><span class="on">●</span> ' +
+        '<span class="who">' + esc(n.label || nameOf(n.code)) + "</span>" +
+        '<span class="dim"> is playing </span><span>' + esc(n.game) + "</span></div>";
+    });
+    box.innerHTML = h;
+  }
+
+  async function pollLive() {
+    try {
+      var res = await fetch("/api/admin/live", { cache: "no-store" });
+      if (!res.ok) return;
+      var d = await res.json();
+      if (state) state.now = d.now;
+      renderLive(d.now || []);
+    } catch (e) { /* a missed poll is harmless; the next one covers it */ }
   }
 
   function fatal(status) {
@@ -349,10 +409,12 @@
     await reload();
   }
 
+  var pollTimer = null;
   async function start() {
     try {
       await load();
       render();
+      if (!pollTimer) pollTimer = setInterval(pollLive, 8000);
     } catch (e) {
       fatal(e && e.status);
     }

@@ -10,7 +10,7 @@
 // GAMES is in KEEP below and must stay there. Dropping it means every
 // service worker update silently deletes everything the user downloaded.
 
-const SHELL = "hub-shell-v4";   // v4 drops the /admin page the old worker cached
+const SHELL = "hub-shell-v5";   // v5: /me added, playtime heartbeat, live admin
 const GAMES = "hub-games-v1";
 const KEEP = [SHELL, GAMES];
 
@@ -227,7 +227,7 @@ self.addEventListener("fetch", (event) => {
   // the past as though it were current. The panel is worthless without the
   // server anyway, so offline it should fail plainly rather than lie.
   if (url.pathname === "/login" || url.pathname === "/admin" ||
-      url.pathname.startsWith("/api/")) return;
+      url.pathname === "/me" || url.pathname.startsWith("/api/")) return;
 
   // The worker itself must always come from the network or updates stop.
   if (url.pathname === "/sw.js") return;

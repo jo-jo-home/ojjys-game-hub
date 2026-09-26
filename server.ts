@@ -31,6 +31,7 @@ const OFFLINE_FILES: Record<string, string> = {
   "/themes.js": "application/javascript",
   "/hub-ui.js": "application/javascript",
   "/admin.js": "application/javascript",
+  "/me.js": "application/javascript",
   "/theme-presets.js": "application/javascript",
   "/chess-theme.css": "text/css",
   "/bg.js": "application/javascript",
@@ -145,6 +146,14 @@ const verifiedSessions = new Map<string, { at: number; info: SessionInfo }>();
 // password", so nothing breaks the day this ships. It can be switched off from
 // the admin panel once everyone has their own.
 const ACTIVITY_TTL_MS = 14 * 86_400_000;
+// Playtime is the one thing meant to accumulate over a long stretch, so it
+// lives longer than the recent-activity feed.
+const PLAYTIME_TTL_MS = 90 * 86_400_000;
+// The client beats while a game tab is open and visible. Presence rows expire
+// a little after a missed beat, so "who is playing right now" cleans itself up
+// the moment someone closes the tab — no logout event needed.
+const HEARTBEAT_MS = 15_000;
+const PRESENCE_TTL_MS = 45_000;
 const SHARED_CODE = "shared";
 
 // Set ADMIN_CODE in the deployment's environment to bootstrap. It is checked
@@ -318,6 +327,96 @@ function shareVerdict(devices: DeviceRecord[]): {
   else if (live.length >= 4 || networks >= 3) suspicion = "likely";
   else if (live.length === 3) suspicion = "maybe";
   return { active: live.length, networks, concurrent, suspicion };
+}
+
+// ---- playtime -------------------------------------------------------------
+//
+// One record per person per game, holding both how many times they opened it
+// and how long they have had it open:
+//
+//   ["hub_playtime", code, game] -> { ms, opens, first, last }
+//
+// Opens come from /api/played (the click), ms from /api/playing (a heartbeat
+// the open game tab sends every ${HEARTBEAT_MS / 1000}s while it is visible).
+// This is what makes "your total playtime" and "most played" possible, for the
+// person themselves and in aggregate for the owner.
+type GameStat = { ms: number; opens: number; first: number; last: number };
+
+async function recordOpen(code: string, game: string): Promise<void> {
+  try {
+    const kv = await getKv();
+    const key = ["hub_playtime", code, game];
+    const cur = (await kv.get<GameStat>(key)).value;
+    const now = Date.now();
+    await kv.set(key, {
+      ms: cur?.ms || 0,
+      opens: (cur?.opens || 0) + 1,
+      first: cur?.first || now,
+      last: now,
+    }, { expireIn: PLAYTIME_TTL_MS });
+  } catch { /* stats are best-effort, never worth failing a request */ }
+}
+
+async function recordPlaying(code: string, game: string): Promise<void> {
+  try {
+    const kv = await getKv();
+    const key = ["hub_playtime", code, game];
+    const cur = (await kv.get<GameStat>(key)).value;
+    const now = Date.now();
+    // Add the real gap since the last beat, but cap it: a tab left open in the
+    // background stops beating (visibility gate), so a large gap means "came
+    // back", not "played for an hour straight". Capping at three intervals
+    // keeps a single missed beat from either vanishing or ballooning.
+    let ms = cur?.ms || 0;
+    if (cur && now - cur.last < HEARTBEAT_MS * 3) ms += (now - cur.last);
+    else ms += HEARTBEAT_MS;
+    await kv.set(key, {
+      ms,
+      opens: cur?.opens || 0,
+      first: cur?.first || now,
+      last: now,
+    }, { expireIn: PLAYTIME_TTL_MS });
+  } catch { /* best-effort */ }
+}
+
+async function getPlaytime(code: string): Promise<(GameStat & { game: string })[]> {
+  const out: (GameStat & { game: string })[] = [];
+  try {
+    for await (const e of (await getKv()).list<GameStat>({ prefix: ["hub_playtime", code] })) {
+      if (e.value) out.push({ game: String(e.key[2]), ...e.value });
+    }
+  } catch { /* an unreadable list is just an empty one */ }
+  return out;
+}
+
+// The name a game shows on the hub, for stats pages. Falls back to the id.
+const GAME_NAMES: Record<string, string> = {};
+
+// Records that this person is in this game right now. The row expires on its
+// own, so presence needs no cleanup and no "stopped playing" signal.
+async function markPresence(
+  code: string, game: string, label: string, device: string | null,
+): Promise<void> {
+  try {
+    await (await getKv()).set(["hub_now", code], {
+      game, label, device, at: Date.now(),
+    }, { expireIn: PRESENCE_TTL_MS });
+  } catch { /* best-effort */ }
+}
+
+async function livePresence(): Promise<
+  { code: string; game: string; label: string; at: number }[]
+> {
+  const out: { code: string; game: string; label: string; at: number }[] = [];
+  try {
+    for await (
+      const e of (await getKv()).list<{ game: string; label: string; at: number }>(
+        { prefix: ["hub_now"] })
+    ) {
+      if (e.value) out.push({ code: String(e.key[1]), ...e.value });
+    }
+  } catch { /* empty */ }
+  return out.sort((a, b) => b.at - a.at);
 }
 
 // Is the built-in shared password still accepted? Cached briefly, and it
@@ -938,6 +1037,8 @@ const NAV_ICONS: Record<string, string> = {
   offline: navIcon('<path d="M12 4v10M8 10l4 4 4-4M4 20h16"/>'),
   // a key
   admin: navIcon('<circle cx="8" cy="12" r="4"/><path d="M12 12h9M17 12v4M20.5 12v3"/>'),
+  // a bar chart
+  stats: navIcon('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
   // stacked drives
   storage: navIcon('<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>'),
 };
@@ -1070,6 +1171,15 @@ const GAMES = [
   { id: "xtrialracing", name: "X Trial Racing", desc: "ride the bike over impossible hills", icon: true },
 ];
 
+// One place to turn a game or app id into its display name, for the stats
+// pages. Built from the catalogues so it can never drift from them.
+for (const g of GAMES) GAME_NAMES[g.id] = g.name;
+for (const a of APPS) GAME_NAMES[a.id] = a.name;
+function gameName(id: string): string { return GAME_NAMES[id] || id; }
+const HAS_ICON: Record<string, boolean> = {};
+for (const g of GAMES) HAS_ICON[g.id] = g.icon;
+for (const a of APPS) HAS_ICON[a.id] = a.icon;
+
 // The apps page. Deliberately the same shell as the hub — same stylesheet,
 // same theme and cloak scripts, same card markup — so a theme, a disguise or a
 // density setting applies to both without any extra work. Apps have no
@@ -1150,6 +1260,9 @@ letter-spacing:.04em;padding:0 .7rem .5rem 0;border-bottom:1px solid var(--borde
 .ad .bar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;min-width:60px}
 .ad .bar i{display:block;height:100%;background:var(--accent)}
 .ad .note{font-size:.78rem;color:var(--faint);margin-top:.7rem;line-height:1.5}
+.ad .live{display:flex;flex-direction:column;gap:.45rem;min-height:1.4rem}
+.ad .nowrow{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:.55rem .8rem;font-size:.9rem}
+.ad .nowrow .on{margin-right:.35rem}
 </style>
 </head>
 <body data-scope="admin" data-token="${token}">
@@ -1221,6 +1334,50 @@ function monogram(name: string): string {
   return `<span class="mg" aria-hidden="true" style="--mg:${hash % 360}deg">${text}</span>`;
 }
 
+function buildMePage(token: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>my stats</title>
+<link rel="stylesheet" href="/theme.css">
+${THEME_SCRIPT}
+${CLOAK_SCRIPT}
+<link rel="stylesheet" href="/hub.css">
+<meta name="theme-color" content="#0a1628">
+<style>
+.me{max-width:820px;margin:0 auto;padding:0 1.5rem 4rem}
+.me h2{font-size:1.05rem;font-weight:500;color:var(--text);margin:2rem 0 .8rem;letter-spacing:.02em}
+.me .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:.5rem}
+.me .tile{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:1.2rem 1.3rem}
+.me .tile .n{font-size:1.9rem;font-weight:300;color:var(--text);line-height:1.1;letter-spacing:.01em}
+.me .tile .l{font-size:.78rem;color:var(--faint);margin-top:.35rem;letter-spacing:.03em}
+.me .list{display:flex;flex-direction:column;gap:.5rem}
+.me .g{display:flex;align-items:center;gap:.9rem;background:var(--bg2);border:1px solid var(--border);
+border-radius:12px;padding:.7rem .9rem}
+.me .g img,.me .g .mg{width:38px;height:38px;border-radius:9px;flex:none;margin:0}
+.me .g .mg{font-size:.9rem}
+.me .g .info{flex:1;min-width:0}
+.me .g .gn{color:var(--text);font-size:.92rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me .g .gm{font-size:.76rem;color:var(--dim);margin-top:.15rem}
+.me .g .time{color:var(--accent);font-size:.9rem;font-weight:500;flex:none}
+.me .bar{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:.4rem}
+.me .bar i{display:block;height:100%;background:var(--accent)}
+.me .empty{color:var(--faint);font-size:.9rem;padding:1.5rem 0}
+</style>
+</head>
+<body data-scope="me" data-token="${token}">
+<header><h1>my stats</h1><p id="me-hi">your time on the hub</p>
+<div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}back</a></div></header>
+<div class="me" id="me">loading…</div>
+${ANTI_INSPECT}
+<script src="/me.js"></script>
+<script src="/bg.js"></script>
+</body>
+</html>`;
+}
+
 function buildHubPage(token: string, admin = false): string {
   const cards = GAMES.map(g => {
     const iconHtml = g.icon
@@ -1243,7 +1400,7 @@ ${CLOAK_SCRIPT}
 <meta name="theme-color" content="#0a1628">
 </head>
 <body data-scope="game" data-token="${token}">
-<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
+<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/me?token=${token}">${NAV_ICONS.stats}my stats</a><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
 <div class="gg" id="g">${cards}</div>
@@ -1464,8 +1621,25 @@ Deno.serve(async (req: Request) => {
         label: info.label,
       }, { expireIn: ACTIVITY_TTL_MS });
       await touchCode(info.code, true);
+      await recordOpen(info.code, game);
       const dev = deviceFrom(req.headers.get("x-device")) || info.device || null;
       if (dev) await recordDevice(info.code, dev, req, true);
+    }
+    return new Response("{}", { headers: JSON_CT });
+  }
+
+  // A heartbeat from an open game tab: it adds to that game's playtime and
+  // refreshes the person's presence. Sent every ~15s while the tab is visible.
+  if (url.pathname === "/api/playing" && req.method === "POST") {
+    const info = await getSession(req);
+    if (!info) return new Response("{}", { headers: JSON_CT });
+    let game = "";
+    try { game = String(((await req.json()) || {}).id || "").slice(0, 64); } catch { /* ignore */ }
+    if (/^[A-Za-z0-9_-]+$/.test(game)) {
+      await recordPlaying(info.code, game);
+      const dev = deviceFrom(req.headers.get("x-device")) || info.device || null;
+      await markPresence(info.code, game, info.label, dev);
+      if (dev) await recordDevice(info.code, dev, req, false);
     }
     return new Response("{}", { headers: JSON_CT });
   }
@@ -1515,12 +1689,39 @@ Deno.serve(async (req: Request) => {
         online[code] = Math.max(online[code] || 0, v.seen || v.at || 0);
       }
 
+      // Playtime, aggregated two ways in one pass over the records: by game
+      // (what the group plays most, measured in time rather than clicks) and
+      // by person (a playtime total to hang on each code).
+      const gameMs: Record<string, number> = {};
+      const codeMs: Record<string, number> = {};
+      let totalMs = 0;
+      for await (const e of kv.list<GameStat>({ prefix: ["hub_playtime"] })) {
+        const v = e.value;
+        if (!v) continue;
+        const c = String(e.key[1]), g = String(e.key[2]);
+        gameMs[gameName(g)] = (gameMs[gameName(g)] || 0) + (v.ms || 0);
+        codeMs[c] = (codeMs[c] || 0) + (v.ms || 0);
+        totalMs += v.ms || 0;
+      }
+
       return new Response(JSON.stringify({
         codes, activity: activity.slice(0, 120), online,
         sharedDevices, ...({ shared: shareVerdict(sharedDevices) }),
         top: Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 12),
+        playtimeTop: Object.entries(gameMs).sort((a, b) => b[1] - a[1]).slice(0, 12),
+        playtimeByCode: codeMs,
+        totalMs,
+        now: await livePresence(),
         sharedEnabled: await sharedPasswordEnabled(),
       }), { headers: { ...JSON_CT, "Cache-Control": "no-store" } });
+    }
+
+    // A light feed for the live "playing now" view, so the panel can poll it
+    // every few seconds without re-fetching the whole state.
+    if (url.pathname === "/api/admin/live") {
+      return new Response(JSON.stringify({ now: await livePresence(), at: Date.now() }), {
+        headers: { ...JSON_CT, "Cache-Control": "no-store" },
+      });
     }
 
     if (url.pathname === "/api/admin/code" && req.method === "POST") {
@@ -2297,6 +2498,35 @@ Deno.serve(async (req: Request) => {
     return new Response(buildHubPage(token, await isAdmin(req)), {
       headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
     });
+  }
+
+  // The person's own stats page. Everyone gets it; it only ever shows the
+  // caller their own numbers.
+  if (url.pathname === "/me") {
+    const token = (await getSessionToken(req))!;
+    return new Response(buildMePage(token), {
+      headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
+    });
+  }
+
+  if (url.pathname === "/api/me") {
+    const info = await getSession(req);
+    if (!info) return new Response("{}", { headers: { ...JSON_CT, "Cache-Control": "no-store" } });
+    const games = (await getPlaytime(info.code))
+      .map((g) => ({ ...g, name: gameName(g.game), icon: !!HAS_ICON[g.game] }))
+      .sort((a, b) => b.ms - a.ms);
+    const totalMs = games.reduce((n, g) => n + (g.ms || 0), 0);
+    const totalOpens = games.reduce((n, g) => n + (g.opens || 0), 0);
+    const first = games.reduce((m, g) => Math.min(m, g.first || Date.now()), Date.now());
+    return new Response(JSON.stringify({
+      label: info.label,
+      games,
+      totalMs,
+      totalOpens,
+      tried: games.length,
+      since: games.length ? first : 0,
+      top: games[0] ? { name: games[0].name, ms: games[0].ms } : null,
+    }), { headers: { ...JSON_CT, "Cache-Control": "no-store" } });
   }
 
   // Landing page opens hub in about:blank
