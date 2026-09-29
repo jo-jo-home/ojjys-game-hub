@@ -1509,7 +1509,59 @@ document.getElementById('cm-ov').addEventListener('click',function(e){if(e.targe
 </html>`;
 }
 
+// ---- tyler blockr -------------------------------------------------------
+// A kill switch. When the environment variable TYLER_BLOCK is set to anything
+// truthy, every request to the site gets the lockout page below instead of the
+// hub. Set TYLER_BLOCK=1 in Deno Deploy to turn it on, remove it to turn it
+// off; no code change needed.
+function tylerBlocked(): boolean {
+  const v = (Deno.env.get("TYLER_BLOCK") || "").toLowerCase();
+  return v === "1" || v === "true" || v === "on" || v === "yes";
+}
+
+const TYLER_PAGE = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudentVUE</title>
+<style>
+:root{color-scheme:dark}
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+gap:1.2rem;background:#0a0e14;color:#e6edf3;text-align:center;padding:2rem;
+font-family:'Segoe UI',system-ui,-apple-system,sans-serif;overflow:hidden}
+.lock{font-size:4rem;line-height:1;filter:grayscale(.2)}
+h1{font-size:clamp(1.8rem,7vw,3.2rem);font-weight:800;letter-spacing:.04em;
+background:linear-gradient(135deg,#ff5a5a,#ff9a3c);-webkit-background-clip:text;
+background-clip:text;color:transparent;text-transform:uppercase}
+p{font-size:clamp(1rem,3.5vw,1.4rem);color:#9aa7b4;max-width:32rem;line-height:1.5}
+.big{color:#ff9a3c;font-weight:700}
+.pulse{position:fixed;inset:0;z-index:-1;background:radial-gradient(circle at 50% 40%,
+rgba(255,90,90,.14),transparent 60%);animation:p 3s ease-in-out infinite}
+@keyframes p{0%,100%{opacity:.5}50%{opacity:1}}
+</style></head>
+<body>
+<div class="pulse"></div>
+<div class="lock">🔒</div>
+<h1>Tyler Blockr Activated</h1>
+<p>this site is locked. <span class="big">tyler must send it</span> to get back in.</p>
+<script>
+// Type the word "access" anywhere on this page to unlock this browser.
+(function(){var buf="";document.addEventListener("keydown",function(e){
+  if(e.key&&e.key.length===1){buf=(buf+e.key.toLowerCase()).slice(-6);
+    if(buf==="access"){document.cookie="tyler_ok=1;path=/;max-age=31536000";location.reload();}}});})();
+</script>
+</body></html>`;
+
 Deno.serve(async (req: Request) => {
+  // The kill switch wins over everything — unless this browser has typed the
+  // word "access" on the lockout page, which sets the cookie checked here.
+  if (tylerBlocked() && !(req.headers.get("cookie") || "").includes("tyler_ok=1")) {
+    return new Response(TYLER_PAGE, {
+      status: 503,
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
+    });
+  }
+
   const url = new URL(req.url);
 
   // Handle login POST
