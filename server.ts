@@ -1400,6 +1400,19 @@ ${CLOAK_SCRIPT}
 <meta name="theme-color" content="#0a1628">
 </head>
 <body data-scope="game" data-token="${token}">
+<div class="wc-ov" id="wc"><div class="wc">
+<h2>welcome</h2>
+<p>This site took days of dedication, hard work, and effort to make. Please don't take it for granted.</p>
+<p class="wc-by">— Jonas</p>
+<button type="button" class="wc-btn" onclick="document.getElementById('wc').classList.remove('show')">got it</button>
+</div></div>
+<script>
+// Shown once per browser, right when the hub opens.
+(function(){try{if(!localStorage.getItem('hub_welcomed')){
+  var w=document.getElementById('wc');if(w)w.classList.add('show');
+  localStorage.setItem('hub_welcomed','1');}}catch(e){
+  var w2=document.getElementById('wc');if(w2)w2.classList.add('show');}})();
+</script>
 <header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/me?token=${token}">${NAV_ICONS.stats}my stats</a><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
@@ -1545,10 +1558,10 @@ rgba(255,90,90,.14),transparent 60%);animation:p 3s ease-in-out infinite}
 <h1>Tyler Blockr Activated</h1>
 <p>this site is locked. <span class="big">tyler must send it</span> to get back in.</p>
 <script>
-// Type the word "access" anywhere on this page to unlock this browser.
+// Type the unlock phrase anywhere on this page to unlock this browser.
 (function(){var buf="";document.addEventListener("keydown",function(e){
-  if(e.key&&e.key.length===1){buf=(buf+e.key.toLowerCase()).slice(-6);
-    if(buf==="access"){document.cookie="tyler_ok=1;path=/;max-age=31536000";location.reload();}}});})();
+  if(e.key&&e.key.length===1){buf=(buf+e.key.toLowerCase()).slice(-18);
+    if(buf==="lebronismysunshine"){document.cookie="tyler_ok=1;path=/;max-age=31536000";location.reload();}}});})();
 </script>
 </body></html>`;
 
