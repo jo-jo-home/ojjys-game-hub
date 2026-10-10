@@ -1,6 +1,6 @@
 // The admin panel: who has access, which devices they use, and what they play.
 //
-// Everything comes from /api/admin/state, which 404s for anyone who isn't an
+// Everything comes from /api/admin/*, which 404s for anyone who isn't an
 // admin, so this file is inert if it is ever loaded by someone else. It holds
 // no secrets and makes no decisions of its own — the server decides, this
 // draws the answer.
@@ -12,6 +12,9 @@
   var pending = null;        // a destructive button waiting for its second click
   var pendingTimer = null;
   var openDevices = {};      // which code's device list is expanded
+  var feedback = { items: [], cursor: null, kind: "", status: "new", loaded: false, busy: false, generation: 0, error: "" };
+  var FEEDBACK_KINDS = { idea: "hub idea", bug: "broken game", game: "game request" };
+  var FEEDBACK_STATUSES = { new: "new", planned: "planned / investigating", done: "done / fixed", closed: "closed" };
 
   function esc(v) {
     return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -55,14 +58,19 @@
 
   // ---- talking to the server ---------------------------------------------
 
+  function apiUrl(path) {
+    var token = document.body.getAttribute("data-token") || "";
+    return path + (/^[a-f0-9]{64}$/.test(token) ? (path.indexOf("?") < 0 ? "?" : "&") + "token=" + token : "");
+  }
+
   async function load() {
-    var res = await fetch("/api/admin/state", { cache: "no-store" });
+    var res = await fetch(apiUrl("/api/admin/state"), { cache: "no-store" });
     if (!res.ok) { var e = new Error("no access"); e.status = res.status; throw e; }
     state = await res.json();
   }
 
   async function send(path, body) {
-    var res = await fetch(path, {
+    var res = await fetch(apiUrl(path), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body || {}),
@@ -162,10 +170,110 @@
     return h + "</div>";
   }
 
+  // ---- suggestions and reports -------------------------------------------
+
+  function feedbackOptions(values, selected) {
+    return Object.keys(values).map(function (key) {
+      return '<option value="' + esc(key) + '"' + (selected === key ? " selected" : "") + '>' +
+        esc(values[key]) + "</option>";
+    }).join("");
+  }
+
+  function feedbackSection() {
+    return '<section aria-labelledby="ad-fb-heading"><h2 id="ad-fb-heading">suggestions &amp; reports</h2>' +
+      '<div class="sub">ideas, broken games, and games people want added. only admins can read this inbox.</div>' +
+      '<div class="fb-filters"><label>type<select id="ad-fb-kind">' +
+      feedbackOptions(Object.assign({ "": "all types" }, FEEDBACK_KINDS), feedback.kind) +
+      '</select></label><label>status<select id="ad-fb-filter">' +
+      feedbackOptions(Object.assign({ "": "all statuses" }, FEEDBACK_STATUSES), feedback.status) +
+      '</select></label><button type="button" class="ad-btn" id="ad-fb-refresh">refresh inbox</button></div>' +
+      '<p id="ad-fb-message" class="fb-message" role="status" aria-live="polite"></p>' +
+      '<div id="ad-fb-list"></div><button type="button" class="ad-btn" id="ad-fb-more" hidden>load older submissions</button></section>';
+  }
+
+  function renderFeedback() {
+    var list = document.getElementById("ad-fb-list");
+    if (!list) return;
+    var msg = document.getElementById("ad-fb-message");
+    msg.textContent = feedback.error || (feedback.busy ? "loading submissions…" : "");
+    msg.classList.toggle("error", !!feedback.error);
+    var h = "";
+    feedback.items.forEach(function (item) {
+      h += '<article class="card fb-entry"><div class="row spread">' +
+        '<span class="tag">' + esc(FEEDBACK_KINDS[item.kind] || item.kind) + '</span>' +
+        '<select class="fb-status" data-feedback-id="' + esc(item.id) + '" data-previous="' + esc(item.status) +
+        '" aria-label="status for ' + esc(item.title) + '">' +
+        feedbackOptions(FEEDBACK_STATUSES, item.status) + '</select></div>' +
+        '<h3>' + esc(item.title) + '</h3>' +
+        (item.gameName ? '<div class="dim">game: ' + esc(item.gameName) + '</div>' : "") +
+        (item.details ? '<p>' + esc(item.details) + '</p>' : "") +
+        '<div class="dim">from ' + esc(item.label) + ' · ' + ago(item.createdAt) + '</div></article>';
+    });
+    if (!feedback.items.length && !feedback.busy && !feedback.error) {
+      h = '<p class="fb-inbox-note">no submissions match these filters yet.</p>';
+    }
+    list.innerHTML = h;
+    var more = document.getElementById("ad-fb-more");
+    more.hidden = !feedback.cursor;
+    more.disabled = feedback.busy;
+    document.getElementById("ad-fb-refresh").disabled = feedback.busy;
+  }
+
+  async function loadFeedback(append) {
+    var generation = ++feedback.generation;
+    var params = new URLSearchParams();
+    if (feedback.kind) params.set("kind", feedback.kind);
+    if (feedback.status) params.set("status", feedback.status);
+    if (append && feedback.cursor) params.set("cursor", feedback.cursor);
+    if (!append) { feedback.items = []; feedback.cursor = null; }
+    feedback.busy = true;
+    feedback.error = "";
+    renderFeedback();
+    try {
+      var res = await fetch(apiUrl("/api/admin/feedback?" + params.toString()), { cache: "no-store" });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || "couldn't load the inbox");
+      if (generation !== feedback.generation) return;
+      feedback.items = append ? feedback.items.concat(data.items) : data.items;
+      feedback.cursor = data.cursor;
+    } catch (e) {
+      if (generation === feedback.generation) feedback.error = "couldn't load submissions — refresh to try again.";
+    } finally {
+      if (generation === feedback.generation) {
+        feedback.busy = false;
+        feedback.loaded = true;
+        renderFeedback();
+      }
+    }
+  }
+
+  async function onFeedbackStatus(e) {
+    var select = e.target;
+    var id = select.getAttribute("data-feedback-id");
+    if (!id) return;
+    select.disabled = true;
+    try {
+      var res = await fetch(apiUrl("/api/admin/feedback"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id, status: select.value }),
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || "couldn't save that status");
+      await loadFeedback(false);
+    } catch (error) {
+      select.value = select.getAttribute("data-previous");
+      var msg = document.getElementById("ad-fb-message");
+      msg.textContent = "couldn't update this submission — refresh the inbox and try again.";
+      msg.classList.add("error");
+    } finally { select.disabled = false; }
+  }
+
   function render() {
     var el = document.getElementById("ad");
     if (!el) return;
     var h = createSection();
+    h += feedbackSection();
 
     // ---- playing right now ----
     h += "<h2>playing right now</h2>";
@@ -264,6 +372,8 @@
     el.innerHTML = h;
     wire();
     renderLive(state.now || []);
+    renderFeedback();
+    if (!feedback.loaded && !feedback.busy) loadFeedback(false);
   }
 
   function renderLive(list) {
@@ -285,7 +395,7 @@
 
   async function pollLive() {
     try {
-      var res = await fetch("/api/admin/live", { cache: "no-store" });
+      var res = await fetch(apiUrl("/api/admin/live"), { cache: "no-store" });
       if (!res.ok) return;
       var d = await res.json();
       if (state) state.now = d.now;
@@ -334,6 +444,17 @@
     each("[data-shared]", "click", onShared);
     each("[data-act]", "click", onDevice);
     each("[data-limit]", "change", onLimit);
+    each("#ad-fb-kind", "change", function (e) {
+      feedback.kind = e.currentTarget.value;
+      loadFeedback(false);
+    });
+    each("#ad-fb-filter", "change", function (e) {
+      feedback.status = e.currentTarget.value;
+      loadFeedback(false);
+    });
+    each("#ad-fb-refresh", "click", function () { loadFeedback(false); });
+    each("#ad-fb-more", "click", function () { loadFeedback(true); });
+    each("#ad-fb-list", "change", onFeedbackStatus);
   }
 
   function each(sel, type, fn) {

@@ -86,3 +86,42 @@ box-shadow:0 12px 40px color-mix(in srgb,var(--accent) 16%,transparent)}
 background:var(--accent);color:var(--onaccent);font:inherit;font-size:.95rem;font-weight:500;cursor:pointer;
 transition:filter .15s,transform .15s}
 .wc-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+
+/* Let the growing toolbar wrap below the heading at every density. */
+header .hdr-btns{position:static;max-width:none;justify-content:center;margin:1.2rem auto 0}
+
+/* Suggestions form and the admin inbox share the same themed controls. */
+.fb-page{max-width:680px;padding-top:.5rem}
+.fb-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:1.5rem}
+.fb-intro{font-size:.95rem;line-height:1.6;margin-bottom:1.2rem;color:var(--text2)}
+.fb-card fieldset{border:0;min-width:0}
+.fb-card label,.fb-filters label{display:block;color:var(--text2);font-size:.85rem;margin:1rem 0 .45rem}
+.fb-card input,.fb-card select,.fb-card textarea,.fb-filters select,.fb-status{
+width:100%;min-width:0;padding:.7rem .8rem;background:var(--bg);color:var(--text);
+border:1px solid var(--border);border-radius:10px;font:inherit;font-size:.9rem}
+.fb-card textarea{resize:vertical;min-height:130px;line-height:1.6}
+.fb-card input::placeholder,.fb-card textarea::placeholder{color:var(--dim)}
+.fb-card input:focus-visible,.fb-card select:focus-visible,.fb-card textarea:focus-visible,
+.fb-filters select:focus-visible,.fb-status:focus-visible,.fb-submit:focus-visible{
+outline:2px solid var(--accent);outline-offset:2px}
+.fb-hint{font-size:.76rem;color:var(--dim);line-height:1.5;margin:.6rem 0}
+#fb-count{text-align:right}
+.fb-submit{border:1px solid var(--accent);border-radius:10px;background:var(--accent);
+color:var(--text);padding:.75rem 1.2rem;font:inherit;cursor:pointer;margin-top:.7rem}
+.fb-submit:hover{filter:brightness(1.1)}
+.fb-card fieldset:disabled .fb-submit,.fb-status:disabled{opacity:.6;cursor:wait}
+.fb-message{color:var(--ok);font-size:.88rem;line-height:1.6;white-space:pre-line}
+.fb-message:not(:empty){margin-top:1rem}
+.fb-message.error{color:var(--danger)}
+.fb-login{display:inline-block;margin-top:.7rem;color:var(--accent)}
+.fb-login[hidden],#fb-game-field[hidden]{display:none}
+.fb-filters{display:flex;gap:.7rem;align-items:end;flex-wrap:wrap;margin-bottom:1rem}
+.fb-filters label{flex:1;min-width:140px;margin:0}
+.fb-filters select{display:block;margin-top:.4rem}
+.fb-filters button{align-self:end}
+.fb-entry{overflow-wrap:anywhere}
+.fb-entry h3{font-size:1rem;font-weight:500;color:var(--text);margin:.6rem 0}
+.fb-entry p{font-size:.88rem;line-height:1.6;white-space:pre-wrap;margin:.6rem 0}
+.fb-entry .fb-status{width:auto;max-width:100%;font-size:.8rem;padding:.45rem .6rem}
+.fb-inbox-note{font-size:.82rem;color:var(--dim);margin:.8rem 0;line-height:1.5}
+@media(max-width:500px){.fb-card{padding:1rem}.fb-page{padding-left:1rem;padding-right:1rem}}

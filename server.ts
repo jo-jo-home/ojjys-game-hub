@@ -1,5 +1,6 @@
 import { serveDir } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { Chess } from "npm:chess.js@0.10.3";
+import { handleFeedbackRequest } from "./feedback.ts";
 
 const GITHUB_RAW = "https://raw.githubusercontent.com/jo-jo-home/ojjys-game-hub/master/public";
 const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN") || "";
@@ -32,6 +33,7 @@ const OFFLINE_FILES: Record<string, string> = {
   "/hub-ui.js": "application/javascript",
   "/admin.js": "application/javascript",
   "/me.js": "application/javascript",
+  "/feedback.js": "application/javascript",
   "/theme-presets.js": "application/javascript",
   "/chess-theme.css": "text/css",
   "/bg.js": "application/javascript",
@@ -1039,6 +1041,7 @@ const NAV_ICONS: Record<string, string> = {
   admin: navIcon('<circle cx="8" cy="12" r="4"/><path d="M12 12h9M17 12v4M20.5 12v3"/>'),
   // a bar chart
   stats: navIcon('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  feedback: navIcon('<path d="M21 11a8 8 0 0 1-8 8H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4zM7 8h10M7 12h7"/>'),
   // stacked drives
   storage: navIcon('<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>'),
 };
@@ -1301,7 +1304,7 @@ ${CLOAK_SCRIPT}
 <meta name="theme-color" content="#0a1628">
 </head>
 <body data-scope="app" data-token="${token}">
-<header><h1>ojjy's apps</h1><p>tools and emulators, ${APPS.length} of them</p><div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}games</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button></div></header>
+<header><h1>ojjy's apps</h1><p>tools and emulators, ${APPS.length} of them</p><div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}games</a><a class="stg-btn" href="/feedback?token=${token}">${NAV_ICONS.feedback}ideas &amp; reports</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${APPS.length} apps..." autocomplete="off" aria-label="search apps">
 <div class="gg" id="g">${cards}</div>
@@ -1381,6 +1384,61 @@ ${ANTI_INSPECT}
 </html>`;
 }
 
+function buildFeedbackPage(token: string): string {
+  const options = (entries: typeof GAMES) => entries.slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((g) => `<option value="${g.id}">${g.name}</option>`).join("");
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>suggestions &amp; reports</title>
+<link rel="stylesheet" href="/theme.css">
+${THEME_SCRIPT}
+${CLOAK_SCRIPT}
+<link rel="stylesheet" href="/hub.css">
+</head>
+<body data-scope="feedback" data-token="${token}">
+<header><h1>suggestions &amp; reports</h1><p>help make the hub better</p>
+<div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}back to the hub</a></div></header>
+<main class="fb-page">
+<form id="fb-form" class="fb-card">
+<p class="fb-intro">got an idea, found a broken game, or want something added? send it to Jonas here.</p>
+<fieldset id="fb-fields">
+<label for="fb-kind">what would you like to send?</label>
+<select id="fb-kind" name="kind">
+<option value="idea">suggest an idea for the hub</option>
+<option value="bug">report a game that isn't working</option>
+<option value="game">request a new game</option>
+</select>
+<div id="fb-game-field" hidden>
+<label for="fb-game">which game or app?</label>
+<select id="fb-game" name="game" disabled>
+<option value="">choose one…</option>
+<optgroup label="games">${options(GAMES)}</optgroup>
+<optgroup label="apps">${options(APPS)}</optgroup>
+</select>
+</div>
+<label for="fb-title" id="fb-title-label">your idea</label>
+<input id="fb-title" name="title" type="text" required minlength="3" maxlength="100" placeholder="a short summary of your idea" autocomplete="off">
+<label for="fb-details" id="fb-details-label">more details (optional)</label>
+<textarea id="fb-details" name="details" rows="6" maxlength="2000" placeholder="how would it work? what would make the hub better?" aria-describedby="fb-count"></textarea>
+<div id="fb-count" class="fb-hint">0 / 2,000</div>
+<p class="fb-hint">sent privately to the hub's admin inbox. you need an internet connection to submit.</p>
+<button class="fb-submit" type="submit" id="fb-submit">send suggestion</button>
+</fieldset>
+<p id="fb-message" class="fb-message" role="status" aria-live="polite"></p>
+<a id="fb-login" class="fb-login" href="/login" hidden>sign in again</a>
+</form>
+</main>
+${ANTI_INSPECT}
+<script src="/bg.js"></script>
+<script src="/feedback.js"></script>
+</body>
+</html>`;
+}
+
 function buildHubPage(token: string, admin = false): string {
   const cards = GAMES.map(g => {
     const iconHtml = g.icon
@@ -1416,7 +1474,7 @@ ${CLOAK_SCRIPT}
   localStorage.setItem('hub_welcomed','1');}}catch(e){
   var w2=document.getElementById('wc');if(w2)w2.classList.add('show');}})();
 </script>
-<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/me?token=${token}">${NAV_ICONS.stats}my stats</a><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
+<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/me?token=${token}">${NAV_ICONS.stats}my stats</a><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><a class="stg-btn" href="/feedback?token=${token}">${NAV_ICONS.feedback}ideas &amp; reports</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
 <div class="gg" id="g">${cards}</div>
@@ -1710,6 +1768,12 @@ Deno.serve(async (req: Request) => {
       if (dev) await recordDevice(info.code, dev, req, false);
     }
     return new Response("{}", { headers: JSON_CT });
+  }
+
+  // Suggestions use hub sessions, including the URL token used in iframes.
+  // Keep API failures as JSON rather than the page gate's redirect to login.
+  if (url.pathname === "/api/feedback" || url.pathname === "/api/admin/feedback") {
+    return await handleFeedbackRequest(req, await getSession(req), getKv, GAME_NAMES);
   }
 
   // ---- admin ----
@@ -2550,6 +2614,12 @@ Deno.serve(async (req: Request) => {
     return new Response(null, {
       status: 302,
       headers: { "Location": "/login" },
+    });
+  }
+
+  if (url.pathname === "/feedback") {
+    return new Response(buildFeedbackPage((await getSessionToken(req))!), {
+      headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
     });
   }
 
