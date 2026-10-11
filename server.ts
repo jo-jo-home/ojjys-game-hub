@@ -1,6 +1,7 @@
 import { serveDir } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { Chess } from "npm:chess.js@0.10.3";
 import { handleFeedbackRequest } from "./feedback.ts";
+import iconManifest from "./public/icon-manifest.json" with { type: "json" };
 
 const GITHUB_RAW = "https://raw.githubusercontent.com/jo-jo-home/ojjys-game-hub/master/public";
 const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN") || "";
@@ -16,6 +17,7 @@ const MIME: Record<string, string> = {
   ".data": "application/octet-stream", ".swf": "application/x-shockwave-flash",
   ".xml": "application/xml", ".txt": "text/plain", ".mem": "application/octet-stream",
   ".webmanifest": "application/manifest+json",
+  ".webp": "image/webp",
 };
 
 // Offline mode files, served before the password check on purpose: the
@@ -34,6 +36,9 @@ const OFFLINE_FILES: Record<string, string> = {
   "/admin.js": "application/javascript",
   "/me.js": "application/javascript",
   "/feedback.js": "application/javascript",
+  "/birthday.js": "application/javascript",
+  "/birthday.css": "text/css",
+  "/icon-manifest.json": "application/json",
   "/theme-presets.js": "application/javascript",
   "/chess-theme.css": "text/css",
   "/bg.js": "application/javascript",
@@ -575,13 +580,14 @@ async function isAdmin(req: Request): Promise<boolean> {
 }
 
 async function getSessionToken(req: Request): Promise<string | null> {
-  const cookie = getSessionFromCookie(req);
-  if (cookie && await hasSession(cookie)) return cookie;
   const url = new URL(req.url);
   const param = url.searchParams.get("token");
   // Checked against the same shape as the cookie so a junk query string
   // can't turn into a KV lookup.
   if (param && /^[a-f0-9]{64}$/.test(param) && await hasSession(param)) return param;
+  // A fresh login's explicit token wins over an older (still-valid) cookie.
+  const cookie = getSessionFromCookie(req);
+  if (cookie && await hasSession(cookie)) return cookie;
   return null;
 }
 
@@ -933,7 +939,9 @@ de.setAttribute('data-chess-theme',t.chess==='hub'?'hub':'own');
 var D={density:'comfortable',font:'system',motion:'auto'};for(var g in D){if(t[g]&&t[g]!==D[g])de.setAttribute('data-'+g,t[g]);else de.removeAttribute('data-'+g)}
 var mt=document.querySelector('meta[name="theme-color"]');
 if(mt){var bg=getComputedStyle(de).getPropertyValue('--bg').trim();if(bg)mt.setAttribute('content',bg)}
-}catch(e){}})();</script>`;
+}catch(e){}})();</script>
+<link rel="stylesheet" href="/birthday.css">
+<script src="/birthday.js"></script>`;
 
 // Extra <head> content for games we own and therefore can theme. Keyed on the
 // first path segment, deliberately a whitelist: theme.css is variables-only
@@ -1284,9 +1292,9 @@ ${ANTI_INSPECT}
 }
 
 function buildAppsPage(token: string): string {
-  const cards = APPS.map(a => {
+  const cards = APPS.map((a, index) => {
     const iconHtml = a.icon
-      ? `<img src="/icons/app-${a.id}.png" alt="${a.name}" width="64" height="64" loading="lazy" decoding="async">`
+      ? renderIcon(`app-${a.id}`, a.name, index)
       : monogram(a.name);
     return `<a href="/apps/${a.id}/" class="gc" data-n="${a.id}">${iconHtml}<h2>${a.name}</h2><p>${a.desc}</p></a>`;
   }).join("");
@@ -1339,6 +1347,22 @@ function monogram(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   return `<span class="mg" aria-hidden="true" style="--mg:${hash % 360}deg">${text}</span>`;
+}
+
+function iconUrl(id: string): string {
+  const icons = iconManifest.icons as Record<string, { webp: string }>;
+  return icons[id]?.webp || `/icons/${id}.png`;
+}
+
+function renderIcon(id: string, name: string, index: number): string {
+  const webp = iconUrl(id);
+  // Load the first two rows immediately; leave off-screen cards lazy. The PNG
+  // remains a fallback for browsers that cannot decode WebP.
+  const image = `<img src="/icons/${id}.png" alt="${name}" width="64" height="64" ` +
+    `loading="${index < 6 ? "eager" : "lazy"}" fetchpriority="${index < 3 ? "high" : "auto"}" decoding="async">`;
+  return webp.endsWith(".webp")
+    ? `<picture><source srcset="${webp}" type="image/webp">${image}</picture>`
+    : image;
 }
 
 function buildMePage(token: string): string {
@@ -1443,9 +1467,9 @@ ${ANTI_INSPECT}
 }
 
 function buildHubPage(token: string, admin = false): string {
-  const cards = GAMES.map(g => {
+  const cards = GAMES.map((g, index) => {
     const iconHtml = g.icon
-      ? `<img src="/icons/${g.id}.png" alt="${g.name}" width="64" height="64" loading="lazy" decoding="async">`
+      ? renderIcon(g.id, g.name, index)
       : monogram(g.name);
     return `<a href="/${g.id}/" class="gc" data-n="${g.id}"><button type="button" class="sb" data-g="${g.id}" aria-pressed="false" aria-label="add ${g.name} to favourites">&#9734;</button>${iconHtml}<h2>${g.name}</h2><p>${g.desc}</p></a>`;
   }).join("");
@@ -1681,6 +1705,7 @@ Deno.serve(async (req: Request) => {
         headers: {
           "Location": `/?token=${token}`,
           "Set-Cookie": sessionCookie(token),
+          "Cache-Control": "no-store",
         },
       });
     }
@@ -1718,6 +1743,28 @@ Deno.serve(async (req: Request) => {
           "ETag": file.etag,
         },
       });
+    } catch {
+      return new Response("Not Found", { status: 404 });
+    }
+  }
+
+  // Catalog icons are public presentation assets. Avoid an auth/KV lookup for
+  // every thumbnail, including when third-party cookies are unavailable.
+  if (/^\/icons\/(?:webp\/)?[A-Za-z0-9_-]+\.(?:png|webp)$/.test(url.pathname) &&
+      (req.method === "GET" || req.method === "HEAD")) {
+    try {
+      const file = await getStaticFile(url.pathname);
+      const versioned = /^\/icons\/webp\/.+-[a-f0-9]{12}\.webp$/.test(url.pathname);
+      const headers = {
+        "Content-Type": getMime(url.pathname),
+        "Cache-Control": versioned ? "public, max-age=31536000, immutable" : "public, max-age=86400",
+        "ETag": file.etag,
+        "X-Content-Type-Options": "nosniff",
+      };
+      if (req.headers.get("if-none-match") === file.etag) {
+        return new Response(null, { status: 304, headers });
+      }
+      return new Response(req.method === "HEAD" ? null : file.body, { headers });
     } catch {
       return new Response("Not Found", { status: 404 });
     }
@@ -2654,7 +2701,8 @@ Deno.serve(async (req: Request) => {
     const info = await getSession(req);
     if (!info) return new Response("{}", { headers: { ...JSON_CT, "Cache-Control": "no-store" } });
     const games = (await getPlaytime(info.code))
-      .map((g) => ({ ...g, name: gameName(g.game), icon: !!HAS_ICON[g.game] }))
+      .map((g) => ({ ...g, name: gameName(g.game), icon: !!HAS_ICON[g.game],
+        iconUrl: HAS_ICON[g.game] ? iconUrl(g.game) : "" }))
       .sort((a, b) => b.ms - a.ms);
     const totalMs = games.reduce((n, g) => n + (g.ms || 0), 0);
     const totalOpens = games.reduce((n, g) => n + (g.opens || 0), 0);
@@ -2674,17 +2722,17 @@ Deno.serve(async (req: Request) => {
   if (url.pathname === "/" || url.pathname === "/index.html") {
     const token = (await getSessionToken(req))!;
     const launcher = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>ojjy's game hub</title>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ojjy's game hub</title>
 <link rel="stylesheet" href="/theme.css">
 ${THEME_SCRIPT}
 ${CLOAK_SCRIPT}
 <style>html{background:var(--bg)}body{background:transparent}@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{margin:0;padding:0;box-sizing:border-box}body{color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:1rem}h1{font-weight:300;letter-spacing:.05em;animation:fin .5s ease}button{padding:.8rem 2rem;border:1px solid var(--border);border-radius:12px;background:var(--bg3);color:var(--text);font-size:1.1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}a{color:var(--accent);font-size:.9rem}</style>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
-</head><body>
+</head><body data-token="${token}">
 <h1>ojjy's game hub</h1>
-<button onclick="window.__hubCloak?window.__hubCloak.openBlank('${token}'):(window.location.href='/hub')">open in about:blank</button>
-<a href="/hub">or open normally</a>
+<button onclick="var t=window.__hubToken?window.__hubToken():'${token}';window.__hubCloak?window.__hubCloak.openBlank(t):(window.location.href='/hub?token='+t)">open in about:blank</button>
+<a href="/hub?token=${token}">or open normally</a>
 ${ANTI_INSPECT}
 <script src="/bg.js"></script>
 <script src="/cloak.js"></script>

@@ -1,0 +1,269 @@
+{
+  "icons": {
+    "2048": {
+      "webp": "/icons/webp/2048-d2e07af730ab.webp"
+    },
+    "adarkroom": {
+      "webp": "/icons/webp/adarkroom-e82aa60a86d5.webp"
+    },
+    "awesometanks2": {
+      "webp": "/icons/webp/awesometanks2-0abc1528a86e.webp"
+    },
+    "baldisbasics": {
+      "webp": "/icons/webp/baldisbasics-5a6a662da9a4.webp"
+    },
+    "bitlife": {
+      "webp": "/icons/webp/bitlife-175281ab651c.webp"
+    },
+    "boxelrebound": {
+      "webp": "/icons/webp/boxelrebound-a1903f636cfd.webp"
+    },
+    "cellmachine": {
+      "webp": "/icons/webp/cellmachine-d890d1cfb2f6.webp"
+    },
+    "chess": {
+      "webp": "/icons/webp/chess-50c84853b7fd.webp"
+    },
+    "clusterrush": {
+      "webp": "/icons/webp/clusterrush-e4f477f17d33.webp"
+    },
+    "cookieclicker": {
+      "webp": "/icons/webp/cookieclicker-8677799d61da.webp"
+    },
+    "coreball": {
+      "webp": "/icons/webp/coreball-a9a5f0a5b732.webp"
+    },
+    "crossyroadspace": {
+      "webp": "/icons/webp/crossyroadspace-6d0f3bc818c4.webp"
+    },
+    "cubefield": {
+      "webp": "/icons/webp/cubefield-48369d818aed.webp"
+    },
+    "cupcake2048": {
+      "webp": "/icons/webp/cupcake2048-213ee7eca42d.webp"
+    },
+    "cuttherope": {
+      "webp": "/icons/webp/cuttherope-6c50284a6a87.webp"
+    },
+    "deathrun3d": {
+      "webp": "/icons/webp/deathrun3d-1a13c93523e9.webp"
+    },
+    "doctoracorn2": {
+      "webp": "/icons/webp/doctoracorn2-9daea978d7d3.webp"
+    },
+    "doodlejump": {
+      "webp": "/icons/webp/doodlejump-d4f4ec4b4804.webp"
+    },
+    "driftboss": {
+      "webp": "/icons/webp/driftboss-f22c79d94b39.webp"
+    },
+    "drifthunters": {
+      "webp": "/icons/webp/drifthunters-55bbe64ae4aa.webp"
+    },
+    "drivemad": {
+      "webp": "/icons/webp/drivemad-658d3dadb44b.webp"
+    },
+    "ducklife1": {
+      "webp": "/icons/webp/ducklife1-c4819640ae63.webp"
+    },
+    "ducklife2": {
+      "webp": "/icons/webp/ducklife2-96576de18dcf.webp"
+    },
+    "ducklife3": {
+      "webp": "/icons/webp/ducklife3-86dbad80922d.webp"
+    },
+    "ducklife4": {
+      "webp": "/icons/webp/ducklife4-5aa654187f91.webp"
+    },
+    "ducklife5": {
+      "webp": "/icons/webp/ducklife5-bc1c2e77e9e0.webp"
+    },
+    "ducklife6": {
+      "webp": "/icons/webp/ducklife6-fa8993134a17.webp"
+    },
+    "edgesurf": {
+      "webp": "/icons/webp/edgesurf-a82cf1880d4d.webp"
+    },
+    "escaperoad": {
+      "webp": "/icons/webp/escaperoad-1d0c27235b32.webp"
+    },
+    "escaperoad3": {
+      "webp": "/icons/webp/escaperoad3-b6e3156b2a91.webp"
+    },
+    "evilglitch": {
+      "webp": "/icons/webp/evilglitch-d8c21c2a3564.webp"
+    },
+    "factoryballs": {
+      "webp": "/icons/webp/factoryballs-0aa9841d83ab.webp"
+    },
+    "fallguys": {
+      "webp": "/icons/webp/fallguys-eeb736b88a87.webp"
+    },
+    "finalearth2": {
+      "webp": "/icons/webp/finalearth2-dcb5f85ba834.webp"
+    },
+    "flappybird": {
+      "webp": "/icons/webp/flappybird-5ccd8a6101b9.webp"
+    },
+    "funnyshooter2": {
+      "webp": "/icons/webp/funnyshooter2-f4825877521e.webp"
+    },
+    "geometrydash": {
+      "webp": "/icons/webp/geometrydash-526ebc311039.webp"
+    },
+    "geometrydashlite": {
+      "webp": "/icons/webp/geometrydashlite-d8fe9595387b.webp"
+    },
+    "getawayshootout": {
+      "webp": "/icons/webp/getawayshootout-b80b5f2fa5e8.webp"
+    },
+    "gettingoverit": {
+      "webp": "/icons/webp/gettingoverit-b3aa00c9d40f.webp"
+    },
+    "gladihoppers": {
+      "webp": "/icons/webp/gladihoppers-acb4505c92b2.webp"
+    },
+    "googlesnake": {
+      "webp": "/icons/webp/googlesnake-8de349535d18.webp"
+    },
+    "happyhop": {
+      "webp": "/icons/webp/happyhop-b19b1d014659.webp"
+    },
+    "hexgl": {
+      "webp": "/icons/webp/hexgl-01676824da1a.webp"
+    },
+    "hextris": {
+      "webp": "/icons/webp/hextris-89261018e136.webp"
+    },
+    "holeio": {
+      "webp": "/icons/webp/holeio-4585cd8f8f3c.webp"
+    },
+    "houseofhazards": {
+      "webp": "/icons/webp/houseofhazards-94a51a22edff.webp"
+    },
+    "idlebreakout": {
+      "webp": "/icons/webp/idlebreakout-91c2375f12d9.webp"
+    },
+    "justoneboss": {
+      "webp": "/icons/webp/justoneboss-1cc85d9e490e.webp"
+    },
+    "leveldevil": {
+      "webp": "/icons/webp/leveldevil-83339601c537.webp"
+    },
+    "minesweeper": {
+      "webp": "/icons/webp/minesweeper-7be7c46ebbbe.webp"
+    },
+    "ministilts": {
+      "webp": "/icons/webp/ministilts-5379823ca359.webp"
+    },
+    "motox3m": {
+      "webp": "/icons/webp/motox3m-32f97ac83f57.webp"
+    },
+    "ngon": {
+      "webp": "/icons/webp/ngon-ab0c6dd644ed.webp"
+    },
+    "ojjyChess": {
+      "webp": "/icons/webp/ojjyChess-50c84853b7fd.webp"
+    },
+    "ojjyclient": {
+      "webp": "/icons/webp/ojjyclient-de8cb539ae07.webp"
+    },
+    "ovo": {
+      "webp": "/icons/webp/ovo-26ae770702a8.webp"
+    },
+    "pacman": {
+      "webp": "/icons/webp/pacman-dbe56611aed3.webp"
+    },
+    "paperio2": {
+      "webp": "/icons/webp/paperio2-680bc542a736.webp"
+    },
+    "pixelcave": {
+      "webp": "/icons/webp/pixelcave-9fa70b91645d.webp"
+    },
+    "pushthesquare": {
+      "webp": "/icons/webp/pushthesquare-85fbcae013ff.webp"
+    },
+    "resentclient": {
+      "webp": "/icons/webp/resentclient-7cc0992d1bb1.webp"
+    },
+    "retrobowl": {
+      "webp": "/icons/webp/retrobowl-68b37790b8ad.webp"
+    },
+    "retrobowlcollege": {
+      "webp": "/icons/webp/retrobowlcollege-6d2f0cf34d3c.webp"
+    },
+    "rocketgoalio": {
+      "webp": "/icons/webp/rocketgoalio-3160eafbf6ce.webp"
+    },
+    "rollingforests": {
+      "webp": "/icons/webp/rollingforests-62630b8e1017.webp"
+    },
+    "rollyvortex": {
+      "webp": "/icons/webp/rollyvortex-35e591291c13.webp"
+    },
+    "rooftopsnipers": {
+      "webp": "/icons/webp/rooftopsnipers-29818003fb34.webp"
+    },
+    "sandboxels": {
+      "webp": "/icons/webp/sandboxels-b0effd5e9ef2.webp"
+    },
+    "slope": {
+      "webp": "/icons/webp/slope-75e0b10590fc.webp"
+    },
+    "sortthecourt": {
+      "webp": "/icons/webp/sortthecourt-1dbea35dc726.webp"
+    },
+    "spacewaves": {
+      "webp": "/icons/webp/spacewaves-ab3de699b6d4.webp"
+    },
+    "stacktower": {
+      "webp": "/icons/webp/stacktower-894544ca27cd.webp"
+    },
+    "stickmangolf": {
+      "webp": "/icons/webp/stickmangolf-b6063e596410.webp"
+    },
+    "stickmanhook": {
+      "webp": "/icons/webp/stickmanhook-ea438a6a9741.webp"
+    },
+    "subwayssurfersny": {
+      "webp": "/icons/webp/subwayssurfersny-523274d2112d.webp"
+    },
+    "supermario64": {
+      "webp": "/icons/webp/supermario64-84457fcb5077.webp"
+    },
+    "templerun2": {
+      "webp": "/icons/webp/templerun2-4fcda753e72c.webp"
+    },
+    "thereisnogame": {
+      "webp": "/icons/webp/thereisnogame-29b68d1f666e.webp"
+    },
+    "timeshooter3": {
+      "webp": "/icons/webp/timeshooter3-901af13d6cf4.webp"
+    },
+    "towermaster": {
+      "webp": "/icons/webp/towermaster-d00af0122602.webp"
+    },
+    "tubejumpers": {
+      "webp": "/icons/webp/tubejumpers-666c189de3ca.webp"
+    },
+    "tunnelrush": {
+      "webp": "/icons/webp/tunnelrush-6c5a8ee4a0aa.webp"
+    },
+    "unfold2": {
+      "webp": "/icons/webp/unfold2-467452ce5b1b.webp"
+    },
+    "wolf3d": {
+      "webp": "/icons/webp/wolf3d-5b2794873e45.webp"
+    },
+    "worldshardestgame": {
+      "webp": "/icons/webp/worldshardestgame-e44d662b68c9.webp"
+    },
+    "worldshardestgame1": {
+      "webp": "/icons/webp/worldshardestgame1-047e3a283f6a.webp"
+    },
+    "xtrialracing": {
+      "webp": "/icons/webp/xtrialracing-9f9b7a79b71f.webp"
+    }
+  },
+  "version": 1
+}

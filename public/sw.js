@@ -10,7 +10,7 @@
 // GAMES is in KEEP below and must stay there. Dropping it means every
 // service worker update silently deletes everything the user downloaded.
 
-const SHELL = "hub-shell-v6";   // v6: suggestions and reports
+const SHELL = "hub-shell-v7";   // v7: birthday countdown and date-driven celebration
 const GAMES = "hub-games-v1";
 const KEEP = [SHELL, GAMES];
 
@@ -20,6 +20,8 @@ const SHELL_URLS = [
   "/",
   "/hub",
   "/theme.css",
+  "/birthday.css",
+  "/birthday.js",
   "/theme-presets.js",
   "/themes.js",
   "/hub-ui.js",

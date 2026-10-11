@@ -32,7 +32,7 @@
   // the same face in both places.
   function face(g) {
     if (g.icon) {
-      return '<img src="/icons/' + esc(g.game) + '.png" alt="" width="38" height="38">';
+      return '<img src="' + esc(g.iconUrl || '/icons/' + g.game + '.png') + '" alt="" width="38" height="38" decoding="async">';
     }
     var letters = (g.name || g.game).replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean);
     var t = (letters.length > 1 ? letters[0][0] + letters[1][0]

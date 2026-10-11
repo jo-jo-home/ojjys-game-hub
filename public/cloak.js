@@ -251,15 +251,26 @@
     },
 
     openBlank: function (token) {
-      return api.openIframe(window.location.origin + "/hub?token=" + token, false);
+      // The launcher itself may be cached with an older inline token.
+      var current = window.__hubToken ? window.__hubToken() : pageToken();
+      return api.openIframe(window.location.origin + "/hub?token=" + (current || token), false);
     },
   };
 
   function sessionUrl() {
     if (window.__hubSessionUrl) return window.__hubSessionUrl();
+    var t = pageToken();
+    return t ? "/api/session?token=" + t : "/api/session";
+  }
+
+  function pageToken() {
+    try {
+      var query = new URLSearchParams(location.search).get("token") || "";
+      if (/^[a-f0-9]{64}$/.test(query)) return query;
+    } catch (e) { /* fall back to the markup */ }
     var t = "";
     try { t = document.body.getAttribute("data-token") || ""; } catch (e) { /* none */ }
-    return /^[a-f0-9]{64}$/.test(t) ? "/api/session?token=" + t : "/api/session";
+    return /^[a-f0-9]{64}$/.test(t) ? t : "";
   }
 
   // The script that runs inside the game tab. It reports playtime to the hub

@@ -1,0 +1,53 @@
+/* Birthday palette is temporary and beats custom inline colour preferences.
+   Removing data-birthday reveals those preferences without rewriting them. */
+html[data-birthday="2026-11-05"]{
+--bg:#160e29!important;--bg2:#241a3c!important;--bg3:#33254e!important;
+--border:#7d65a6!important;--accent:#e3a7ff!important;--text:#fff7ff!important;
+--text2:#eee2ff!important;--dim:#bca8d5!important;--faint:#a994c4!important;
+--overlay:rgba(22,14,41,.55)!important;--star:#ffdc74!important;
+--danger:#ff8997!important;--danger-bg:#3c1828!important;--danger-bd:#824053!important;
+--ok:#90efbe!important;--warn:#ffd18b!important;--onaccent:#160e29!important;
+--spark:#ffffff!important;--ring:rgba(227,167,255,.4)!important;
+--bd-rainbow:linear-gradient(110deg,#ff8fa3,#ffc775,#ffee8a,#91edb8,#8edcff,#b8abff,#efa7ff)}
+html[data-birthday] body{background:
+radial-gradient(ellipse at 0% 0%,#ee637633,transparent 45%),
+radial-gradient(ellipse at 100% 0%,#f7bb5933,transparent 45%),
+radial-gradient(ellipse at 100% 100%,#3ee3a533,transparent 45%),
+radial-gradient(ellipse at 0% 100%,#8873f833,transparent 45%),var(--bg);background-attachment:fixed}
+html[data-birthday] header h1{background:var(--bd-rainbow);background-clip:text;-webkit-background-clip:text;color:transparent}
+html[data-birthday] .gc{border:1px solid transparent;background:
+linear-gradient(145deg,var(--bg2),var(--bg3)) padding-box,var(--bd-rainbow) border-box}
+html[data-birthday] .bd-band{border:1px solid transparent;background:
+linear-gradient(145deg,var(--bg2),var(--bg3)) padding-box,var(--bd-rainbow) border-box}
+
+.bd-band,.bd-notice,.bd-band *,.bd-notice *{box-sizing:border-box}
+.bd-band *,.bd-notice *{margin:0;padding:0}
+.bd-band{max-width:650px;margin:1.4rem auto 0;padding:1rem 1.15rem;
+display:flex;align-items:center;justify-content:space-between;gap:1rem;text-align:left;
+background:var(--bg2);border:1px solid var(--border);border-radius:14px;
+font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text)}
+.bd-copy{display:flex;flex-direction:column;gap:.3rem;min-width:0}
+.bd-copy strong{font-size:.9rem;font-weight:500;color:var(--text)}
+.bd-copy>span{font-size:.75rem;color:var(--dim)}
+.bd-clock{display:flex;gap:.7rem;flex-shrink:0}
+.bd-unit{display:flex;flex-direction:column;align-items:center;min-width:42px;gap:.2rem}
+.bd-unit b{font-size:1.35rem;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--text)}
+.bd-unit small{font-size:.65rem;color:var(--dim)}
+.bd-icon{font-size:1.8rem;flex-shrink:0}
+.bd-floating{position:fixed;top:14px;left:50%;transform:translateX(-50%);
+width:min(650px,calc(100vw - 28px));margin:0;z-index:900}
+.bd-notice{position:fixed;top:16px;right:16px;z-index:1200;width:min(390px,calc(100vw - 32px));
+max-width:none;display:flex;align-items:flex-start;gap:.75rem;padding:1rem;
+border:1px solid transparent;border-radius:14px;background:
+linear-gradient(var(--bg2),var(--bg2)) padding-box,var(--bd-rainbow) border-box;
+color:var(--text);text-align:left;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+box-shadow:0 8px 30px #0004}
+.bd-notice-copy{flex:1;min-width:0}
+.bd-notice-copy strong{font-size:.95rem;font-weight:600;line-height:1.4}
+.bd-notice-copy p{font-size:.8rem;color:var(--text2);line-height:1.6;margin:.35rem 0 0}
+.bd-notice .bd-close{width:26px;height:26px;flex-shrink:0;padding:0;margin:0;
+border:0;border-radius:6px;background:transparent;color:var(--text2);font:inherit;font-size:1.3rem;cursor:pointer;line-height:1}
+.bd-notice .bd-close:hover{background:var(--bg3);transform:none}
+.bd-notice .bd-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:600px){.bd-band{flex-wrap:wrap;justify-content:center;text-align:center;padding:.85rem}
+.bd-clock{width:100%;justify-content:center;gap:1rem}.bd-floating .bd-copy strong{font-size:.82rem}}

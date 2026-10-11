@@ -681,10 +681,22 @@
   // dropped in the about:blank wrapper — so a check that only sends the
   // cookie answers "logged out" for a session that is perfectly alive, and
   // the caller then helpfully sends you to the login screen.
-  function sessionUrl() {
+  function sessionToken() {
+    // A cached page may contain yesterday's token; the current navigation's
+    // explicit token is authoritative and must reach the validation request.
+    try {
+      var query = new URLSearchParams(location.search).get("token") || "";
+      if (/^[a-f0-9]{64}$/.test(query)) return query;
+    } catch (e) { /* fall back to the page's token */ }
     var t = "";
     try { t = document.body.getAttribute("data-token") || ""; } catch (e) { /* no body yet */ }
-    return /^[a-f0-9]{64}$/.test(t) ? "/api/session?token=" + t : "/api/session";
+    return /^[a-f0-9]{64}$/.test(t) ? t : "";
+  }
+  window.__hubToken = sessionToken;
+
+  function sessionUrl() {
+    var token = sessionToken();
+    return token ? "/api/session?token=" + token : "/api/session";
   }
   window.__hubSessionUrl = sessionUrl;
 
@@ -705,6 +717,20 @@
   }
 
   function start() {
+    var token = sessionToken();
+    if (token) {
+      document.body.setAttribute("data-token", token);
+      // Inline card handlers and header links can also have come from cache.
+      if (typeof window._t === "string") window._t = token;
+      document.querySelectorAll('a[href]').forEach(function (link) {
+        var target = new URL(link.href, location.href);
+        if (target.origin === location.origin &&
+            ["/", "/index.html", "/hub", "/apps", "/me", "/admin", "/feedback"].indexOf(target.pathname) >= 0) {
+          target.searchParams.set("token", token);
+          link.href = target.href;
+        }
+      });
+    }
     var declared = document.body && document.body.getAttribute("data-scope");
     if (declared === "app" || declared === "game") scope = declared;
     verifySession();
