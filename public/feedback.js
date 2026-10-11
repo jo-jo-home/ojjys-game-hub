@@ -5,6 +5,7 @@
 
   var form = document.getElementById("fb-form");
   if (!form) return;
+  var nameField = document.getElementById("fb-name");
   var kind = document.getElementById("fb-kind");
   var game = document.getElementById("fb-game");
   var title = document.getElementById("fb-title");
@@ -43,6 +44,7 @@
   }
 
   form.addEventListener("input", function () {
+    nameField.setCustomValidity("");
     requestId = null;
     notice("");
     update();
@@ -51,6 +53,7 @@
 
   form.addEventListener("submit", async function (event) {
     event.preventDefault();
+    nameField.setCustomValidity(nameField.value.trim() ? "" : "enter your name");
     if (sending || !form.reportValidity()) return;
     if (!navigator.onLine) {
       notice("you're offline — reconnect to send this. your text is still here.", true);
@@ -72,6 +75,7 @@
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: nameField.value,
           kind: kind.value, game: game.value, title: title.value,
           details: details.value, requestId: requestId,
         }),
@@ -84,8 +88,10 @@
         throw new Error(data.error || "couldn't send this — please try again");
       }
       var previousKind = kind.value;
+      var previousName = nameField.value.trim();
       form.reset();
       kind.value = previousKind;
+      nameField.value = previousName;
       requestId = null;
       notice("sent! Jonas can review it in the admin inbox. thanks for helping improve the hub.");
     } catch (e) {

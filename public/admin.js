@@ -207,7 +207,9 @@
         '<h3>' + esc(item.title) + '</h3>' +
         (item.gameName ? '<div class="dim">game: ' + esc(item.gameName) + '</div>' : "") +
         (item.details ? '<p>' + esc(item.details) + '</p>' : "") +
-        '<div class="dim">from ' + esc(item.label) + ' · ' + ago(item.createdAt) + '</div></article>';
+        '<div class="dim">from ' + esc(item.name || item.label) +
+        (item.name ? ' · access: ' + esc(item.label) : '') +
+        ' · ' + ago(item.createdAt) + '</div></article>';
     });
     if (!feedback.items.length && !feedback.busy && !feedback.error) {
       h = '<p class="fb-inbox-note">no submissions match these filters yet.</p>';

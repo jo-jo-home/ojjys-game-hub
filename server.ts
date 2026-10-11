@@ -1407,6 +1407,8 @@ ${CLOAK_SCRIPT}
 <form id="fb-form" class="fb-card">
 <p class="fb-intro">got an idea, found a broken game, or want something added? send it to Jonas here.</p>
 <fieldset id="fb-fields">
+<label for="fb-name">your name (required)</label>
+<input id="fb-name" name="name" type="text" required maxlength="60" placeholder="enter your name" autocomplete="name">
 <label for="fb-kind">what would you like to send?</label>
 <select id="fb-kind" name="kind">
 <option value="idea">suggest an idea for the hub</option>

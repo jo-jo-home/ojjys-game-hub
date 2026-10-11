@@ -15,6 +15,7 @@ function post(body: unknown, path = "/api/feedback"): Request {
 
 function draft(extra: Record<string, unknown> = {}) {
   return {
+    name: "Sam Jones",
     kind: "idea",
     title: "Add game categories",
     details: "It would help me find puzzle games.",
@@ -74,6 +75,7 @@ Deno.test("all three submission types persist with server-owned identity and sta
     for (const kind of ["idea", "bug", "game"]) {
       const response = await call(kv, post(draft({
         kind,
+        name: "  Zoë 王  ",
         title: "  Test submission  ",
         details: "  It stays on the loading screen.  ",
         game: "slope",
@@ -88,6 +90,7 @@ Deno.test("all three submission types persist with server-owned identity and sta
       equal(item.kind, kind);
       equal(item.title, "Test submission");
       equal(item.details, "It stays on the loading screen.");
+      equal(item.name, "Zoë 王");
       equal(item.game, kind === "bug" ? "slope" : "");
       equal(item.gameName, kind === "bug" ? "Slope" : "");
       equal(item.label, USER.label);
@@ -103,6 +106,12 @@ Deno.test("validation rejects malformed, oversized and unknown-game submissions 
     const invalid = [
       null,
       [],
+      draft({ name: undefined }),
+      draft({ name: "" }),
+      draft({ name: " \n\t " }),
+      draft({ name: 123 }),
+      draft({ name: [] }),
+      draft({ name: "x".repeat(61) }),
       draft({ kind: "anything" }),
       draft({ title: "  " }),
       draft({ title: { text: "not a string" } }),
@@ -155,6 +164,7 @@ Deno.test("admin status changes preserve the submission and respect inbox filter
       const { item } = await response.json();
       equal(item.status, status);
       equal(item.title, "Add game categories");
+      equal(item.name, "Sam Jones");
       equal((await inbox(kv, "?status=" + status)).items.length, 1);
     }
     equal((await call(kv, post({ id, status: "unknown" }, "/api/admin/feedback"), ADMIN)).status, 400);

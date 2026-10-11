@@ -11,6 +11,7 @@ type FeedbackRecord = {
   details: string;
   game: string;
   gameName: string;
+  name?: string; // older submissions only have the access-code label
   label: string;
   code: string;
   status: FeedbackStatus;
@@ -95,11 +96,15 @@ export async function handleFeedbackRequest(
       return json({ item: updated });
     }
 
+    const name = typeof body.name === "string" ? body.name.trim() : "";
     const kind = typeof body.kind === "string" ? body.kind : "";
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const details = typeof body.details === "string" ? body.details.trim() : "";
     const game = kind === "bug" && typeof body.game === "string" ? body.game : "";
     const requestId = typeof body.requestId === "string" ? body.requestId : "";
+    if (!name || name.length > 60) {
+      return json({ error: "enter your name (up to 60 characters)" }, 400);
+    }
     if (!KINDS.includes(kind)) return json({ error: "choose a suggestion or report type" }, 400);
     if (title.length < 3 || title.length > 100) {
       return json({ error: "use a short summary between 3 and 100 characters" }, 400);
@@ -123,7 +128,7 @@ export async function handleFeedbackRequest(
     const record: FeedbackRecord = {
       id, kind: kind as FeedbackKind, title, details, game,
       gameName: game ? catalogue[game] : "",
-      label: identity.label, code: identity.code,
+      name, label: identity.label, code: identity.code,
       status: "new", createdAt: now, updatedAt: now,
     };
     const result = await kv.atomic().check(marker)
