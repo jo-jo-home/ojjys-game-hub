@@ -139,6 +139,14 @@ async function handlePage(request) {
       const key = new URL(request.url).pathname;
       const cache = await caches.open(SHELL);
       await cache.put(key, response.clone());
+      // Skate's small launcher evolves independently of its large asset pack.
+      // Refresh a saved launch page too, so an offline copy has matching UI.
+      if (key === "/skate3/" || key === "/skate3/index.html") {
+        const games = await caches.open(GAMES);
+        if (await games.match("/skate3/index.html")) {
+          await games.put("/skate3/index.html", response.clone());
+        }
+      }
     }
     return response;
   } catch {
@@ -185,6 +193,22 @@ function isMutableShell(pathname) {
 
 async function handleAsset(request) {
   const path = new URL(request.url).pathname;
+
+  // Update only Skate's lightweight code/config; WASM and parks remain cached.
+  // Existing offline downloads gain the performance UI without re-downloading
+  // hundreds of megabytes or silently downloading a game they never saved.
+  if (path.startsWith("/skate3/") && /\.(js|json|webmanifest)$/.test(path)) {
+    try {
+      const response = await fetch(request, { cache: "no-cache" });
+      if (storable(response)) {
+        const games = await caches.open(GAMES);
+        if (await games.match("/skate3/index.html")) await games.put(path, response.clone());
+      }
+      return response;
+    } catch {
+      return (await lookup(request)) || new Response("", { status: 504, statusText: "offline" });
+    }
+  }
 
   if (isMutableShell(path)) {
     try {

@@ -160,6 +160,9 @@ TIERS = {
     "retrobowl": "full",
     "retrobowlcollege": "degraded",
     "rocketgoalio": "online",
+    # Built-in parks work offline on WebGPU devices; community maps and rooms
+    # still need their external services.
+    "skate3": "partial",
     "spacewaves": "full",
     "stickmanhook": "full",
     "subwayssurfersny": "full",

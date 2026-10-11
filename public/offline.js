@@ -34,6 +34,7 @@
     unityweb: "application/octet-stream", data: "application/octet-stream",
     mem: "application/octet-stream", swf: "application/x-shockwave-flash",
     xml: "application/xml", txt: "text/plain", csv: "text/csv",
+    webmanifest: "application/manifest+json",
     epw: "application/octet-stream", webp: "image/webp",
   };
 
@@ -129,7 +130,12 @@
 
   async function download(id, progress) {
     var game = (await getManifest()).games[id];
-    var sha = await getRev();
+    // Local previews can include new games that have never been pushed. Fetch
+    // their files from this server rather than from a published GitHub commit.
+    var local = ["localhost", "127.0.0.1", "[::1]"].indexOf(location.hostname) >= 0;
+    var sha = local ? null : await getRev();
+    var token = document.body.getAttribute("data-token") || "";
+    var localQuery = /^[a-f0-9]{64}$/.test(token) ? "?token=" + token : "";
     var head = await headFor(id);
     var cache = await caches.open(GAMES_CACHE);
 
@@ -154,7 +160,9 @@
           // Already have it — lets a retry resume instead of starting over.
           var have = await cache.match(path);
           if (!have) {
-            var response = await fetch(REPO + "/" + sha + "/public" + encodeURI(path));
+            var response = await fetch(local
+              ? encodeURI(path) + localQuery
+              : REPO + "/" + sha + "/public" + encodeURI(path));
             if (!response.ok) throw new Error("HTTP " + response.status);
             var blob = await response.blob();
             var body = blob;

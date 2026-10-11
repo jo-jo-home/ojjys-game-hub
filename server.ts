@@ -1086,6 +1086,7 @@ const GAMES = [
   { id: "escaperoad", name: "Escape Road", desc: "outrun the cops", icon: true },
   { id: "escaperoad2city", name: "Escape Road City 2", desc: "lose the cops downtown", icon: false },
   { id: "escaperoad3", name: "Escape Road 3", desc: "the chase goes on", icon: true },
+  { id: "skate3", name: "Skate 3", desc: "skate parks and tricks — WebGPU required", icon: false },
   { id: "ducklife1", name: "Duck Life 1", desc: "train your duck", icon: true },
   { id: "ducklife2", name: "Duck Life 2", desc: "world champion duck", icon: true },
   { id: "ducklife3", name: "Duck Life 3", desc: "evolution awaits", icon: true },
