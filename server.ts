@@ -2,6 +2,7 @@ import { serveDir } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { Chess } from "npm:chess.js@0.10.3";
 import { handleFeedbackRequest } from "./feedback.ts";
 import iconManifest from "./public/icon-manifest.json" with { type: "json" };
+import { createAccountStore, OWNER_USERNAME } from "./accounts.ts";
 
 const GITHUB_RAW = "https://raw.githubusercontent.com/jo-jo-home/ojjys-game-hub/master/public";
 const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN") || "";
@@ -119,15 +120,16 @@ const PASSWORD_HASH = "1779c0ce5c9ca5c69110d3853843a70e797bf3264fbeafa6c65de398f
 // it forward, so only real inactivity ends a session.
 const SESSION_TTL_MS = 30 * 86_400_000; // matches the cookie's Max-Age
 
-// A page pulls hundreds of files and every one passes the auth check, so
-// tokens verified against KV are remembered briefly to keep that to one read
-// rather than one per request.
+// Remember decoded session payloads briefly. Session existence and account
+// status are still checked together once per HTTP request so revocations take
+// effect immediately, even when a deployment isolate has a warm cache.
 const SESSION_CACHE_MS = 60_000;
 // `at` is when they signed in and fixes the expiry; `seen` is the last time
 // they loaded a page, which is what tells the panel who is actually here.
-type SessionInfo = { at: number; code: string; label: string; role: string; seen?: number; device?: string };
+type SessionInfo = { at: number; code: string; label: string; role: string; seen?: number; device?: string; account?: string; accountVersion?: string };
 const SEEN_INTERVAL_MS = 300_000;   // don't write KV more often than this
 const verifiedSessions = new Map<string, { at: number; info: SessionInfo }>();
+const requestSessions = new WeakMap<Request, Promise<{ token: string; info: SessionInfo } | null>>();
 
 // ---- who has access -------------------------------------------------------
 //
@@ -163,10 +165,11 @@ const HEARTBEAT_MS = 15_000;
 const PRESENCE_TTL_MS = 45_000;
 const SHARED_CODE = "shared";
 
-// Set ADMIN_CODE in the deployment's environment to bootstrap. It is checked
-// directly rather than stored, so the first admin needs no seeded database,
-// and it keeps working even if every code in KV is revoked.
+// ADMIN_PASSWORD enables the environment-managed ojjy account. ADMIN_CODE is
+// accepted for legacy owner sign-in only until the new password is configured.
 const ADMIN_CODE = Deno.env.get("ADMIN_CODE") || "";
+const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") || "";
+const accounts = createAccountStore(getKv, ADMIN_PASSWORD);
 
 type CodeRecord = {
   label: string;
@@ -265,7 +268,7 @@ function uaSummary(ua: string): string {
 async function netHash(req: Request): Promise<string> {
   const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
   if (!ip) return "";
-  return (await sha256(ip + "|" + (ADMIN_CODE || PASSWORD_HASH))).slice(0, 12);
+  return (await sha256(ip + "|" + (ADMIN_PASSWORD || ADMIN_CODE || PASSWORD_HASH))).slice(0, 12);
 }
 
 async function getDevice(code: string, id: string): Promise<DeviceRecord | null> {
@@ -454,7 +457,7 @@ async function identify(input: string): Promise<SessionInfo | null> {
   if (!typed) return null;
 
   // the bootstrap owner code, straight from the environment
-  if (ADMIN_CODE && normaliseCode(typed) === normaliseCode(ADMIN_CODE)) {
+  if (!ADMIN_PASSWORD && ADMIN_CODE && normaliseCode(typed) === normaliseCode(ADMIN_CODE)) {
     return { at: Date.now(), code: "owner", label: "owner", role: "admin" };
   }
 
@@ -517,23 +520,26 @@ async function addSession(token: string, info: SessionInfo): Promise<void> {
 
 async function readSession(token: string): Promise<SessionInfo | null> {
   const seen = verifiedSessions.get(token);
-  if (seen && Date.now() - seen.at < SESSION_CACHE_MS) return seen.info;
-  const entry = await (await getKv()).get<SessionInfo>(["hub_sessions", token]);
-  if (!entry.value) {
+  let info = seen && Date.now() - seen.at < SESSION_CACHE_MS ? seen.info : null;
+  // Sessions created before access codes existed hold only { at }, so fill in
+  // the gaps rather than logging those people out.
+  if (!info) {
+    const entry = await (await getKv()).get<SessionInfo>(["hub_sessions", token]);
+    if (!entry.value) { verifiedSessions.delete(token); return null; }
+    info = {
+      at: entry.value.at || Date.now(), code: entry.value.code || SHARED_CODE,
+      label: entry.value.label || "shared password", role: entry.value.role || "user",
+      seen: entry.value.seen || entry.value.at || undefined, device: entry.value.device,
+      account: entry.value.account, accountVersion: entry.value.accountVersion,
+    };
+    verifiedSessions.set(token, { at: Date.now(), info });
+  }
+  // Never let an isolate's warm cache bypass logout or account revocation.
+  // Account + session checks use one batched KV read, once per HTTP request.
+  if (!await accounts.sessionValid(info, token)) {
     verifiedSessions.delete(token);
     return null;
   }
-  // Sessions created before access codes existed hold only { at }, so fill in
-  // the gaps rather than logging those people out.
-  const info: SessionInfo = {
-    at: entry.value.at || Date.now(),
-    code: entry.value.code || SHARED_CODE,
-    label: entry.value.label || "shared password",
-    role: entry.value.role || "user",
-    seen: entry.value.seen || entry.value.at || undefined,
-    device: entry.value.device,
-  };
-  verifiedSessions.set(token, { at: Date.now(), info });
   return info;
 }
 
@@ -545,7 +551,7 @@ async function touchSession(req: Request): Promise<void> {
   let info: SessionInfo | null = null;
   try {
     token = await getSessionToken(req);
-    info = token ? await readSession(token) : null;
+    info = token ? await getSession(req) : null;
   } catch { return; }
   if (!token || !info) return;
   const now = Date.now();
@@ -564,14 +570,9 @@ async function touchSession(req: Request): Promise<void> {
   } catch { /* the heartbeat is never worth failing a request over */ }
 }
 
-async function hasSession(token: string): Promise<boolean> {
-  return (await readSession(token)) !== null;
-}
-
 // The identity behind a request, or null when there isn't one.
 async function getSession(req: Request): Promise<SessionInfo | null> {
-  const token = await getSessionToken(req);
-  return token ? await readSession(token) : null;
+  return (await resolveSession(req))?.info || null;
 }
 
 async function isAdmin(req: Request): Promise<boolean> {
@@ -580,15 +581,24 @@ async function isAdmin(req: Request): Promise<boolean> {
 }
 
 async function getSessionToken(req: Request): Promise<string | null> {
-  const url = new URL(req.url);
-  const param = url.searchParams.get("token");
-  // Checked against the same shape as the cookie so a junk query string
-  // can't turn into a KV lookup.
-  if (param && /^[a-f0-9]{64}$/.test(param) && await hasSession(param)) return param;
-  // A fresh login's explicit token wins over an older (still-valid) cookie.
-  const cookie = getSessionFromCookie(req);
-  if (cookie && await hasSession(cookie)) return cookie;
-  return null;
+  return (await resolveSession(req))?.token || null;
+}
+
+function resolveSession(req: Request): Promise<{ token: string; info: SessionInfo } | null> {
+  const cached = requestSessions.get(req);
+  if (cached) return cached;
+  const result = (async () => {
+    const param = new URL(req.url).searchParams.get("token");
+    const cookie = getSessionFromCookie(req);
+    for (const token of [param, cookie]) {
+      if (!token || !/^[a-f0-9]{64}$/.test(token)) continue;
+      const info = await readSession(token);
+      if (info) return { token, info };
+    }
+    return null;
+  })();
+  requestSessions.set(req, result);
+  return result;
 }
 
 async function isAuthenticated(req: Request): Promise<boolean> {
@@ -992,16 +1002,46 @@ const LOGIN_PAGE = `<!DOCTYPE html>
 <link rel="stylesheet" href="/theme.css">
 ${THEME_SCRIPT}
 ${CLOAK_SCRIPT}
-<style>html{background:var(--bg)}body{background:transparent}@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);min-height:100vh;display:flex;align-items:center;justify-content:center}.l{background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:16px;padding:2.5rem;width:100%;max-width:360px;text-align:center;animation:fin .5s ease}h1{font-size:1.8rem;font-weight:300;color:var(--text);letter-spacing:.05em;margin-bottom:1.5rem}input[type="password"]{display:block;width:100%;padding:.7rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:1rem;outline:none;margin-bottom:1rem;transition:border-color .2s,box-shadow .2s}input[type="password"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}input[type="password"]::placeholder{color:var(--faint)}button{width:100%;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}.e{color:var(--danger);font-size:.85rem;margin-bottom:1rem;display:none}</style>
+<style>
+html{background:var(--bg)}body{background:transparent}
+@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+.l{background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:380px;text-align:center;animation:fin .5s ease}
+h1{font-size:1.8rem;font-weight:300;color:var(--text);letter-spacing:.05em;margin-bottom:1.5rem}
+.l label{display:block;text-align:left;font-size:.8rem;color:var(--text2);margin-bottom:.4rem}
+.l input:not([type=hidden]){display:block;width:100%;padding:.7rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:1rem;outline:none;margin-bottom:1rem;transition:border-color .2s,box-shadow .2s}
+.l input:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.l input::placeholder{color:var(--faint)}
+.l button{width:100%;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:1rem;cursor:pointer;transition:background .2s,border-color .2s}
+.l button:hover{background:var(--border);border-color:var(--accent)}
+.l button:focus-visible,.l summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.e{color:var(--danger);font-size:.85rem;margin-bottom:1rem;display:none;line-height:1.5}
+.l details{margin-top:1.2rem;font-size:.78rem;color:var(--dim)}
+.l summary{cursor:pointer}.l details form{margin-top:1rem}
+</style>
 </head>
 <body>
-<form class="l" method="POST" action="/login">
+<div class="l">
 <h1>ojjy's game hub</h1>
-<p class="e" id="e">wrong password</p>
-<input type="password" name="password" placeholder="enter password..." autofocus autocomplete="current-password">
-<input type="hidden" name="device" id="dv">
-<button type="submit">enter</button>
+<p class="e" id="e" role="alert">wrong username or password</p>
+<form id="account-login" method="POST" action="/login">
+<input type="hidden" name="mode" value="account">
+<label for="login-username">username</label>
+<input id="login-username" type="text" name="username" placeholder="enter username..." required maxlength="32" autofocus autocomplete="username" autocapitalize="none" spellcheck="false">
+<label for="login-password">password</label>
+<input id="login-password" type="password" name="password" placeholder="enter password..." required maxlength="128" autocomplete="current-password">
+<input type="hidden" name="device" class="login-device">
+<button type="submit">sign in</button>
 </form>
+<details><summary>use an existing access code</summary>
+<form method="POST" action="/login">
+<label for="login-code">access code</label>
+<input id="login-code" type="password" name="password" placeholder="enter access code..." required autocomplete="off">
+<input type="hidden" name="device" class="login-device">
+<button type="submit">enter with code</button>
+</form></details>
+</div>
 ${ANTI_INSPECT}
 <script src="/bg.js"></script>
 <script>
@@ -1016,10 +1056,11 @@ ${ANTI_INSPECT}
       :String(Date.now())+"-"+Math.random().toString(36).slice(2,10);
     try{localStorage.setItem(k,id)}catch(e){}
   }
-  var f=document.getElementById("dv"); if(f)f.value=id;
+  document.querySelectorAll('.login-device').forEach(function(f){f.value=id});
   var q=location.search,e=document.getElementById("e");
   if(e){
-    if(q.indexOf("blocked=1")>=0){e.textContent="this device has been blocked by the owner";e.style.display="block"}
+    if(q.indexOf("limited=1")>=0){e.textContent="too many sign-in attempts — wait a minute and try again";e.style.display="block"}
+    else if(q.indexOf("blocked=1")>=0){e.textContent="this device has been blocked by the owner";e.style.display="block"}
     else if(q.indexOf("toomany=1")>=0){e.textContent="this code is already in use on its maximum number of devices";e.style.display="block"}
     else if(q.indexOf("wrong=1")>=0){e.style.display="block"}
   }
@@ -1501,7 +1542,7 @@ ${CLOAK_SCRIPT}
   localStorage.setItem('hub_welcomed','1');}}catch(e){
   var w2=document.getElementById('wc');if(w2)w2.classList.add('show');}})();
 </script>
-<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/me?token=${token}">${NAV_ICONS.stats}my stats</a><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><a class="stg-btn" href="/feedback?token=${token}">${NAV_ICONS.feedback}ideas &amp; reports</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button></div></header>
+<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/me?token=${token}">${NAV_ICONS.stats}my stats</a><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><a class="stg-btn" href="/feedback?token=${token}">${NAV_ICONS.feedback}ideas &amp; reports</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button><button type="button" class="stg-btn" onclick="window.__hubLogout&&window.__hubLogout(this)">sign out</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
 <div class="gg" id="g">${cards}</div>
@@ -1667,10 +1708,20 @@ Deno.serve(async (req: Request) => {
 
   // Handle login POST
   if (url.pathname === "/login" && req.method === "POST") {
+    if (!await accounts.takeLoginAttempt(req)) {
+      return new Response(null, { status: 303, headers: { "Location": "/login?limited=1", "Cache-Control": "no-store" } });
+    }
     const form = await req.formData();
-    const password = form.get("password") as string || "";
-    const info = await identify(password);
-    const device = deviceFrom(form.get("device") as string | null);
+    const passwordField = form.get("password");
+    const password = typeof passwordField === "string" ? passwordField : "";
+    const username = form.get("username");
+    const accountLogin = form.get("mode") === "account" || username !== null;
+    const identity = accountLogin ? await accounts.authenticate(username, password) : null;
+    const info: SessionInfo | null = accountLogin
+      ? (identity ? { at: Date.now(), ...identity } : null)
+      : await identify(password);
+    const deviceField = form.get("device");
+    const device = deviceFrom(typeof deviceField === "string" ? deviceField : null);
     if (info && device && info.code !== "owner") {
       // Two ways in are refused here rather than at the door of every page:
       // a device the owner has blocked, and a brand new device on a code that
@@ -1826,6 +1877,29 @@ Deno.serve(async (req: Request) => {
     return await handleFeedbackRequest(req, await getSession(req), getKv, GAME_NAMES);
   }
 
+  if (url.pathname === "/api/admin/accounts") {
+    return await accounts.manage(req, await getSession(req), (id) => {
+      for (const [token, entry] of verifiedSessions) {
+        if (entry.info.code === id) verifiedSessions.delete(token);
+      }
+    });
+  }
+
+  if (url.pathname === "/api/logout" && req.method === "POST") {
+    if (req.headers.get("content-type")?.split(";")[0].trim() !== "application/json") {
+      return new Response("{}", { status: 415, headers: JSON_CT });
+    }
+    const token = await getSessionToken(req);
+    if (token) {
+      await (await getKv()).delete(["hub_sessions", token]);
+      verifiedSessions.delete(token);
+    }
+    return new Response('{"ok":true}', {
+      headers: { ...JSON_CT, "Cache-Control": "no-store",
+        "Set-Cookie": "session=; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0" },
+    });
+  }
+
   // ---- admin ----
   // Every one of these 404s for anyone who isn't an admin, rather than
   // answering 403, so the panel doesn't announce itself.
@@ -1887,6 +1961,7 @@ Deno.serve(async (req: Request) => {
       }
 
       return new Response(JSON.stringify({
+        accounts: await accounts.list(), ownerAccount: { username: OWNER_USERNAME, configured: accounts.ownerConfigured },
         codes, activity: activity.slice(0, 120), online,
         sharedDevices, ...({ shared: shareVerdict(sharedDevices) }),
         top: Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 12),
@@ -2037,7 +2112,7 @@ Deno.serve(async (req: Request) => {
       const token = await getSessionToken(req);
       if (token) headers["Set-Cookie"] = sessionCookie(token);
     }
-    // `admin` is here so the panel — and whoever is setting ADMIN_CODE up —
+    // `admin` is here so the panel — and whoever is setting ADMIN_PASSWORD up —
     // can tell an unset environment variable apart from a broken panel. It
     // says nothing a session doesn't already know about itself.
     return new Response(JSON.stringify({ ok: !!info, admin: info?.role === "admin" }), {

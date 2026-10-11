@@ -12,6 +12,9 @@
   var pending = null;        // a destructive button waiting for its second click
   var pendingTimer = null;
   var openDevices = {};      // which code's device list is expanded
+  var editingAccount = "";
+  var accountMessage = "";
+  var accountError = false;
   var feedback = { items: [], cursor: null, kind: "", status: "new", loaded: false, busy: false, generation: 0, error: "" };
   var FEEDBACK_KINDS = { idea: "hub idea", bug: "broken game", game: "game request" };
   var FEEDBACK_STATUSES = { new: "new", planned: "planned / investigating", done: "done / fixed", closed: "closed" };
@@ -49,6 +52,8 @@
     if (code === "owner") return "you";
     if (code === "shared") return "shared password";
     if (state) {
+      var account = (state.accounts || []).find(function (a) { return a.id === code; });
+      if (account) return account.label;
       for (var i = 0; i < state.codes.length; i++) {
         if (state.codes[i].hash === code) return state.codes[i].label;
       }
@@ -77,7 +82,7 @@
     });
     if (!res.ok) {
       notify(res.status === 404
-        ? "that didn't work — this session is no longer an admin session. sign in again with your admin code."
+        ? "that didn't work — this session is no longer an admin session. sign in again with your admin account."
         : "that didn't work — the server answered " + res.status + ".");
       return null;
     }
@@ -87,6 +92,97 @@
   async function reload() { await load(); render(); }
 
   // ---- the pieces ---------------------------------------------------------
+
+  function accountsSection() {
+    var owner = state.ownerAccount || { username: "ojjy", configured: false };
+    var h = '<h2>login accounts</h2><div class="sub">create a username and password for each person.</div>' +
+      '<div class="card"><span class="who">' + esc(owner.username) + '</span> <span class="tag">owner</span>' +
+      '<div class="dim">' + (owner.configured
+        ? 'password is managed through ADMIN_PASSWORD in Deno'
+        : 'set ADMIN_PASSWORD in Deno and redeploy to enable owner username/password sign-in') + '</div></div>' +
+      '<form class="card ac-form" id="ac-create"><div class="ac-grid">' +
+      '<label>username<input type="text" name="username" required minlength="3" maxlength="32" placeholder="e.g. sam" autocomplete="off" autocapitalize="none" spellcheck="false"></label>' +
+      '<label>display name (optional)<input type="text" name="label" maxlength="40" placeholder="e.g. Sam" autocomplete="off"></label>' +
+      '<label>password<input type="password" name="password" required minlength="8" maxlength="128" placeholder="at least 8 characters" autocomplete="new-password"></label></div>' +
+      '<button class="ad-btn primary" type="submit">create account</button></form>' +
+      '<p id="ac-message" class="fb-message' + (accountError ? ' error' : '') + '" role="status" aria-live="polite">' + esc(accountMessage) + '</p>';
+    var entries = state.accounts || [];
+    if (!entries.length) h += '<div class="sub">no user accounts yet.</div>';
+    entries.forEach(function (a) {
+      var key = a.username.toLowerCase();
+      h += '<div class="card ac-account"><div class="row spread"><div>' +
+        '<span class="who">' + esc(a.label) + '</span> <span class="tag">' + esc(a.username) + '</span> ' +
+        (a.disabled ? '<span class="tag bad">disabled</span>' : '<span class="tag ok">active</span>') +
+        '<div class="dim">created ' + ago(a.createdAt) + ' · last sign-in ' + ago(a.lastLogin) + '</div></div>' +
+        '<div class="row"><button class="ad-btn small" type="button" data-account-edit="' + esc(key) + '">' + (editingAccount === key ? 'cancel edit' : 'edit / reset password') + '</button>' +
+        '<button class="ad-btn small" type="button" data-account-action="' + (a.disabled ? 'enable' : 'disable') + '" data-account="' + esc(key) + '">' + (a.disabled ? 'enable' : 'disable') + '</button>' +
+        '<button class="ad-btn small danger" type="button" data-account-action="delete" data-account="' + esc(key) + '">' + (pending === 'account:' + key ? 'sure?' : 'delete') + '</button></div></div>';
+      if (editingAccount === key) {
+        h += '<form class="ac-form ac-edit" data-account-save="' + esc(key) + '"><div class="ac-grid">' +
+          '<label>display name<input type="text" name="label" value="' + esc(a.label) + '" maxlength="40"></label>' +
+          '<label>new password (optional)<input type="password" name="password" minlength="8" maxlength="128" placeholder="leave blank to keep it" autocomplete="new-password"></label></div>' +
+          '<button class="ad-btn primary small" type="submit">save account</button>' +
+          '<p class="dim">password resets sign this account out on every device.</p></form>';
+      }
+      h += '</div>';
+    });
+    return h;
+  }
+
+  async function saveAccount(body, success) {
+    accountMessage = "";
+    try {
+      var res = await fetch(apiUrl("/api/admin/accounts"), {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || "couldn't save the account");
+      accountMessage = success;
+      accountError = false;
+      editingAccount = "";
+      await reload();
+    } catch (e) {
+      accountMessage = e.message || "couldn't reach the server — try again";
+      accountError = true;
+      var message = document.getElementById("ac-message");
+      if (message) { message.textContent = accountMessage; message.classList.add("error"); }
+    }
+  }
+
+  async function createAccount(e) {
+    e.preventDefault();
+    var form = e.currentTarget;
+    if (!form.reportValidity()) return;
+    var submit = form.querySelector('button[type="submit"]');
+    if (submit.disabled) return;
+    submit.disabled = true;
+    try {
+      await saveAccount({ action: "create", username: form.elements.username.value,
+        label: form.elements.label.value, password: form.elements.password.value }, "account created — give them the username and password to sign in");
+    } finally { submit.disabled = false; }
+  }
+
+  async function updateAccount(e) {
+    e.preventDefault();
+    var form = e.currentTarget;
+    if (!form.reportValidity()) return;
+    var submit = form.querySelector('button[type="submit"]');
+    if (submit.disabled) return;
+    submit.disabled = true;
+    try {
+      await saveAccount({ action: "update", username: form.getAttribute("data-account-save"),
+        label: form.elements.label.value, password: form.elements.password.value }, "account updated");
+    } finally { submit.disabled = false; }
+  }
+
+  async function accountAction(e) {
+    var button = e.currentTarget, action = button.getAttribute("data-account-action");
+    var username = button.getAttribute("data-account");
+    if (action === "delete" && !arm("account:" + username)) return;
+    button.disabled = true;
+    try { await saveAccount({ action: action, username: username }, "account " + (action === "delete" ? "deleted" : action + "d")); }
+    finally { button.disabled = false; }
+  }
 
   // What the owner actually came here to do, so it is the first thing on the
   // page and the button is the only filled-in one.
@@ -274,7 +370,7 @@
   function render() {
     var el = document.getElementById("ad");
     if (!el) return;
-    var h = createSection();
+    var h = accountsSection() + createSection();
     h += feedbackSection();
 
     // ---- playing right now ----
@@ -410,7 +506,7 @@
     if (!el) return;
     var msg = status === 404
       ? "this session isn't an admin session.\n\nthe panel only opens for a session that " +
-        "signed in with ADMIN_CODE. if you just set that variable in deno deploy, the site " +
+        "signed in as ojjy using ADMIN_PASSWORD. if you just set that variable in deno deploy, the site " +
         "has to be redeployed before it takes effect — it is read once when the server " +
         "starts. check /api/session: it answers {\"ok\":true,\"admin\":true} for an admin session."
       : status
@@ -429,6 +525,14 @@
   // ---- events -------------------------------------------------------------
 
   function wire() {
+    each("#ac-create", "submit", createAccount);
+    each("[data-account-save]", "submit", updateAccount);
+    each("[data-account-action]", "click", accountAction);
+    each("[data-account-edit]", "click", function (e) {
+      var key = e.currentTarget.getAttribute("data-account-edit");
+      editingAccount = editingAccount === key ? "" : key;
+      render();
+    });
     var mk = document.getElementById("ad-new");
     if (mk) mk.addEventListener("click", createCode);
     var label = document.getElementById("ad-label");

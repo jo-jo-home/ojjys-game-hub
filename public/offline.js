@@ -699,6 +699,25 @@
     return token ? "/api/session?token=" + token : "/api/session";
   }
   window.__hubSessionUrl = sessionUrl;
+  window.__hubLogout = async function (button) {
+    if (button) { button.disabled = true; button.textContent = "signing out…"; }
+    try {
+      var token = sessionToken();
+      var response = await fetch("/api/logout" + (token ? "?token=" + token : ""), {
+        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      if (!response.ok) throw new Error("sign out failed");
+      window.location.href = "/login";
+    } catch (e) {
+      if (button) { button.disabled = false; button.textContent = "retry sign out"; }
+      var error = document.getElementById("logout-error");
+      if (!error) {
+        error = document.createElement("p"); error.id = "logout-error"; error.setAttribute("role", "alert");
+        (document.querySelector("header") || document.body).appendChild(error);
+      }
+      error.textContent = "couldn't reach the server to sign out — reconnect and try again";
+    }
+  };
 
   function verifySession() {
     if (!navigator.onLine) return;   // offline, the cache is what we want
