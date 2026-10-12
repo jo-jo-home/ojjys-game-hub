@@ -5,6 +5,10 @@ Run this after adding, removing or updating a game:
 
     python3 gen-offline-manifest.py
 
+To refresh just one game's metadata while preserving the rest of the manifest:
+
+    python3 gen-offline-manifest.py --only skate3
+
 The manifest lists every file each game needs so the offline downloader
 knows what to fetch. Files are pulled from raw.githubusercontent.com at
 runtime, so the manifest only has to agree with what is committed.
@@ -17,6 +21,7 @@ Tiers describe how well a game survives with no network:
               (like the Ruffle flash emulator) that is loaded cross-origin
 """
 
+import argparse
 import json
 import os
 import re
@@ -178,6 +183,10 @@ def display_names() -> dict[str, str]:
     with open("server.ts") as handle:
         for match in re.finditer(r'\{\s*id:\s*"([^"]+)",\s*name:\s*"([^"]+)"', handle.read()):
             names[match.group(1)] = match.group(2)
+    extra = os.path.join(PUBLIC, "additional-games.json")
+    if os.path.exists(extra):
+        for game in json.load(open(extra)):
+            names[game["id"]] = game["name"]
     return names
 
 
@@ -204,8 +213,13 @@ def collect(path: str) -> tuple[list[str], int]:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--only", nargs="+", metavar="ID", help="update only these existing game/app IDs")
+    args = parser.parse_args()
     names = display_names()
     games = {}
+    extra = os.path.join(PUBLIC, "additional-games.json")
+    extra_tiers = {g["id"]: g.get("tier", "full") for g in json.load(open(extra))} if os.path.exists(extra) else {}
 
     for name in sorted(os.listdir(PUBLIC)):
         path = os.path.join(PUBLIC, name)
@@ -219,7 +233,7 @@ def main() -> None:
             "kind": "game",
             "entry": entry_point(f"/{name}", files),
             "icon": f"/icons/{name}.png",
-            "tier": TIERS.get(name, "full"),
+            "tier": extra_tiers.get(name, TIERS.get(name, "full")),
             "bytes": total,
             "files": files,
         }
@@ -249,6 +263,14 @@ def main() -> None:
 
     manifest = {"version": 1, "games": games}
     out = os.path.join(PUBLIC, "offline-manifest.json")
+    if args.only:
+        missing = set(args.only) - games.keys()
+        if missing:
+            parser.error("no local files found for: " + ", ".join(sorted(missing)))
+        with open(out) as handle:
+            manifest = json.load(handle)
+        manifest["games"].update({name: games[name] for name in args.only})
+        games = manifest["games"]
     with open(out, "w") as handle:
         json.dump(manifest, handle, separators=(",", ":"), sort_keys=True)
 

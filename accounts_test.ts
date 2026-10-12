@@ -64,7 +64,7 @@ Deno.test("account management is admin-only and validates names, passwords and r
       { username: "ojjy", password: PASSWORD },
       { username: "a", password: PASSWORD },
       { username: "bad name", password: PASSWORD },
-      { username: "sam", password: "short" },
+      { username: "sam", password: "" },
       { username: "sam", password: "x".repeat(129) },
       { username: "sam", password: PASSWORD, label: "x".repeat(41) },
       { username: "sam", password: PASSWORD, action: "promote" },
@@ -143,5 +143,55 @@ Deno.test("login-attempt limits persist across stores and separate networks", as
     const other = createAccountStore(() => Promise.resolve(kv), "");
     equal(await other.takeLoginAttempt(req), false);
     equal(await other.takeLoginAttempt(new Request("https://hub.test/login", { headers: { "x-forwarded-for": "192.0.2.2" } })), true);
+  });
+});
+
+Deno.test("short passwords are accepted, but empty passwords are rejected", async () => {
+  await withStore(async (_kv, store) => {
+    equal((await create(store, "sam", { password: "x" })).status, 201);
+    ok(await store.authenticate("sam", "x"));
+    equal((await create(store, "empty", { password: "" })).status, 400);
+  });
+});
+
+Deno.test("timed suspension expires automatically without reviving old sessions", async () => {
+  const kv = await Deno.openKv(":memory:");
+  let now = 1_750_000_000_000;
+  try {
+    const store = createAccountStore(() => Promise.resolve(kv), "", () => now);
+    await create(store);
+    const identity = (await store.authenticate("sam", PASSWORD))!;
+    const token = "e".repeat(64); await kv.set(["hub_sessions", token], identity);
+    const change = (action: string, extra = {}) => store.manage(request({ action, username: "sam", ...extra }), ADMIN, () => {});
+    equal((await change("suspend", { durationMinutes: 2, reason: "test restriction" })).status, 200);
+    equal((await store.list())[0].status, "suspended");
+    equal((await store.list())[0].restrictionReason, "test restriction");
+    equal(await store.authenticate("sam", PASSWORD), null);
+    equal(await store.sessionValid(identity, token), false);
+    now += 119_999; equal(await store.authenticate("sam", PASSWORD), null);
+    now += 1; ok(await store.authenticate("sam", PASSWORD));
+    equal((await store.list())[0].status, "active");
+    equal(await store.sessionValid(identity, token), false);
+    equal((await change("ban", { reason: "permanent" })).status, 200);
+    now += 100 * 86400_000; equal(await store.authenticate("sam", PASSWORD), null);
+    equal((await store.list())[0].status, "banned");
+    equal((await change("enable")).status, 200); ok(await store.authenticate("sam", PASSWORD));
+  } finally { kv.close(); }
+});
+
+Deno.test("generated password is returned only on reset and stored only as a hash", async () => {
+  await withStore(async (kv, store) => {
+    await create(store);
+    const before = (await store.authenticate("sam", PASSWORD))!;
+    const token = "f".repeat(64); await kv.set(["hub_sessions", token], before);
+    const res = await store.manage(request({ action: "reset-password", username: "sam" }), ADMIN, () => {});
+    equal(res.status, 200); equal(res.headers.get("cache-control"), "no-store");
+    const data = await res.json(); ok(data.password); ok(await store.authenticate("sam", data.password));
+    equal(await store.authenticate("sam", PASSWORD), null); equal(await store.sessionValid(before, token), false);
+    const stored = (await kv.get(["hub_accounts", "sam"])).value;
+    ok(!JSON.stringify(stored).includes(data.password));
+    ok(!JSON.stringify(await store.list()).includes(data.password));
+    const owner = await store.manage(request({ action: "reset-password", username: "ojjy" }), ADMIN, () => {});
+    equal(owner.status, 400);
   });
 });

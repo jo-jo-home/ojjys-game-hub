@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Breakout</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: system-ui, sans-serif; }
+    #c { background: #16213e; display: block; border: 3px solid #0f3460; }
+    .hud { color: #e94560; font-size: 18px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="hud">Score: <b id="score">0</b> &nbsp; Lives: <b id="lives">3</b></div>
+    <canvas id="c" width="480" height="320"></canvas>
+    <p style="color:#666;text-align:center;margin-top:8px;font-size:12px">← → or A/D to move. Click to start.</p>
+  </div>
+  <script>
+    const c = document.getElementById('c');
+    const ctx = c.getContext('2d');
+    const W = 480, H = 320;
+    const PAD_W = 72, PAD_H = 10, BALL_R = 5;
+    const COLS = 10, ROWS = 6;
+    let padX = W/2 - PAD_W/2, ballX = W/2, ballY = H - 40, ballDX = 0, ballDY = 0;
+    let score = 0, lives = 3;
+    let started = false;
+    let bricks = [];
+    function initBricks() {
+      bricks = [];
+      const bw = (W - 4) / COLS - 2, bh = 14;
+      const colors = ['#e94560','#0f3460','#533483','#16c79a'];
+      for (let r = 0; r < ROWS; r++)
+        for (let c = 0; c < COLS; c++)
+          bricks.push({ x: 2 + c * (bw + 2), y: 30 + r * (bh + 2), w: bw, h: bh, color: colors[r % colors.length] });
+    }
+    initBricks();
+    document.addEventListener('keydown', e => {
+      if (['ArrowLeft','ArrowRight','a','A','d','D'].includes(e.key)) e.preventDefault();
+      if (!started && (e.key === ' ' || e.key === 'Enter')) { started = true; ballDX = 3; ballDY = -3; }
+    });
+    document.addEventListener('mousedown', () => {
+      if (!started) { started = true; ballDX = 3; ballDY = -3; }
+    });
+    document.addEventListener('mousemove', e => {
+      const r = c.getBoundingClientRect();
+      const x = (e.clientX - r.left) * (W / r.width);
+      padX = Math.max(0, Math.min(W - PAD_W, x - PAD_W/2));
+    });
+    function run() {
+      if (started) {
+        ballX += ballDX; ballY += ballDY;
+        if (ballX <= BALL_R || ballX >= W - BALL_R) ballDX *= -1;
+        if (ballY <= BALL_R) ballDY *= -1;
+        if (ballY >= H - PAD_H - BALL_R && ballX >= padX && ballX <= padX + PAD_W) {
+          ballDY = -Math.abs(ballDY);
+          ballDX = (ballX - (padX + PAD_W/2)) * 0.15;
+        }
+        if (ballY > H) { lives--; ballX = W/2; ballY = H - 40; ballDX = 0; ballDY = 0; started = false; }
+        bricks = bricks.filter(b => {
+          if (ballX + BALL_R >= b.x && ballX - BALL_R <= b.x + b.w && ballY + BALL_R >= b.y && ballY - BALL_R <= b.y + b.h) {
+            ballDY *= -1; score += 10; return false;
+          }
+          return true;
+        });
+        if (bricks.length === 0) { initBricks(); ballY = H - 40; ballDY = -3; }
+      }
+      if (lives <= 0) { lives = 3; score = 0; initBricks(); ballX = W/2; ballY = H - 40; ballDX = 0; ballDY = 0; started = false; }
+      document.getElementById('score').textContent = score;
+      document.getElementById('lives').textContent = lives;
+      ctx.fillStyle = '#16213e';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#0f3460';
+      ctx.fillRect(padX, H - PAD_H - 4, PAD_W, PAD_H);
+      ctx.fillStyle = '#eee';
+      ctx.beginPath();
+      ctx.arc(ballX, ballY, BALL_R, 0, Math.PI*2);
+      ctx.fill();
+      bricks.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+      });
+      requestAnimationFrame(run);
+    }
+    run();
+  </script>
+</body>
+</html>

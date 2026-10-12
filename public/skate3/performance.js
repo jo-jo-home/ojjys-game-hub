@@ -52,12 +52,23 @@ function report(message) {
   const next = match[1] === 'true';
   if (next === paused) return;
   paused = next;
+  document.documentElement.classList.toggle('skate-paused', paused);
   if (modePanel) {
     const focused = modePanel.contains(document.activeElement);
     modePanel.hidden = !paused;
     if (!paused && focused) document.getElementById('bevy').focus();
   }
 }
+
+// Native disclosure/scroll keys must not also operate the engine's pause menu.
+// Keep browser defaults (including Tab and Space), and leave Escape to input.js.
+const guideKeys = new Set(['Enter', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Tab']);
+window.addEventListener('keydown', event => {
+  if (paused && guideKeys.has(event.code) && event.target instanceof Element &&
+      event.target.closest('#tricks-guide')) event.stopImmediatePropagation();
+}, true);
+// Let key releases through: a key pressed on the canvas before the guide got
+// focus must still be released in the engine instead of remaining held.
 
 globalThis.__skatePerformance = {
   profile, selection, stats, ratio, recordFrame, report,

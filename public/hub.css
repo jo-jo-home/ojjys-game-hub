@@ -129,10 +129,18 @@ color:var(--text);padding:.75rem 1.2rem;font:inherit;cursor:pointer;margin-top:.
 /* Login-account controls in the existing admin panel. */
 .ac-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.8rem;margin-bottom:1rem}
 .ac-form label{display:block;font-size:.8rem;color:var(--dim)}
-.ac-form input{display:block;width:100%;min-width:0;margin-top:.4rem;background:var(--bg);
+.ac-form input,.ac-form select,.ac-password input{display:block;width:100%;min-width:0;margin-top:.4rem;background:var(--bg);
 border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;font-size:.88rem}
 .ac-form input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ac-edit{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)}
 .ac-edit p{margin-top:.7rem}
 .ac-form button:disabled,.ac-account button:disabled{opacity:.6;cursor:wait}
 #ac-message:not(:empty){margin:1rem 0}
+.ac-custom-duration[hidden]{display:none}
+.ac-account>p{font-size:.8rem;line-height:1.5;margin-top:.7rem}
+.ac-password input{font-family:ui-monospace,monospace;margin:.8rem 0}
+.ac-password p{margin-top:.5rem}
+.ac-hash{margin:.8rem 0;font-size:.8rem;color:var(--dim)}
+.ac-hash summary{cursor:pointer}
+.ac-hash code{display:block;overflow-wrap:anywhere;margin:.5rem 0;color:var(--text2)}
+#ad-shown:not(:empty){margin:1rem 0}

@@ -169,9 +169,9 @@
             var type = mime(path);
             if (head && type === "text/html" && blob.size <= HEAD_LIMIT) {
               var text = await blob.text();
-              // A page with no </head> is left exactly as it came.
-              if (text.indexOf("</head>") >= 0) {
-                body = text.replace("</head>", head + "</head>");
+              // Do not splice into </head> strings embedded in game code.
+              if (/<head\b[^>]*>/i.test(text)) {
+                body = text.replace(/<head\b[^>]*>/i, function (tag) { return tag + head; });
               }
             }
             await cache.put(path, new Response(body, {

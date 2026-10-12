@@ -37,17 +37,32 @@
     background: #0b0f14cc; padding: 4px 8px; border-radius: 6px; font-size: 12px; }
   #quality-info { color: var(--muted); }
   #mode-toggle[aria-pressed="true"] { border-color: var(--accent); background: #173b43; }
-  #mode-panel { position: fixed; top: 16px; right: 16px; z-index: 4; width: min(270px, calc(100vw - 56px));
+  #mode-panel { position: fixed; top: 16px; right: 16px; z-index: 4; width: min(320px, calc(100vw - 56px));
+    max-height: calc(100vh - 120px); max-height: calc(100dvh - 120px); overflow-y: auto;
+    touch-action: pan-y; overscroll-behavior: contain;
     padding: 14px; background: #0b0f14f5; border: 1px solid #2d3a47; border-radius: 10px; box-shadow: 0 6px 24px #0005; }
+  html.skate-paused, html.skate-paused body { touch-action: pan-y; }
   #mode-panel[hidden] { display: none; }
   #mode-panel h2 { margin: 0 0 6px; font-size: 16px; }
+  #mode-panel h3 { margin: 14px 0 6px; font-size: 13px; }
   #mode-panel p { margin: 8px 0; font-size: 12px; color: var(--muted); }
   #mode-panel .mode-options { display: flex; gap: 8px; margin: 12px 0; }
   #mode-panel button { flex: 1; padding: 8px 6px; }
   #mode-panel button[aria-pressed="true"] { border-color: var(--accent); background: #173b43; }
-  #mode-panel button:focus-visible, #mode-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #mode-panel button:focus-visible, #mode-panel summary:focus-visible, #mode-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #mode-current { color: var(--fg) !important; }
-  @media (max-width: 700px) { #mode-panel { top: auto; bottom: 90px; right: 12px; } }
+  #tricks-guide { margin: 12px 0; border: 1px solid #2d3a47; border-radius: 6px; }
+  #tricks-guide > summary { padding: 10px; color: var(--accent); font-weight: 600; cursor: pointer; }
+  #tricks-guide[open] > summary { border-bottom: 1px solid #2d3a47; }
+  .tricks-content { padding: 0 10px 10px; font-size: 12px; }
+  .tricks-content dl { margin: 8px 0; }
+  .tricks-content dt { font-weight: 600; margin-top: 10px; }
+  .tricks-content dd { margin: 3px 0 0; color: var(--muted); }
+  .tricks-content kbd { display: inline-block; padding: 1px 4px; border: 1px solid #3a4b5c; border-radius: 3px; color: var(--fg); font: inherit; }
+  .trick-group { margin-top: 12px; border-top: 1px solid #2d3a47; padding-top: 10px; }
+  .trick-group > summary { font-weight: 600; cursor: pointer; padding: 4px 0; }
+  @media (max-width: 700px) { #mode-panel { top: auto; bottom: 90px; right: 12px;
+    max-height: calc(100vh - 188px); max-height: calc(100dvh - 188px); } }
   button { background: #1c2530; color: var(--fg); border: 1px solid #2d3a47; border-radius: 4px; padding: 2px 8px; cursor: pointer; font: inherit; }
   button:hover { border-color: var(--accent); }
   :fullscreen #mapbar { opacity: 0; transition: opacity .3s; }
@@ -74,7 +89,62 @@
 <div id="hint"></div>
 <div id="toast"></div>
 <section id="mode-panel" hidden aria-labelledby="mode-heading">
-  <h2 id="mode-heading">Game mode</h2>
+  <h2 id="mode-heading">Pause tools</h2>
+  <details id="tricks-guide">
+    <summary>Tricks guide</summary>
+    <div class="tricks-content">
+      <p>Use the <strong>right stick</strong> on a controller or the on-screen pad. On a keyboard, use the <strong>arrow keys</strong>. Follow each direction in order; diagonal arrows mean two keys together.</p>
+      <p>Hold the first direction to set up, then flick quickly to the last direction and release. For example: hold <kbd>↓</kbd>, release it, then tap <kbd>↑</kbd> for an ollie.</p>
+      <h3>Basic flips</h3>
+      <dl>
+        <dt>Ollie</dt><dd><kbd>↓</kbd> then <kbd>↑</kbd> — pop off the tail.</dd>
+        <dt>Nollie</dt><dd><kbd>↑</kbd> then <kbd>↓</kbd> — pop off the nose.</dd>
+        <dt>Kickflip</dt><dd><kbd>↓</kbd> then <kbd>↗</kbd> (<kbd>↑</kbd> + <kbd>→</kbd>).</dd>
+        <dt>Heelflip</dt><dd><kbd>↓</kbd> then <kbd>↖</kbd> (<kbd>↑</kbd> + <kbd>←</kbd>).</dd>
+        <dt>Nollie kickflip / heelflip</dt><dd>Start at <kbd>↑</kbd>, then flick <kbd>↘</kbd> / <kbd>↙</kbd>.</dd>
+      </dl>
+      <p>These directions follow the bundled gesture layout. Mirrored / switch stance can swap flip names. Return the stick to center between attempts.</p>
+      <details class="trick-group">
+        <summary>Shuvits &amp; advanced flips</summary>
+        <p>Scoop smoothly through the directions on a controller or touch stick. Keyboard scoops are harder because keys only give full deflection.</p>
+        <dl>
+          <dt>Pop shuvit</dt><dd><kbd>↓</kbd> → <kbd>↘</kbd> → <kbd>↗</kbd>.</dd>
+          <dt>Frontside pop shuvit</dt><dd><kbd>↓</kbd> → <kbd>↙</kbd> → <kbd>↖</kbd>.</dd>
+          <dt>Varial kickflip</dt><dd><kbd>↙</kbd> → <kbd>↓</kbd> → <kbd>↗</kbd>.</dd>
+          <dt>Varial heelflip</dt><dd><kbd>↘</kbd> → <kbd>↓</kbd> → <kbd>↖</kbd>.</dd>
+          <dt>Hardflip</dt><dd><kbd>↘</kbd> → <kbd>↓</kbd> → <kbd>↗</kbd>.</dd>
+          <dt>Inward heelflip</dt><dd><kbd>↙</kbd> → <kbd>↓</kbd> → <kbd>↖</kbd>.</dd>
+          <dt>360 flip (tre flip)</dt><dd><kbd>←</kbd> → <kbd>↙</kbd> → <kbd>↓</kbd> → <kbd>↗</kbd>.</dd>
+          <dt>Laser flip</dt><dd><kbd>→</kbd> → <kbd>↘</kbd> → <kbd>↓</kbd> → <kbd>↖</kbd>.</dd>
+        </dl>
+      </details>
+      <details class="trick-group">
+        <summary>Air, grabs &amp; grinds</summary>
+        <dl>
+          <dt>180 / 360 spin</dt><dd>While airborne, hold the left stick left / right, or <kbd>A</kbd> / <kbd>D</kbd>. More airtime lets you rotate further.</dd>
+          <dt>Grab</dt><dd>In the air, hold <kbd>LT</kbd> / <kbd>RT</kbd> — keyboard <kbd>Z</kbd> / <kbd>C</kbd>. Move the right stick / arrows to tweak; release before landing.</dd>
+          <dt>Frontflip / backflip</dt><dd>With a grab held in the air, flick the left stick forward / backward. A controller or touch stick gives the small setup movement these gestures need.</dd>
+          <dt>Grinds &amp; slides</dt><dd>Ollie onto a rail or ledge and line up the board. Use the right stick / arrows to adjust the board; flick an ollie to pop out.</dd>
+          <dt>Manual / nose manual</dt><dd>Gently hold the right stick partway down / up. Use a controller or touch stick: arrow keys cannot hold the required partial deflection.</dd>
+          <dt>Landing</dt><dd>Line up with your direction of travel, let go of grabs, and give the board time to finish its flip.</dd>
+        </dl>
+      </details>
+      <details class="trick-group">
+        <summary>Keyboard / controller controls</summary>
+        <dl>
+          <dt>Steer / left stick</dt><dd><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>.</dd>
+          <dt>Flick / right stick</dt><dd><kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>.</dd>
+          <dt>Push</dt><dd><kbd>Space</kbd> = pad A; <kbd>Left Shift</kbd> = pad X.</dd>
+          <dt>Brake / B button</dt><dd><kbd>E</kbd> = pad B; its action depends on the current riding state.</dd>
+          <dt>Y button</dt><dd><kbd>F</kbd> = pad Y.</dd>
+          <dt>Triggers / bumpers</dt><dd><kbd>Z</kbd> / <kbd>C</kbd> = LT / RT; <kbd>Q</kbd> / <kbd>R</kbd> = LB / RB.</dd>
+          <dt>Session marker</dt><dd>Set: <kbd>Q</kbd> + <kbd>2</kbd> (LB + D-pad down). Return: hold <kbd>Q</kbd> + <kbd>1</kbd> (LB + D-pad up). Touch pad: Set / Go to.</dd>
+          <dt>Pause / resume</dt><dd><kbd>Esc</kbd>, controller Start, or the touch Start button.</dd>
+        </dl>
+      </details>
+    </div>
+  </details>
+  <h3>Game mode</h3>
   <p id="mode-current"></p>
   <div class="mode-options">
     <button type="button" data-mode="performance" aria-pressed="false">Chromebook mode</button>
@@ -93,7 +163,7 @@
     Shift X, F Y, Z/C triggers, Q/R bumpers, Enter Start. Gamepads work directly.<br>
     Freestyle MX bike: F9 spawns it, E gets on/off, C throttle, Z brake, V clutch, hold Q/R + arrows for tricks.<br>
     Phones/tablets: on-screen pad (Bike = F9, Y gets on, RT throttle, hold LB/RB + right stick for tricks).<br>
-    Press Esc for the menu and the Chromebook / Normal mode controls. Auto uses Chromebook mode on ChromeOS. For the lightest park, choose KenneyPark.<br>
+    Press Esc for the menu, Tricks guide, and Chromebook / Normal mode controls. Auto uses Chromebook mode on ChromeOS. For the lightest park, choose KenneyPark.<br>
     Bike model: "KTM 450 EXC" by mx-3d (Sketchfab), CC BY 4.0. Skate sounds: CC0 recordings from Freesound (list in assets/clean-audio/CREDITS.json).</div>
 </div></div>
 <script type="module" src="./loader.js"></script>

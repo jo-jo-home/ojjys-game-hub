@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Memory</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, sans-serif; color: #eee; }
+    h1 { margin-bottom: 16px; font-size: 24px; }
+    #board { display: grid; grid-template-columns: repeat(4, 72px); gap: 8px; }
+    .card { width: 72px; height: 72px; background: #16213e; border: 2px solid #0f3460; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 28px; cursor: pointer; user-select: none; transition: transform .15s; }
+    .card:hover { transform: scale(1.05); }
+    .card.flipped { background: #0f3460; }
+    .card.matched { visibility: hidden; }
+    .hud { margin-bottom: 12px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Memory</h1>
+  <div class="hud">Moves: <b id="moves">0</b> &nbsp; Pairs: <b id="pairs">0</b>/8</div>
+  <div id="board"></div>
+  <p style="margin-top:16px;color:#666;font-size:12px">Match pairs. Click two cards.</p>
+  <script>
+    const emoji = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+    const values = [...emoji, ...emoji].sort(() => Math.random() - 0.5);
+    const board = document.getElementById('board');
+    let moves = 0, pairs = 0, flipped = [], locked = false;
+    values.forEach((v, i) => {
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.dataset.index = i;
+      el.dataset.value = v;
+      el.textContent = '?';
+      el.addEventListener('click', () => {
+        if (locked || el.classList.contains('flipped') || el.classList.contains('matched')) return;
+        el.classList.add('flipped');
+        el.textContent = v;
+        flipped.push(el);
+        if (flipped.length === 2) {
+          moves++;
+          document.getElementById('moves').textContent = moves;
+          locked = true;
+          if (flipped[0].dataset.value === flipped[1].dataset.value) {
+            flipped.forEach(c => c.classList.add('matched'));
+            pairs++;
+            document.getElementById('pairs').textContent = pairs;
+            locked = false;
+            flipped = [];
+            if (pairs === 8) setTimeout(() => alert('You won in ' + moves + ' moves!'), 200);
+          } else {
+            setTimeout(() => {
+              flipped.forEach(c => { c.classList.remove('flipped'); c.textContent = '?'; });
+              flipped = [];
+              locked = false;
+            }, 600);
+          }
+        }
+      });
+      board.appendChild(el);
+    });
+  </script>
+</body>
+</html>

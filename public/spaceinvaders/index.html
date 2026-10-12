@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Space Invaders</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: system-ui, sans-serif; }
+    #c { background: #000; display: block; border: 2px solid #0f0; }
+    .hud { color: #0f0; font-size: 16px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="hud">Score: <b id="score">0</b> &nbsp; Lives: <b id="lives">3</b></div>
+    <canvas id="c" width="480" height="360"></canvas>
+    <p style="color:#0a0;text-align:center;margin-top:8px;font-size:12px">← → move, Space to shoot.</p>
+  </div>
+  <script>
+    const c = document.getElementById('c');
+    const ctx = c.getContext('2d');
+    const W = 480, H = 360;
+    let shipX = W/2 - 15, bullets = [], invaders = [], invDir = 1;
+    let score = 0, lives = 3;
+    const ROWS = 4, COLS = 10;
+    let invaderBullets = [], lastInvShot = 0;
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) invaders.push({ x: 40 + c * 42, y: 30 + r * 28, w: 36, h: 22 });
+    document.addEventListener('keydown', e => {
+      if (e.key === ' ') { e.preventDefault(); bullets.push({ x: shipX + 15, y: H - 30, dy: -8 }); }
+    });
+    function run() {
+      if (lives <= 0) return;
+      if (invaders.length === 0) { for (let r = 0; r < ROWS; r++) for (let col = 0; col < COLS; col++) invaders.push({ x: 40 + col * 42, y: 30 + r * 28, w: 36, h: 22 }); }
+      shipX = Math.max(0, Math.min(W - 30, shipX + (keys['ArrowRight'] ? 6 : keys['ArrowLeft'] ? -6 : 0)));
+      bullets = bullets.filter(b => {
+        b.y += b.dy;
+        if (b.y < 0) return false;
+        const hit = invaders.findIndex(inv => b.x >= inv.x && b.x <= inv.x + inv.w && b.y >= inv.y && b.y <= inv.y + inv.h);
+        if (hit >= 0) { invaders.splice(hit, 1); score += 10; return false; }
+        return true;
+      });
+      let edge = false;
+      invaders.forEach(inv => { if (inv.x <= 2 || inv.x + inv.w >= W - 2) edge = true; inv.x += invDir * 0.4; });
+      if (edge) { invDir *= -1; invaders.forEach(inv => inv.y += 8); }
+      if (invaders.length && Date.now() - lastInvShot > 800) {
+        const r = invaders[Math.floor(Math.random() * invaders.length)];
+        invaderBullets.push({ x: r.x + r.w/2, y: r.y + r.h, dy: 3 });
+        lastInvShot = Date.now();
+      }
+      invaderBullets = invaderBullets.filter(b => {
+        b.y += b.dy;
+        if (b.y > H) return false;
+        if (b.x >= shipX && b.x <= shipX + 30 && b.y >= H - 35 && b.y <= H - 5) { lives--; document.getElementById('lives').textContent = lives; return false; }
+        return true;
+      });
+      document.getElementById('score').textContent = score;
+      document.getElementById('lives').textContent = lives;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#0f0';
+      ctx.fillRect(shipX, H - 25, 30, 12);
+      bullets.forEach(b => { ctx.fillRect(b.x - 2, b.y, 4, 10); });
+      invaders.forEach(inv => { ctx.fillRect(inv.x, inv.y, inv.w, inv.h); });
+      invaderBullets.forEach(b => { ctx.fillRect(b.x - 2, b.y, 4, 8); });
+      requestAnimationFrame(run);
+    }
+    const keys = {};
+    document.addEventListener('keydown', e => { keys[e.key] = true; if (e.key === ' ') { e.preventDefault(); bullets.push({ x: shipX + 15, y: H - 30, dy: -8 }); } });
+    document.addEventListener('keyup', e => { keys[e.key] = false; });
+    run();
+  </script>
+</body>
+</html>

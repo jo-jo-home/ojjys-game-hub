@@ -1,0 +1,345 @@
+[
+  {
+    "id": "snake",
+    "name": "Snake",
+    "desc": "Classic snake game",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "pong",
+    "name": "Pong",
+    "desc": "Classic paddle vs CPU",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "breakout",
+    "name": "Breakout",
+    "desc": "Break bricks with the ball",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "memory",
+    "name": "Memory",
+    "desc": "Match pairs of cards",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "spaceinvaders",
+    "name": "Space Invaders",
+    "desc": "Shoot the invaders",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "asteroids",
+    "name": "Asteroids",
+    "desc": "Classic space shooter",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "bloxorz",
+    "name": "Bloxorz",
+    "desc": "Slide a block into the goal",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "boxhead2",
+    "name": "Boxhead 2",
+    "desc": "Top-down zombie shooter",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "eaglercraft13",
+    "name": "Eaglercraft 1.3",
+    "desc": "Browser Minecraft Beta",
+    "icon": false,
+    "tier": "partial"
+  },
+  {
+    "id": "eaglercraft112",
+    "name": "Eaglercraft 1.12",
+    "desc": "Browser Minecraft 1.12",
+    "icon": false,
+    "tier": "partial"
+  },
+  {
+    "id": "achievementunlocked",
+    "name": "Achievement Unlocked",
+    "desc": "Meta-platformer via Ruffle",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "connect3",
+    "name": "Connect 3",
+    "desc": "Match-3 strategy board",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "jellymario",
+    "name": "Jelly Mario",
+    "desc": "Physics-bent Mario sandbox",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "kittytoy",
+    "name": "KittyToy",
+    "desc": "Godot toybox game",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "endlesscar",
+    "name": "Endless Car",
+    "desc": "Endless coin-collecting car game",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "catrunner",
+    "name": "Cat Runner",
+    "desc": "Endless runner with a cat",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "dunerider",
+    "name": "Dune Rider",
+    "desc": "Dodge obstacles on a hover bike",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "align4",
+    "name": "Align 4",
+    "desc": "Connect four in a row",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "avalanche",
+    "name": "Avalanche",
+    "desc": "Dodge falling blocks",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "badicecream",
+    "name": "Bad Ice Cream",
+    "desc": "Collect fruit, break ice",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "badicecream2",
+    "name": "Bad Ice Cream 2",
+    "desc": "More icy fruit collecting",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "badicecream3",
+    "name": "Bad Ice Cream 3",
+    "desc": "Third ice cream adventure",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "bigredbutton",
+    "name": "Big Red Button",
+    "desc": "Don't press the button... or do",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "blackholesquare",
+    "name": "Black Hole Square",
+    "desc": "Absorb shapes into the black hole",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "blockysnakes",
+    "name": "Blocky Snakes",
+    "desc": "3D snake game (Unity WebGL)",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "bounceback",
+    "name": "Bounce Back",
+    "desc": "Bounce a ball through obstacles",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "breakingthebank",
+    "name": "Breaking the Bank",
+    "desc": "Henry Stickmin point-and-click",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "breaklock",
+    "name": "BreakLock",
+    "desc": "Pattern lock puzzle game",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "sparkman2",
+    "name": "Sparkman 2",
+    "desc": "Fiery platformer (Unity WebGL)",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "cannonbasketball4",
+    "name": "Cannon Basketball 4",
+    "desc": "Aim and shoot baskets with a cannon",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "captaincallisto",
+    "name": "Captain Callisto",
+    "desc": "Space adventure platformer",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "championarcher",
+    "name": "Champion Archer",
+    "desc": "Precision archery game",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "circloo",
+    "name": "circloO",
+    "desc": "Physics puzzle with circles",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "dealornodeal",
+    "name": "Deal or No Deal",
+    "desc": "Pick a briefcase, take the deal?",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "doge2048",
+    "name": "DOGE 2048",
+    "desc": "2048 with doge memes",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "solarsmash",
+    "name": "Solar Smash",
+    "desc": "Destroy planets with weapons (Unity WebGL)",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "survivalrace",
+    "name": "Survival Race",
+    "desc": "Obstacle course racing (Unity WebGL)",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "motox3mpoolparty",
+    "name": "Moto X3M Pool Party",
+    "desc": "Motocross stunt racing",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "flappybirdmultiplayer",
+    "name": "Flappy Bird Multiplayer",
+    "desc": "Multiplayer flappy birds (Unity WebGL)",
+    "icon": false,
+    "tier": "online"
+  },
+  {
+    "id": "slopeplus",
+    "name": "Slope Plus",
+    "desc": "Roll a ball down an endless slope (Unity WebGL)",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "timeshooter",
+    "name": "Time Shooter",
+    "desc": "Time moves when you move (Unity WebGL)",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "timeshooter2",
+    "name": "Time Shooter 2",
+    "desc": "Sequel \u2014 time moves when you move (Unity WebGL)",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "crazychicken3d",
+    "name": "CrazyChicken3D",
+    "desc": "3D chicken game",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "rerun",
+    "name": "RERUN",
+    "desc": "Replay-based platformer (Unity WebGL)",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "idledice",
+    "name": "Idle Dice",
+    "desc": "Idle dice-rolling clicker",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "shipo",
+    "name": "Shipo",
+    "desc": "Space ship shooter",
+    "icon": false,
+    "tier": "degraded"
+  },
+  {
+    "id": "rainbowobby",
+    "name": "Rainbow Obby",
+    "desc": "Colorful obstacle course",
+    "icon": false,
+    "tier": "partial"
+  },
+  {
+    "id": "nzportable",
+    "name": "NZ: Portable",
+    "desc": "Zombie survival shooter",
+    "icon": false,
+    "tier": "full"
+  },
+  {
+    "id": "bitplanes",
+    "name": "Bit Planes",
+    "desc": "Retro plane dogfighting",
+    "icon": false,
+    "tier": "partial"
+  }
+]

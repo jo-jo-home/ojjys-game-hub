@@ -15,6 +15,7 @@
   var editingAccount = "";
   var accountMessage = "";
   var accountError = false;
+  var shownPassword = null; // shown once after an explicit reset; never persisted
   var feedback = { items: [], cursor: null, kind: "", status: "new", loaded: false, busy: false, generation: 0, error: "" };
   var FEEDBACK_KINDS = { idea: "hub idea", bug: "broken game", game: "game request" };
   var FEEDBACK_STATUSES = { new: "new", planned: "planned / investigating", done: "done / fixed", closed: "closed" };
@@ -103,26 +104,42 @@
       '<form class="card ac-form" id="ac-create"><div class="ac-grid">' +
       '<label>username<input type="text" name="username" required minlength="3" maxlength="32" placeholder="e.g. sam" autocomplete="off" autocapitalize="none" spellcheck="false"></label>' +
       '<label>display name (optional)<input type="text" name="label" maxlength="40" placeholder="e.g. Sam" autocomplete="off"></label>' +
-      '<label>password<input type="password" name="password" required minlength="8" maxlength="128" placeholder="at least 8 characters" autocomplete="new-password"></label></div>' +
+      '<label>password<input type="password" name="password" required maxlength="128" placeholder="enter password" autocomplete="new-password"></label></div>' +
       '<button class="ad-btn primary" type="submit">create account</button></form>' +
       '<p id="ac-message" class="fb-message' + (accountError ? ' error' : '') + '" role="status" aria-live="polite">' + esc(accountMessage) + '</p>';
+    if (shownPassword) h += '<div class="card ac-password"><strong>new password for ' + esc(shownPassword.username) + '</strong>' +
+      '<p class="dim">shown only here after the reset. existing passwords cannot be recovered from their hashes.</p>' +
+      '<input id="generated-password" type="password" readonly value="' + esc(shownPassword.password) + '" aria-label="new password">' +
+      '<div class="row"><button type="button" class="ad-btn small" id="ac-show-password">show password</button>' +
+      '<button type="button" class="ad-btn small" id="ac-copy-password">copy password</button>' +
+      '<button type="button" class="ad-btn small" id="ac-hide-password">dismiss</button></div></div>';
     var entries = state.accounts || [];
     if (!entries.length) h += '<div class="sub">no user accounts yet.</div>';
     entries.forEach(function (a) {
       var key = a.username.toLowerCase();
+      var status = a.status || (a.disabled ? 'banned' : 'active');
       h += '<div class="card ac-account"><div class="row spread"><div>' +
         '<span class="who">' + esc(a.label) + '</span> <span class="tag">' + esc(a.username) + '</span> ' +
-        (a.disabled ? '<span class="tag bad">disabled</span>' : '<span class="tag ok">active</span>') +
+        '<span class="tag ' + (status === 'active' ? 'ok' : status === 'suspended' ? 'warn' : 'bad') + '">' + esc(status) + '</span>' +
         '<div class="dim">created ' + ago(a.createdAt) + ' · last sign-in ' + ago(a.lastLogin) + '</div></div>' +
         '<div class="row"><button class="ad-btn small" type="button" data-account-edit="' + esc(key) + '">' + (editingAccount === key ? 'cancel edit' : 'edit / reset password') + '</button>' +
-        '<button class="ad-btn small" type="button" data-account-action="' + (a.disabled ? 'enable' : 'disable') + '" data-account="' + esc(key) + '">' + (a.disabled ? 'enable' : 'disable') + '</button>' +
-        '<button class="ad-btn small danger" type="button" data-account-action="delete" data-account="' + esc(key) + '">' + (pending === 'account:' + key ? 'sure?' : 'delete') + '</button></div></div>';
+        '<button class="ad-btn small" type="button" data-reset-account="' + esc(key) + '">' + (pending === 'reset:' + key ? 'reset password?' : 'reset & show password') + '</button>' +
+        '<button class="ad-btn small" type="button" data-account-action="' + (status === 'active' ? 'ban' : 'enable') + '" data-account="' + esc(key) + '">' + (status === 'active' ? (pending === 'account:ban:' + key ? 'sure?' : 'ban') : 'restore access') + '</button>' +
+        '<button class="ad-btn small" type="button" data-account-action="sign-out" data-account="' + esc(key) + '">sign out devices</button>' +
+        '<button class="ad-btn small danger" type="button" data-account-action="delete" data-account="' + esc(key) + '">' + (pending === 'account:delete:' + key ? 'sure?' : 'delete') + '</button></div></div>';
+      if (status === 'suspended') h += '<p class="dim">suspended until ' + esc(new Date(a.suspendedUntil).toLocaleString()) + ' — access returns automatically after this time</p>';
+      if (status !== 'active' && a.restrictionReason) h += '<p class="dim">reason: ' + esc(a.restrictionReason) + '</p>';
       if (editingAccount === key) {
         h += '<form class="ac-form ac-edit" data-account-save="' + esc(key) + '"><div class="ac-grid">' +
           '<label>display name<input type="text" name="label" value="' + esc(a.label) + '" maxlength="40"></label>' +
-          '<label>new password (optional)<input type="password" name="password" minlength="8" maxlength="128" placeholder="leave blank to keep it" autocomplete="new-password"></label></div>' +
+          '<label>new password (optional)<input type="password" name="password" maxlength="128" placeholder="leave blank to keep it" autocomplete="new-password"></label></div>' +
           '<button class="ad-btn primary small" type="submit">save account</button>' +
-          '<p class="dim">password resets sign this account out on every device.</p></form>';
+          '<p class="dim">password resets sign this account out on every device.</p></form>' +
+          '<form class="ac-form ac-edit" data-account-suspend="' + esc(key) + '"><div class="ac-grid">' +
+          '<label>suspend for<select name="duration"><option value="15">15 minutes</option><option value="60">1 hour</option><option value="1440">24 hours</option><option value="10080">7 days</option><option value="43200">30 days</option><option value="custom">custom minutes</option></select></label>' +
+          '<label class="ac-custom-duration" hidden>minutes<input type="number" name="minutes" min="1" max="525600" placeholder="number of minutes"></label>' +
+          '<label>reason (optional)<input type="text" name="reason" maxlength="200" placeholder="why is access suspended?"></label></div>' +
+          '<button type="submit" class="ad-btn">suspend account</button></form>';
       }
       h += '</div>';
     });
@@ -137,6 +154,8 @@
       });
       var data = await res.json();
       if (!res.ok) throw new Error(data.error || "couldn't save the account");
+      if (data.password) shownPassword = { username: body.username, password: data.password };
+      else if (shownPassword && shownPassword.username === body.username && (body.action === 'delete' || body.password)) shownPassword = null;
       accountMessage = success;
       accountError = false;
       editingAccount = "";
@@ -178,23 +197,77 @@
   async function accountAction(e) {
     var button = e.currentTarget, action = button.getAttribute("data-account-action");
     var username = button.getAttribute("data-account");
-    if (action === "delete" && !arm("account:" + username)) return;
+    if ((action === "delete" || action === "ban") && !arm("account:" + action + ':' + username)) return;
     button.disabled = true;
-    try { await saveAccount({ action: action, username: username }, "account " + (action === "delete" ? "deleted" : action + "d")); }
+    var descriptions = { delete: 'deleted', ban: 'banned', enable: 'restored', 'sign-out': 'signed out on all devices' };
+    try { await saveAccount({ action: action, username: username }, "account " + (descriptions[action] || 'updated')); }
     finally { button.disabled = false; }
   }
 
-  // What the owner actually came here to do, so it is the first thing on the
-  // page and the button is the only filled-in one.
-  function createSection() {
-    return '<h2>give someone access</h2>' +
-      '<div class="sub">they type the code where the password goes. you see it ' +
-      'once — only a hash is stored.</div>' +
-      '<div class="card"><div class="row">' +
-      '<input type="text" id="ad-label" placeholder="who is this for? e.g. sam" maxlength="40" style="flex:1;min-width:12rem">' +
-      '<button type="button" class="ad-btn primary" id="ad-new">create a code</button>' +
-      '</div></div>' +
-      '<div class="new" id="ad-shown"></div>';
+  async function suspendAccount(e) {
+    e.preventDefault();
+    var form = e.currentTarget;
+    var minutes = form.elements.duration.value === 'custom' ? Number(form.elements.minutes.value) : Number(form.elements.duration.value);
+    if (!form.reportValidity()) return;
+    var button = form.querySelector('button'); button.disabled = true;
+    try { await saveAccount({ action: 'suspend', username: form.getAttribute('data-account-suspend'), durationMinutes: minutes, reason: form.elements.reason.value }, 'account suspended — access will return automatically at the displayed time'); }
+    finally { button.disabled = false; }
+  }
+
+  async function resetPassword(e) {
+    var key = e.currentTarget.getAttribute('data-reset-account');
+    if (!arm('reset:' + key)) return;
+    await saveAccount({ action: 'reset-password', username: key }, 'password reset — copy the new password below');
+  }
+
+  function accessButton(action, label, target) {
+    target = target || {};
+    var key = 'access:' + action + ':' + (target.hash || target.id || '');
+    return '<button type="button" class="ad-btn small' + (action.indexOf('delete') === 0 || action === 'remove-all' ? ' danger' : '') + '" data-access-action="' + action + '"' +
+      (target.hash ? ' data-access-hash="' + esc(target.hash) + '"' : '') + (target.id ? ' data-access-id="' + esc(target.id) + '"' : '') + '>' + (pending === key ? 'confirm?' : label) + '</button>';
+  }
+
+  async function accessAction(e) {
+    var button = e.currentTarget, action = button.getAttribute('data-access-action');
+    var hash = button.getAttribute('data-access-hash') || '', id = button.getAttribute('data-access-id') || '';
+    if (action !== 'legacy-on' && !arm('access:' + action + ':' + (hash || id))) return;
+    button.disabled = true;
+    try {
+      var res = await fetch(apiUrl('/api/admin/access'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: action, hash: hash, id: id }) });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'could not update access');
+      accountMessage = 'access updated'; accountError = false;
+      if (action === 'remove-all') shownPassword = null;
+      await reload();
+    } catch (error) { notify(error.message || 'could not reach the server'); }
+    finally { button.disabled = false; }
+  }
+
+  function accessSection() {
+    var policy = state.accessPolicy || {};
+    var h = '<h2>all sign-in access</h2><div class="sub">manage legacy credentials and sessions here. access-code creation has been removed.</div>' +
+      '<button type="button" class="ad-btn" id="access-refresh">refresh access</button><p id="ad-shown" class="fb-message" role="status"></p>' +
+      '<div class="card"><div class="row spread"><div><span class="who">legacy sign-in</span><div class="dim">' + (policy.legacyEnabled ? 'access codes and the shared password are allowed' : 'accounts-only — all legacy sign-in is off') + '</div></div>' +
+      accessButton(policy.legacyEnabled ? 'legacy-off' : 'legacy-on', policy.legacyEnabled ? 'require accounts only' : 'allow remaining legacy credentials') + '</div></div>' +
+      '<div class="card"><div class="row spread"><div><span class="who">shared-password access</span><div class="dim">' + (policy.sharedDeleted ? 'permanently removed' : policy.sharedEnabled ? 'active' : 'inactive') + '</div></div>' +
+      (policy.sharedDeleted ? '' : accessButton('delete-shared', 'remove shared-password access')) + '</div></div>';
+    if (policy.adminCodeConfigured) h += '<div class="card"><div class="row spread"><div><span class="who">legacy ADMIN_CODE access</span><div class="dim">' + (policy.adminCodeDeleted ? 'permanently removed' : policy.adminCodeEnabled ? 'active' : 'inactive') + '</div></div>' +
+      (policy.adminCodeDeleted ? '' : accessButton('delete-admin-code', 'remove legacy admin-code access')) + '</div></div>';
+    h += '<h2>stored access codes / hashes</h2>';
+    var codes = state.codes || [];
+    if (!codes.length) h += '<div class="sub">no stored access-code hashes remain.</div>';
+    codes.forEach(function (code) { h += codeCard(code); });
+    if (codes.length) h += '<div class="row">' + accessButton('delete-codes', 'delete every access-code hash') + '</div>';
+    h += '<h2>login sessions</h2><div class="sub">ending a session signs that browser out. delete or ban its credentials to block future sign-ins.</div>';
+    (state.sessions || []).forEach(function (session) {
+      h += '<div class="card"><div class="row spread"><div><span class="who">' + esc(session.username || session.label) + '</span> ' + (session.current ? '<span class="tag ok">this session</span>' : '') +
+        '<div class="dim">last seen ' + ago(session.seen) + ' · session ' + esc(session.id.slice(0, 8)) + (session.device ? ' · browser ' + esc(session.device.slice(0, 8)) : '') + '</div></div>' +
+        (session.current ? '' : accessButton('revoke-session', 'end session', { id: session.id })) + '</div></div>';
+    });
+    h += '<div class="row">' + accessButton('revoke-sessions', 'sign out everyone else') + '</div>' +
+      '<h2>remove all other access</h2><div class="sub">deletes all user accounts and their password hashes, all access-code hashes, legacy password/code access, and every other session. your ojjy environment-managed owner login is retained.</div>' +
+      accessButton('remove-all', 'remove all other access');
+    return h;
   }
 
   function verdictTag(c) {
@@ -255,10 +328,10 @@
       h += '<span class="dim">max devices</span>' +
         '<input type="number" min="0" max="20" value="' + (c.deviceLimit || 0) +
         '" data-limit="' + esc(c.hash) + '" title="0 means no limit — just tell me">';
-      h += '<button type="button" class="ad-btn small danger" data-revoke="' + esc(c.hash) + '">' +
-        (pending === c.hash ? "sure?" : "revoke") + "</button>";
     }
     h += "</div></div>";
+    h += '<details class="ac-hash"><summary>stored code hash</summary><code>' + esc(c.hash) + '</code></details>';
+    h += accessButton('delete-code', 'delete code and hash', { hash: c.hash });
 
     if (!c.revokedAt) {
       h += '<div class="devs' + (open ? " open" : "") + '">' + deviceRows(c.hash, c.devices) + "</div>";
@@ -370,7 +443,7 @@
   function render() {
     var el = document.getElementById("ad");
     if (!el) return;
-    var h = accountsSection() + createSection();
+    var h = accountsSection() + accessSection();
     h += feedbackSection();
 
     // ---- playing right now ----
@@ -378,44 +451,6 @@
     h += '<div class="sub">who has a game open at this moment, updated live. ' +
       "someone drops off a few seconds after they close the tab.</div>";
     h += '<div id="ad-live" class="live"></div>';
-
-    // ---- people ----
-    h += "<h2>people</h2>";
-    var codes = (state.codes || []).slice().sort(function (a, b) {
-      return (b.lastSeen || 0) - (a.lastSeen || 0);
-    });
-    if (!codes.length) {
-      h += '<div class="sub">no codes yet — everyone is coming in on the shared password, ' +
-        "which means you can't tell them apart. make one above.</div>";
-    } else {
-      h += '<div class="sub">a code is one person. the devices behind it are how you ' +
-        "tell whether it is being passed around.</div>";
-    }
-    codes.forEach(function (c) { h += codeCard(c); });
-
-    // ---- the shared password, treated as the code it is ----
-    var sd = state.sharedDevices || [];
-    var sv = state.shared || { active: 0, networks: 0, suspicion: "none" };
-    h += "<h2>shared password</h2>";
-    h += '<div class="sub">' + (state.sharedEnabled
-      ? "still accepted. anyone who has ever had it still gets in, and they all look the same to you."
-      : "retired — no longer accepted.") + "</div>";
-    h += '<div class="card"><div class="row spread"><div>' +
-      '<span class="who' + (state.sharedEnabled ? "" : " gone") + '">shared password</span> ' +
-      '<span class="tag' + (sd.length >= 4 ? " warn" : "") + '">' + sd.length +
-      (sd.length === 1 ? " device" : " devices") + "</span>" +
-      '<div class="dim">' + (isLive(state.online.shared) ? "someone is on it now" : "last used " + ago(state.online.shared)) + "</div></div>" +
-      '<div class="row">' +
-      (sd.length ? '<button type="button" class="ad-btn small" data-toggle="shared">' +
-        (openDevices.shared ? "hide" : "devices (" + sd.length + ")") + "</button>" : "") +
-      (state.sharedEnabled
-        ? '<button type="button" class="ad-btn small danger" data-shared="off">' +
-          (pending === "shared" ? "sure?" : "retire") + "</button>"
-        : '<button type="button" class="ad-btn small" data-shared="on">allow again</button>') +
-      "</div></div>" +
-      (sd.length ? '<div class="devs' + (openDevices.shared ? " open" : "") + '">' +
-        deviceRows("shared", sd) + "</div>" : "") +
-      "</div>";
 
     // ---- what is being played ----
     h += "<h2>this week</h2>";
@@ -518,8 +553,8 @@
   function notify(message) {
     var box = document.getElementById("ad-shown");
     if (!box) return;
-    box.className = "new show";
-    box.innerHTML = '<div class="dim">' + esc(message) + "</div>";
+    box.textContent = message;
+    box.classList.add('error');
   }
 
   // ---- events -------------------------------------------------------------
@@ -528,26 +563,39 @@
     each("#ac-create", "submit", createAccount);
     each("[data-account-save]", "submit", updateAccount);
     each("[data-account-action]", "click", accountAction);
+    each("[data-account-suspend]", "submit", suspendAccount);
+    each("[data-reset-account]", "click", resetPassword);
+    each("[data-access-action]", "click", accessAction);
+    each("#access-refresh", "click", reload);
+    each("[data-account-suspend] select", "change", function (e) {
+      var form = e.currentTarget.form, custom = e.currentTarget.value === 'custom';
+      form.querySelector('.ac-custom-duration').hidden = !custom;
+      form.elements.minutes.required = custom;
+    });
+    each("#ac-show-password", "click", function (e) {
+      var field = document.getElementById('generated-password');
+      field.type = field.type === 'password' ? 'text' : 'password';
+      e.currentTarget.textContent = field.type === 'password' ? 'show password' : 'hide password';
+    });
+    each("#ac-hide-password", "click", function () { shownPassword = null; render(); });
+    each("#ac-copy-password", "click", async function (e) {
+      if (!shownPassword) return;
+      try { await navigator.clipboard.writeText(shownPassword.password); e.currentTarget.textContent = 'copied'; }
+      catch (error) {
+        var field = document.getElementById('generated-password'); field.type = 'text'; field.select();
+        e.currentTarget.textContent = document.execCommand('copy') ? 'copied' : 'select and copy the password';
+      }
+    });
     each("[data-account-edit]", "click", function (e) {
       var key = e.currentTarget.getAttribute("data-account-edit");
       editingAccount = editingAccount === key ? "" : key;
       render();
     });
-    var mk = document.getElementById("ad-new");
-    if (mk) mk.addEventListener("click", createCode);
-    var label = document.getElementById("ad-label");
-    if (label) {
-      label.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") createCode();
-      });
-    }
     each("[data-toggle]", "click", function (e) {
       var k = e.currentTarget.getAttribute("data-toggle");
       openDevices[k] = !openDevices[k];
       render();
     });
-    each("[data-revoke]", "click", onRevoke);
-    each("[data-shared]", "click", onShared);
     each("[data-act]", "click", onDevice);
     each("[data-limit]", "change", onLimit);
     each("#ad-fb-kind", "change", function (e) {
@@ -577,38 +625,6 @@
     pendingTimer = setTimeout(function () { pending = null; render(); }, 3000);
     if (redraw !== false) render();
     return false;
-  }
-
-  async function createCode() {
-    var input = document.getElementById("ad-label");
-    var label = input ? input.value : "";
-    var res = await send("/api/admin/code", { label: label });
-    if (!res) return;
-    var made = await res.json();
-    await reload();
-    var box = document.getElementById("ad-shown");
-    if (box) {
-      box.className = "new show";
-      box.innerHTML = "<div>code for <strong>" + esc(made.label) + "</strong></div>" +
-        "<code>" + esc(made.code) + "</code>" +
-        '<div class="dim">write this down now — only a hash of it is stored, so it ' +
-        "can't be shown again. they type it where the password goes.</div>";
-    }
-  }
-
-  async function onRevoke(e) {
-    var hash = e.currentTarget.getAttribute("data-revoke");
-    if (!arm(hash)) return;
-    if (!await send("/api/admin/revoke", { hash: hash })) return;
-    await reload();
-  }
-
-  async function onShared(e) {
-    var on = e.currentTarget.getAttribute("data-shared") === "on";
-    if (!on && !arm("shared")) return;
-    pending = null;
-    if (!await send("/api/admin/shared", { on: on })) return;
-    await reload();
   }
 
   async function onDevice(e) {

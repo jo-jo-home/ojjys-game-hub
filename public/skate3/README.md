@@ -42,6 +42,15 @@ The compiled engine and original asset packs are unchanged.
 
 ## Menu input
 
+The pause panel includes a collapsible **Tricks guide** with basic and advanced
+right-stick gestures, air/grab/grind tips, and keyboard/controller mappings.
+Gesture directions come from the bundled `core.pack` joystick PAT files; flip
+names can be mirrored by stance. Analog-only actions (such as manuals) are
+marked for controller/touch use. The guide scrolls on smaller screens and uses
+native keyboard-accessible disclosures. Disclosure/scroll keys stay in the
+guide while focused there; Escape still resumes the engine normally. All guide
+content is bundled in the launcher, so it is included in offline downloads.
+
 Escape is routed to the engine's virtual Xbox Start button. This avoids the
 upstream web build's conflicting Escape menu handling, which briefly opens and
 closes the menu. One physical press produces one toggle, held-key repeats are

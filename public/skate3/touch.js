@@ -191,7 +191,7 @@ function install() {
   let lastEnd = 0;
   document.addEventListener('touchend', (e) => {
     const now = performance.now();
-    if (now - lastEnd < 350 && !e.target.closest('#hint, #mapbar')) e.preventDefault();
+    if (now - lastEnd < 350 && !e.target.closest('#hint, #mapbar, #mode-panel')) e.preventDefault();
     lastEnd = now;
   }, { passive: false });
 

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Snake</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#111;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:monospace;color:#ccc;overflow:hidden}
+canvas{border:2px solid #00c853;image-rendering:pixelated}
+#score{margin-top:12px;font-size:16px}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;display:none;text-align:center;line-height:1.8}
+</style>
+</head>
+<body>
+<canvas id="c" width="400" height="400"></canvas>
+<div id="score">Score: 0</div>
+<div id="msg"></div>
+<script>
+const c = document.getElementById('c'), ctx = c.getContext('2d');
+const S = 20, W = c.width / S, H = c.height / S;
+let snake, dir, food, score, alive, interval;
+
+function init() {
+  snake = [{x: 10, y: 10}];
+  dir = {x: 1, y: 0};
+  score = 0;
+  alive = true;
+  document.getElementById('msg').style.display = 'none';
+  placeFood();
+  if (interval) clearInterval(interval);
+  interval = setInterval(tick, 100);
+  draw();
+}
+
+function placeFood() {
+  do { food = {x: Math.floor(Math.random() * W), y: Math.floor(Math.random() * H)}; }
+  while (snake.some(s => s.x === food.x && s.y === food.y));
+}
+
+function tick() {
+  if (!alive) return;
+  const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+  if (head.x < 0 || head.x >= W || head.y < 0 || head.y >= H || snake.some(s => s.x === head.x && s.y === head.y)) {
+    alive = false;
+    const msg = document.getElementById('msg');
+    msg.innerHTML = `Game Over<br>Score: ${score}<br><small>Press Space to restart</small>`;
+    msg.style.display = 'block';
+    return;
+  }
+  snake.unshift(head);
+  if (head.x === food.x && head.y === food.y) {
+    score++;
+    document.getElementById('score').textContent = `Score: ${score}`;
+    placeFood();
+  } else {
+    snake.pop();
+  }
+  draw();
+}
+
+function draw() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#00c853';
+  snake.forEach((s, i) => {
+    ctx.globalAlpha = i === 0 ? 1 : .7;
+    ctx.fillRect(s.x * S + 1, s.y * S + 1, S - 2, S - 2);
+  });
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#f44';
+  ctx.fillRect(food.x * S + 1, food.y * S + 1, S - 2, S - 2);
+}
+
+document.addEventListener('keydown', e => {
+  const map = {ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0},w:{x:0,y:-1},s:{x:0,y:1},a:{x:-1,y:0},d:{x:1,y:0}};
+  const d = map[e.key];
+  if (d && !(d.x === -dir.x && d.y === -dir.y)) dir = d;
+  if (e.key === ' ' && !alive) init();
+});
+
+init();
+</script>
+</body>
+</html>
