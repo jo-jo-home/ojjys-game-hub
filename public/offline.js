@@ -421,6 +421,9 @@
     // on the tile instead of letting the click land on a dead end.
     'html.hub-no-net .gc[data-playable="0"],html.hub-no-net .gc[data-playable="net"]',
     "{opacity:.4;pointer-events:none}",
+    // Stars edit a profile, not the game's launch state; keep them usable so
+    // account favorites can queue for synchronization even when a game is absent.
+    "html.hub-no-net .gc .sb{pointer-events:auto}",
     // A full-width band, and the card gets extra bottom padding, so the label
     // never sits on top of the game's description.
     "html.hub-no-net .gc{padding-bottom:2.6rem}",
@@ -682,6 +685,7 @@
   // cookie answers "logged out" for a session that is perfectly alive, and
   // the caller then helpfully sends you to the login screen.
   function sessionToken() {
+    if (window.__hubSession) return window.__hubSession.token();
     // A cached page may contain yesterday's token; the current navigation's
     // explicit token is authoritative and must reach the validation request.
     try {
@@ -692,14 +696,14 @@
     try { t = document.body.getAttribute("data-token") || ""; } catch (e) { /* no body yet */ }
     return /^[a-f0-9]{64}$/.test(t) ? t : "";
   }
-  window.__hubToken = sessionToken;
+  window.__hubToken = window.__hubToken || sessionToken;
 
   function sessionUrl() {
     var token = sessionToken();
     return token ? "/api/session?token=" + token : "/api/session";
   }
-  window.__hubSessionUrl = sessionUrl;
-  window.__hubLogout = async function (button) {
+  window.__hubSessionUrl = window.__hubSessionUrl || sessionUrl;
+  window.__hubLogout = window.__hubLogout || async function (button) {
     if (button) { button.disabled = true; button.textContent = "signing out…"; }
     try {
       var token = sessionToken();
@@ -707,7 +711,8 @@
         method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}",
       });
       if (!response.ok) throw new Error("sign out failed");
-      window.location.href = "/login";
+      if (window.__hubSession) window.__hubSession.forget();
+      window.location.href = "/login?signedout=1";
     } catch (e) {
       if (button) { button.disabled = false; button.textContent = "retry sign out"; }
       var error = document.getElementById("logout-error");
@@ -720,19 +725,10 @@
   };
 
   function verifySession() {
-    if (!navigator.onLine) return;   // offline, the cache is what we want
-    try {
-      fetch(sessionUrl(), {
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: deviceHeader(),
-      })
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          if (d && d.ok === false) window.location.href = "/login";
-        })
-        .catch(function () { /* can't tell; leave the page alone */ });
-    } catch (e) { /* ditto */ }
+    if (window.__hubSession) return window.__hubSession.verify();
+    // A previously cached launcher may predate the shared session script.
+    var script = document.createElement('script'); script.src = '/session.js';
+    document.head.appendChild(script);
   }
 
   function start() {
@@ -744,7 +740,7 @@
       document.querySelectorAll('a[href]').forEach(function (link) {
         var target = new URL(link.href, location.href);
         if (target.origin === location.origin &&
-            ["/", "/index.html", "/hub", "/apps", "/me", "/admin", "/feedback"].indexOf(target.pathname) >= 0) {
+            ["/", "/index.html", "/hub", "/apps", "/me", "/admin", "/feedback", "/profile", "/people", "/account"].indexOf(target.pathname) >= 0) {
           target.searchParams.set("token", token);
           link.href = target.href;
         }

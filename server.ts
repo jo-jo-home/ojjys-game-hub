@@ -2,9 +2,10 @@ import { serveDir } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { Chess } from "npm:chess.js@0.10.3";
 import { handleFeedbackRequest } from "./feedback.ts";
 import iconManifest from "./public/icon-manifest.json" with { type: "json" };
-import { createAccountStore, OWNER_USERNAME } from "./accounts.ts";
+import { createAccountStore, OWNER_USERNAME, PROFILE_AVATARS, usernameKey } from "./accounts.ts";
 import { createAccessStore } from "./access.ts";
 import additionalGames from "./public/additional-games.json" with { type: "json" };
+import { createStatisticsStore, type GameStat } from "./statistics.ts";
 
 const GITHUB_RAW = "https://raw.githubusercontent.com/jo-jo-home/ojjys-game-hub/master/public";
 const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN") || "";
@@ -33,11 +34,15 @@ const MIME: Record<string, string> = {
 const OFFLINE_FILES: Record<string, string> = {
   "/sw.js": "application/javascript",
   "/offline.js": "application/javascript",
+  "/session.js": "application/javascript",
   "/cloak.js": "application/javascript",
   "/themes.js": "application/javascript",
   "/hub-ui.js": "application/javascript",
   "/admin.js": "application/javascript",
   "/me.js": "application/javascript",
+  "/profiles.js": "application/javascript",
+  "/profiles.css": "text/css",
+  "/account-favorites.js": "application/javascript",
   "/feedback.js": "application/javascript",
   "/birthday.js": "application/javascript",
   "/birthday.css": "text/css",
@@ -118,15 +123,15 @@ const PASSWORD_HASH = "1779c0ce5c9ca5c69110d3853843a70e797bf3264fbeafa6c65de398f
 // recognised by another.
 // A day was too short: the cookie was never refreshed, so everybody was
 // logged out roughly 24 hours after signing in, which reads as "it logs me
-// out at random". It is a month now, and it slides — every page load pushes
+// out at random". It is three months now, and it slides — every page load pushes
 // it forward, so only real inactivity ends a session.
-const SESSION_TTL_MS = 30 * 86_400_000; // matches the cookie's Max-Age
+const SESSION_TTL_MS = 90 * 86_400_000; // matches the cookie's Max-Age
 
 // Remember decoded session payloads briefly. Session existence and account
 // status are still checked together once per HTTP request so revocations take
 // effect immediately, even when a deployment isolate has a warm cache.
 const SESSION_CACHE_MS = 60_000;
-// `at` is when they signed in and fixes the expiry; `seen` is the last time
+// `at` is when they signed in; `seen` slides the expiry and is the last time
 // they loaded a page, which is what tells the panel who is actually here.
 type SessionInfo = { at: number; code: string; label: string; role: string; seen?: number; device?: string; account?: string; accountVersion?: string };
 const SEEN_INTERVAL_MS = 300_000;   // don't write KV more often than this
@@ -159,7 +164,6 @@ const requestSessions = new WeakMap<Request, Promise<{ token: string; info: Sess
 const ACTIVITY_TTL_MS = 14 * 86_400_000;
 // Playtime is the one thing meant to accumulate over a long stretch, so it
 // lives longer than the recent-activity feed.
-const PLAYTIME_TTL_MS = 90 * 86_400_000;
 // The client beats while a game tab is open and visible. Presence rows expire
 // a little after a missed beat, so "who is playing right now" cleans itself up
 // the moment someone closes the tab — no logout event needed.
@@ -172,6 +176,7 @@ const SHARED_CODE = "shared";
 const ADMIN_CODE = Deno.env.get("ADMIN_CODE") || "";
 const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") || "";
 const accounts = createAccountStore(getKv, ADMIN_PASSWORD);
+const statistics = createStatisticsStore(getKv);
 const access = createAccessStore(getKv, !!ADMIN_PASSWORD, !!ADMIN_CODE);
 
 type CodeRecord = {
@@ -341,53 +346,12 @@ function shareVerdict(devices: DeviceRecord[]): {
 // the open game tab sends every ${HEARTBEAT_MS / 1000}s while it is visible).
 // This is what makes "your total playtime" and "most played" possible, for the
 // person themselves and in aggregate for the owner.
-type GameStat = { ms: number; opens: number; first: number; last: number };
-
 async function recordOpen(code: string, game: string): Promise<void> {
-  try {
-    const kv = await getKv();
-    const key = ["hub_playtime", code, game];
-    const cur = (await kv.get<GameStat>(key)).value;
-    const now = Date.now();
-    await kv.set(key, {
-      ms: cur?.ms || 0,
-      opens: (cur?.opens || 0) + 1,
-      first: cur?.first || now,
-      last: now,
-    }, { expireIn: PLAYTIME_TTL_MS });
-  } catch { /* stats are best-effort, never worth failing a request */ }
+  try { await statistics.recordOpen(code, game); } catch { /* best-effort */ }
 }
 
 async function recordPlaying(code: string, game: string): Promise<void> {
-  try {
-    const kv = await getKv();
-    const key = ["hub_playtime", code, game];
-    const cur = (await kv.get<GameStat>(key)).value;
-    const now = Date.now();
-    // Add the real gap since the last beat, but cap it: a tab left open in the
-    // background stops beating (visibility gate), so a large gap means "came
-    // back", not "played for an hour straight". Capping at three intervals
-    // keeps a single missed beat from either vanishing or ballooning.
-    let ms = cur?.ms || 0;
-    if (cur && now - cur.last < HEARTBEAT_MS * 3) ms += (now - cur.last);
-    else ms += HEARTBEAT_MS;
-    await kv.set(key, {
-      ms,
-      opens: cur?.opens || 0,
-      first: cur?.first || now,
-      last: now,
-    }, { expireIn: PLAYTIME_TTL_MS });
-  } catch { /* best-effort */ }
-}
-
-async function getPlaytime(code: string): Promise<(GameStat & { game: string })[]> {
-  const out: (GameStat & { game: string })[] = [];
-  try {
-    for await (const e of (await getKv()).list<GameStat>({ prefix: ["hub_playtime", code] })) {
-      if (e.value) out.push({ game: String(e.key[2]), ...e.value });
-    }
-  } catch { /* an unreadable list is just an empty one */ }
-  return out;
+  try { await statistics.recordPlaying(code, game); } catch { /* best-effort */ }
 }
 
 // The name a game shows on the hub, for stats pages. Falls back to the id.
@@ -898,7 +862,7 @@ if(link.getAttribute('href')!==ic)link.setAttribute('href',ic)}
 ap();document.addEventListener('DOMContentLoaded',ap);
 var n=0,iv=setInterval(function(){ap();if(++n>40)clearInterval(iv)},250);
 if(window.MutationObserver&&document.head)new MutationObserver(ap).observe(document.head,{childList:true,subtree:true,characterData:true});
-}catch(e){}})();</script>`;
+}catch(e){}})();</script><script src="/session.js" defer></script>`;
 
 
 // ===== Theme engine (client-side customization, shared by login/landing/hub) =====
@@ -1219,6 +1183,13 @@ const HAS_ICON: Record<string, boolean> = {};
 for (const g of GAMES) HAS_ICON[g.id] = g.icon;
 for (const a of APPS) HAS_ICON[a.id] = a.icon;
 
+async function profileStats(code: string) {
+  const stats = await statistics.summary(code);
+  return { ...stats, games: stats.games.map(g => ({ ...g, name: gameName(g.game),
+    iconUrl: HAS_ICON[g.game] ? iconUrl(g.game) : "", path: APPS.some(a => a.id === g.game) ? `/apps/${g.game}/` : `/${g.game}/` })),
+    top: stats.top ? { ...stats.top, name: gameName(stats.top.game) } : null };
+}
+
 // The apps page. Deliberately the same shell as the hub — same stylesheet,
 // same theme and cloak scripts, same card markup — so a theme, a disguise or a
 // density setting applies to both without any extra work. Apps have no
@@ -1424,13 +1395,30 @@ border-radius:12px;padding:.7rem .9rem}
 </head>
 <body data-scope="me" data-token="${token}">
 <header><h1>my stats</h1><p id="me-hi">your time on the hub</p>
-<div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}back</a></div></header>
+<div class="hdr-btns"><a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}back</a><a class="stg-btn" href="/profile?token=${token}">my profile</a><a class="stg-btn" href="/account?token=${token}">my account</a></div></header>
 <div class="me" id="me">loading…</div>
 ${ANTI_INSPECT}
 <script src="/me.js"></script>
 <script src="/bg.js"></script>
 </body>
 </html>`;
+}
+
+function buildProfilePage(token: string, page: "people" | "profile" | "account", username = ""): string {
+  const title = { people: "people on the hub", profile: "player profile", account: "my account" }[page];
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}</title><link rel="stylesheet" href="/theme.css">${THEME_SCRIPT}${CLOAK_SCRIPT}
+<link rel="stylesheet" href="/hub.css"><link rel="stylesheet" href="/profiles.css"></head>
+<body data-scope="${page}" data-token="${token}" data-username="${username}">
+<header><h1>${title}</h1><p>your games, your profile, your community</p><nav class="hdr-btns" aria-label="account navigation">
+<a class="stg-btn" href="/hub?token=${token}">${NAV_ICONS.games}hub</a>
+<a class="stg-btn" href="/profile?token=${token}">my profile</a>
+<a class="stg-btn" href="/people?token=${token}">people</a>
+<a class="stg-btn" href="/account?token=${token}">edit account</a>
+<a class="stg-btn" href="/me?token=${token}">${NAV_ICONS.stats}my stats</a></nav></header>
+<main class="pf-page" id="profile-root"><p role="status">loading…</p></main>
+${ANTI_INSPECT}<script src="/bg.js"></script><script src="/cloak.js"></script><script src="/profiles.js"></script></body></html>`;
 }
 
 function buildFeedbackPage(token: string): string {
@@ -1490,7 +1478,7 @@ ${ANTI_INSPECT}
 </html>`;
 }
 
-function buildHubPage(token: string, admin = false): string {
+function buildHubPage(token: string, admin = false, account = ""): string {
   const cards = GAMES.map((g, index) => {
     const iconHtml = g.icon
       ? renderIcon(g.id, g.name, index)
@@ -1511,7 +1499,7 @@ ${CLOAK_SCRIPT}
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
 </head>
-<body data-scope="game" data-token="${token}">
+<body data-scope="game" data-token="${token}" data-account="${account}">
 <div class="wc-ov" id="wc"><div class="wc">
 <h2>welcome</h2>
 <p>This site took days of dedication, hard work, and effort to make. Please don't take it for granted.</p>
@@ -1525,7 +1513,7 @@ ${CLOAK_SCRIPT}
   localStorage.setItem('hub_welcomed','1');}}catch(e){
   var w2=document.getElementById('wc');if(w2)w2.classList.add('show');}})();
 </script>
-<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/me?token=${token}">${NAV_ICONS.stats}my stats</a><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><a class="stg-btn" href="/feedback?token=${token}">${NAV_ICONS.feedback}ideas &amp; reports</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button><button type="button" class="stg-btn" onclick="window.__hubLogout&&window.__hubLogout(this)">sign out</button></div></header>
+<header><h1>ojjy's game hub</h1><p>a collection of games, made by jonas:)</p><div class="hdr-btns">${admin ? `<a class="stg-btn" href="/admin?token=${token}">${NAV_ICONS.admin}admin</a>` : ""}<a class="stg-btn" href="/profile?token=${token}">my profile</a><a class="stg-btn" href="/people?token=${token}">people</a><a class="stg-btn" href="/account?token=${token}">my account</a><a class="stg-btn" href="/me?token=${token}">${NAV_ICONS.stats}my stats</a><a class="stg-btn" href="/apps?token=${token}">${NAV_ICONS.apps}apps</a><a class="stg-btn" href="/feedback?token=${token}">${NAV_ICONS.feedback}ideas &amp; reports</a><button type="button" class="stg-btn" onclick="openCZ()">${NAV_ICONS.customize}customize</button><button type="button" class="stg-btn" onclick="window.__hubOffline&&window.__hubOffline.open()">${NAV_ICONS.offline}offline</button><button type="button" class="stg-btn" onclick="openCM()">${NAV_ICONS.storage}storage</button><button type="button" class="stg-btn" onclick="window.__hubLogout&&window.__hubLogout(this)">sign out</button></div></header>
 <main>
 <input type="text" class="sr" id="s" placeholder="search ${GAMES.length} games..." autocomplete="off" aria-label="search games">
 <div class="gg" id="g">${cards}</div>
@@ -1537,10 +1525,11 @@ ${ANTI_INSPECT}
 <script src="/bg.js"></script>
 <script>
 var _t='${token}';
-var _0x=[JSON.parse(localStorage.getItem('favorites')||'[]'),document.getElementById('g'),document.getElementById('s'),[].slice.call(document.querySelectorAll('.gc')).map(function(c){return c.dataset.n})];
+var _favKey=document.body.dataset.account?'hub_favorites:'+document.body.dataset.account:'favorites';
+var _0x=[JSON.parse(localStorage.getItem(_favKey)||'[]'),document.getElementById('g'),document.getElementById('s'),[].slice.call(document.querySelectorAll('.gc')).map(function(c){return c.dataset.n})];
 function _r(){document.querySelectorAll('.sb').forEach(function(b){var c=b.closest('.gc'),n=c.dataset.n,t=(c.querySelector('h2')||{}).textContent||n,f=_0x[0].includes(n);if(f){b.classList.add('a');b.innerHTML='\\u2605'}else{b.classList.remove('a');b.innerHTML='\\u2606'}b.setAttribute('aria-pressed',f?'true':'false');b.setAttribute('aria-label',(f?'remove ':'add ')+t+(f?' from favourites':' to favourites'))})}
 function _s(){var c=[].slice.call(_0x[1].children);var o=_0x[3];c.sort(function(a,b){var af=_0x[0].includes(a.dataset.n)?0:1;var bf=_0x[0].includes(b.dataset.n)?0:1;if(af!==bf)return af-bf;return o.indexOf(a.dataset.n)-o.indexOf(b.dataset.n)});c.forEach(function(x){_0x[1].appendChild(x)})}
-document.querySelectorAll('.sb').forEach(function(b){b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var n=b.dataset.g,i=_0x[0].indexOf(n);if(i>=0)_0x[0].splice(i,1);else _0x[0].push(n);localStorage.setItem('favorites',JSON.stringify(_0x[0]));_r();_s()})});
+document.querySelectorAll('.sb').forEach(function(b){b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var n=b.dataset.g,i=_0x[0].indexOf(n);if(i>=0)_0x[0].splice(i,1);else _0x[0].push(n);localStorage.setItem(_favKey,JSON.stringify(_0x[0]));_r();_s();document.dispatchEvent(new CustomEvent('hub-favorite-change',{detail:{game:n,favorite:i<0}}))})});
 document.querySelectorAll('.gc').forEach(function(c){c.addEventListener('click',function(e){if(e.target.closest('.sb')||e.target.closest('.ob'))return;e.preventDefault();var u=window.location.origin+c.getAttribute('href')+'?token='+_t;if(window.__hubCloak)window.__hubCloak.openIframe(u,true);else window.location.href=u})});
 
 _r();_s();
@@ -1625,6 +1614,7 @@ function openCM(){document.getElementById('cm-ov').classList.add('open');renderC
 function closeCM(){document.getElementById('cm-ov').classList.remove('open')}
 document.getElementById('cm-ov').addEventListener('click',function(e){if(e.target===this)closeCM()});
 </script>
+<script src="/account-favorites.js"></script>
 <script src="/theme-presets.js"></script>
 <script src="/themes.js"></script>
 <script src="/hub-ui.js"></script>
@@ -1845,6 +1835,7 @@ Deno.serve(async (req: Request) => {
   if (url.pathname === "/api/playing" && req.method === "POST") {
     const info = await getSession(req);
     if (!info) return new Response("{}", { headers: JSON_CT });
+    await touchSession(req);
     let game = "";
     try { game = String(((await req.json()) || {}).id || "").slice(0, 64); } catch { /* ignore */ }
     if (/^[A-Za-z0-9_-]+$/.test(game)) {
@@ -1868,6 +1859,42 @@ Deno.serve(async (req: Request) => {
         if (entry.info.code === id) verifiedSessions.delete(token);
       }
     });
+  }
+
+  if (url.pathname === "/api/account") {
+    const response = await accounts.self(req, await getSession(req), (await getSessionToken(req)) || "",
+      id => GAMES.some(g => g.id === id), code => {
+        for (const [token, cached] of verifiedSessions) if (cached.info.code === code) verifiedSessions.delete(token);
+      });
+    if (req.method === "GET" && response.ok) {
+      return new Response(JSON.stringify({ ...await response.json(), avatars: PROFILE_AVATARS, catalog: GAMES.map(g => ({ id: g.id, name: g.name,
+        iconUrl: g.icon ? iconUrl(g.id) : "" })) }), { headers: { ...JSON_CT, "Cache-Control": "no-store" } });
+    }
+    return response;
+  }
+
+  if (url.pathname === "/api/profiles") {
+    const info = await getSession(req);
+    const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status,
+      headers: { ...JSON_CT, "Cache-Control": "no-store" } });
+    if (!info) return json({ error: "sign in to view profiles" }, 401);
+    if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
+    try {
+      if (url.searchParams.has("username") || url.searchParams.has("self")) {
+        const username = url.searchParams.has("self") ? info.account === "@owner" ? OWNER_USERNAME : info.account : url.searchParams.get("username");
+        if (!username) return json({ error: "sign in with a username and password to have your own profile", legacy: true }, 403);
+        const profile = await accounts.profile(username);
+        if (!profile) return json({ error: "profile not found" }, 404);
+        const { code, ...publicProfile } = profile;
+        return json({ profile: publicProfile, stats: await profileStats(code),
+          favorites: profile.favorites.filter(id => GAMES.some(g => g.id === id)).map(id => ({ id, name: gameName(id), iconUrl: HAS_ICON[id] ? iconUrl(id) : "" })),
+          own: info.code === code });
+      }
+      const query = (url.searchParams.get("q") || "").trim();
+      const cursor = url.searchParams.get("cursor") || undefined;
+      if (query.length > 80 || (cursor && cursor.length > 2000)) return json({ error: "invalid search" }, 400);
+      return json(await accounts.people(query, cursor));
+    } catch { return json({ error: "could not load profiles — retry the request" }, 503); }
   }
 
   if (url.pathname === "/api/admin/access") {
@@ -2071,7 +2098,9 @@ Deno.serve(async (req: Request) => {
     // `admin` is here so the panel — and whoever is setting ADMIN_PASSWORD up —
     // can tell an unset environment variable apart from a broken panel. It
     // says nothing a session doesn't already know about itself.
-    return new Response(JSON.stringify({ ok: !!info, admin: info?.role === "admin" }), {
+    const token = info ? await getSessionToken(req) : null;
+    return new Response(JSON.stringify({ ok: !!info, admin: info?.role === "admin",
+      ...(token ? { token, expiresAt: Date.now() + SESSION_TTL_MS } : {}) }), {
       headers,
     });
   }
@@ -2714,7 +2743,16 @@ Deno.serve(async (req: Request) => {
 
   if (url.pathname === "/hub") {
     const token = (await getSessionToken(req))!;
-    return new Response(buildHubPage(token, await isAdmin(req)), {
+    const info = (await getSession(req))!;
+    return new Response(buildHubPage(token, await isAdmin(req), info.account === "@owner" ? OWNER_USERNAME : info.account || ""), {
+      headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
+    });
+  }
+
+  if (["/people", "/profile", "/account"].includes(url.pathname)) {
+    const page = url.pathname.slice(1) as "people" | "profile" | "account";
+    const username = url.searchParams.has("username") ? usernameKey(url.searchParams.get("username")) || "~missing" : "";
+    return new Response(buildProfilePage((await getSessionToken(req))!, page, username), {
       headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
     });
   }
@@ -2731,7 +2769,8 @@ Deno.serve(async (req: Request) => {
   if (url.pathname === "/api/me") {
     const info = await getSession(req);
     if (!info) return new Response("{}", { headers: { ...JSON_CT, "Cache-Control": "no-store" } });
-    const games = (await getPlaytime(info.code))
+    const expanded = await profileStats(info.code);
+    const games = expanded.games
       .map((g) => ({ ...g, name: gameName(g.game), icon: !!HAS_ICON[g.game],
         iconUrl: HAS_ICON[g.game] ? iconUrl(g.game) : "" }))
       .sort((a, b) => b.ms - a.ms);
@@ -2739,6 +2778,7 @@ Deno.serve(async (req: Request) => {
     const totalOpens = games.reduce((n, g) => n + (g.opens || 0), 0);
     const first = games.reduce((m, g) => Math.min(m, g.first || Date.now()), Date.now());
     return new Response(JSON.stringify({
+      ...expanded,
       label: info.label,
       games,
       totalMs,

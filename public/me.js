@@ -63,9 +63,15 @@
     h += tile(esc(dur(d.totalMs)), "total playtime");
     h += tile(d.tried, d.tried === 1 ? "game played" : "games played");
     h += tile(d.totalOpens, "times opened");
+    h += tile(esc(dur(d.averageMs)), "average per game");
+    h += tile(d.activeDays || 0, "tracked active days");
+    h += tile(d.currentStreak || 0, "current streak · days");
+    h += tile(d.longestStreak || 0, "longest streak · days");
+    h += tile(esc(dur(d.recentMs)), "last 14 days");
     if (d.top) h += tile(esc(d.top.name), "most played");
     if (d.since) h += tile(ago(d.since), "first played");
     h += "</div>";
+    h += '<p class="empty">active days and streaks use UTC and track activity from the profile update onward.</p>';
 
     h += "<h2>by game</h2><div class=\"list\">";
     var most = d.games[0].ms || 1;

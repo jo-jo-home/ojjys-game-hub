@@ -78,7 +78,8 @@
 
   function favourites() {
     try {
-      var f = JSON.parse(localStorage.getItem("favorites") || "[]");
+      var key = document.body.dataset.account ? "hub_favorites:" + document.body.dataset.account : "favorites";
+      var f = JSON.parse(localStorage.getItem(key) || "[]");
       return Array.isArray(f) ? f : [];
     } catch (e) { return []; }
   }

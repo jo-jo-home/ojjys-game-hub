@@ -4,11 +4,13 @@ export const OWNER_USERNAME = "ojjy";
 const ITERATIONS = 600_000;
 const encoder = new TextEncoder();
 type Credential = { salt: string; hash: string; iterations: number };
-type Account = {
+type ProfileFields = { label: string; bio?: string; favorites?: string[]; avatar?: string; createdAt: number };
+type Account = ProfileFields & {
   id: string; username: string; label: string; credential: Credential;
   version: string; disabled: boolean; createdAt: number; lastLogin: number;
   suspendedUntil?: number; restrictionReason?: string;
 };
+export const PROFILE_AVATARS = ["🎮", "🛹", "🕹️", "🚀", "🐱", "⚡", "👑", "🌈"];
 export type AccountIdentity = {
   code: string; label: string; role: string; account?: string; accountVersion?: string;
 };
@@ -105,6 +107,8 @@ export function createAccountStore(getKv: () => Promise<Deno.Kv>, ownerPassword:
       const credential = await ownerCredential;
       if (!credential || info.code !== "owner" || info.role !== "admin" ||
           !equal(info.accountVersion || "", credential.hash)) return false;
+      const profile = (await kv.get<ProfileFields>(["hub_owner_profile"])).value;
+      info.label = profile?.label || OWNER_USERNAME;
       return !token || !!(await kv.get(["hub_sessions", token])).value;
     }
     let record: Account | null;
@@ -127,6 +131,123 @@ export function createAccountStore(getKv: () => Promise<Deno.Kv>, ownerPassword:
       accounts.push(summary(entry.value, clock()));
     }
     return accounts.sort((a, b) => a.username.localeCompare(b.username));
+  }
+
+  function publicProfile(fields: ProfileFields, username: string, code: string) {
+    // code is for the server's existing playtime lookup; never send it publicly.
+    return { code, username, label: fields.label, bio: fields.bio || "",
+      avatar: PROFILE_AVATARS.includes(fields.avatar || "") ? fields.avatar : PROFILE_AVATARS[0],
+      favorites: fields.favorites || [], createdAt: fields.createdAt };
+  }
+
+  async function profile(username: unknown) {
+    const key = usernameKey(username);
+    if (!key) return null;
+    const kv = await getKv();
+    if (key === OWNER_USERNAME) {
+      if (!ownerPassword) return null;
+      const fields = (await kv.get<ProfileFields>(["hub_owner_profile"])).value;
+      return publicProfile(fields || { label: OWNER_USERNAME, createdAt: 0 }, OWNER_USERNAME, "owner");
+    }
+    const record = (await kv.get<Account>(["hub_accounts", key])).value;
+    return record && !record.disabled ? publicProfile(record, record.username, record.id) : null;
+  }
+
+  async function people(query = "", cursor?: string) {
+    const kv = await getKv();
+    const matches = (p: { username: string; label: string }) =>
+      (p.username + " " + p.label).toLowerCase().includes(query.toLowerCase());
+    const entries = [];
+    if (!cursor) {
+      const owner = await profile(OWNER_USERNAME);
+      if (owner && matches(owner)) entries.push(owner);
+    }
+    const rows = kv.list<Account>({ prefix: ["hub_accounts"] }, { limit: 50, ...(cursor ? { cursor } : {}) });
+    let scanned = 0;
+    for await (const row of rows) {
+      scanned++;
+      if (row.value.disabled) continue;
+      const p = publicProfile(row.value, row.value.username, row.value.id);
+      if (matches(p)) entries.push(p);
+    }
+    return { people: entries.map(({ code: _code, ...p }) => p), cursor: scanned === 50 ? rows.cursor : null };
+  }
+
+  async function self(req: Request, identity: AccountIdentity | null, currentToken: string,
+    hasGame: (id: string) => boolean, invalidate: (id: string) => void): Promise<Response> {
+    if (!identity) return json({ error: "sign in to manage your account" }, 401);
+    if (!identity.account) return json({ error: "sign in with a username and password to use account profiles", legacy: true }, 403);
+    if (!await sessionValid(identity, currentToken)) return json({ error: "sign in again" }, 401);
+    const owner = identity.account === "@owner";
+    const kv = await getKv();
+    const storageKey: Deno.KvKey = owner ? ["hub_owner_profile"] : ["hub_accounts", identity.account];
+    const entry = await kv.get<Account>(storageKey);
+    if (!owner && (!entry.value || entry.value.id !== identity.code || entry.value.version !== identity.accountVersion || blocked(entry.value, clock()))) return json({ error: "sign in again" }, 401);
+    const record = entry.value || { label: OWNER_USERNAME, username: OWNER_USERNAME, createdAt: clock() } as Account;
+    const ownProfile = () => {
+      const { code: _code, ...p } = publicProfile(record, owner ? OWNER_USERNAME : record.username, identity.code);
+      return p;
+    };
+    if (req.method === "GET") return json({ profile: ownProfile(), owner });
+    if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+    if (req.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") return json({ error: "send changes as JSON" }, 415);
+    let body;
+    try {
+      const text = await req.text();
+      if (text.length > 16_384) return json({ error: "request too large" }, 413);
+      body = JSON.parse(text);
+    } catch { return json({ error: "invalid request" }, 400); }
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "invalid request" }, 400);
+    const action = body.action;
+    if (action === "profile") {
+      if (body.label !== undefined && (typeof body.label !== "string" || !body.label.trim() || body.label.trim().length > 40)) return json({ error: "display name: 1–40 characters" }, 400);
+      if (body.bio !== undefined && (typeof body.bio !== "string" || body.bio.length > 1000)) return json({ error: "description: up to 1,000 characters" }, 400);
+      if (body.avatar !== undefined && !PROFILE_AVATARS.includes(body.avatar)) return json({ error: "choose an available avatar" }, 400);
+      if (body.favorites !== undefined && (!Array.isArray(body.favorites) || body.favorites.length > 256 || body.favorites.some((g: unknown) => typeof g !== "string" || !hasGame(g)))) return json({ error: "choose favorites from the game catalog" }, 400);
+      if (body.label !== undefined) record.label = body.label.trim();
+      if (body.bio !== undefined) record.bio = body.bio.trim();
+      if (body.avatar !== undefined) record.avatar = body.avatar;
+      if (body.favorites !== undefined) record.favorites = [...new Set<string>(body.favorites)];
+    } else if (action === "favorite") {
+      if (typeof body.game !== "string" || !hasGame(body.game) || typeof body.favorite !== "boolean") return json({ error: "invalid favorite" }, 400);
+      const favorites = new Set(record.favorites || []);
+      if (body.favorite) favorites.add(body.game); else favorites.delete(body.game);
+      record.favorites = [...favorites];
+    } else if (action === "sign-out-others") {
+      for await (const session of kv.list<AccountIdentity>({ prefix: ["hub_sessions"] })) {
+        if (session.value.account === identity.account && session.value.code === identity.code && session.key[1] !== currentToken) await kv.delete(session.key);
+      }
+      return json({ ok: true });
+    } else if (action === "password" || action === "username") {
+      if (owner) return json({ error: "the owner username and password are managed through the deployment settings" }, 400);
+      if (typeof body.currentPassword !== "string" || !await verify(body.currentPassword, record.credential)) return json({ error: "current password is incorrect" }, 400);
+      if (action === "password") {
+        if (!validPassword(body.password)) return json({ error: "enter a non-empty password (up to 128 characters)" }, 400);
+        record.credential = await hashPassword(body.password);
+      } else {
+        const newKey = usernameKey(body.username);
+        if (!newKey || newKey === OWNER_USERNAME) return json({ error: "choose an available username: 3–32 letters, numbers, dots, dashes or underscores" }, 400);
+        const destination = await kv.get<Account>(["hub_accounts", newKey]);
+        if (newKey !== identity.account && destination.value) return json({ error: "that username is already taken" }, 409);
+        record.username = body.username.trim();
+        record.version = crypto.randomUUID();
+        const transaction = kv.atomic().check(entry);
+        if (newKey !== identity.account) transaction.check(destination).delete(entry.key);
+        if (!(await transaction.set(destination.key, record).commit()).ok) return json({ error: "account changed — refresh and try again" }, 409);
+      }
+      if (action === "password") {
+        record.version = crypto.randomUUID();
+        if (!(await kv.atomic().check(entry).set(entry.key, record).commit()).ok) return json({ error: "account changed — refresh and try again" }, 409);
+      }
+      invalidate(identity.code);
+      for await (const session of kv.list<AccountIdentity>({ prefix: ["hub_sessions"] })) {
+        if (session.value.code === identity.code) await kv.delete(session.key);
+      }
+      return json({ ok: true, reauthenticate: true });
+    } else return json({ error: "unknown account action" }, 400);
+    if (!(await kv.atomic().check(entry).set(entry.key, record).commit()).ok) return json({ error: "profile changed — try again" }, 409);
+    invalidate(identity.code);
+    return json({ ok: true, profile: ownProfile(), owner });
   }
 
   async function takeLoginAttempt(req: Request): Promise<boolean> {
@@ -213,5 +334,5 @@ export function createAccountStore(getKv: () => Promise<Deno.Kv>, ownerPassword:
       ...(generatedPassword ? { password: generatedPassword } : {}) }, action === "create" ? 201 : 200);
   }
 
-  return { authenticate, sessionValid, list, takeLoginAttempt, manage, ownerConfigured: !!ownerPassword };
+  return { authenticate, sessionValid, list, takeLoginAttempt, manage, profile, people, self, ownerConfigured: !!ownerPassword };
 }

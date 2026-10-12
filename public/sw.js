@@ -10,7 +10,7 @@
 // GAMES is in KEEP below and must stay there. Dropping it means every
 // service worker update silently deletes everything the user downloaded.
 
-const SHELL = "hub-shell-v7";   // v7: birthday countdown and date-driven celebration
+const SHELL = "hub-shell-v9";   // v9: validated saved-login restoration
 const GAMES = "hub-games-v1";
 const KEEP = [SHELL, GAMES];
 
@@ -25,11 +25,15 @@ const SHELL_URLS = [
   "/theme-presets.js",
   "/themes.js",
   "/hub-ui.js",
+  "/account-favorites.js",
+  "/profiles.js",
+  "/profiles.css",
   "/feedback.js",
   "/chess-theme.css",
   "/hub.css",
   "/bg.js",
   "/offline.js",
+  "/session.js",
   "/cloak.js",
   "/offline-manifest.json",
   "/manifest.webmanifest",
@@ -254,7 +258,8 @@ self.addEventListener("fetch", (event) => {
   // the past as though it were current. The panel is worthless without the
   // server anyway, so offline it should fail plainly rather than lie.
   if (url.pathname === "/login" || url.pathname === "/admin" ||
-      url.pathname === "/me" || url.pathname.startsWith("/api/")) return;
+      url.pathname === "/me" || url.pathname === "/profile" || url.pathname === "/people" ||
+      url.pathname === "/account" || url.pathname.startsWith("/api/")) return;
 
   // The worker itself must always come from the network or updates stop.
   if (url.pathname === "/sw.js") return;
