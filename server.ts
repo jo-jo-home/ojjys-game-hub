@@ -947,7 +947,7 @@ const NOT_FOUND_PAGE = `<!DOCTYPE html>
 <title>not found</title>
 <link rel="stylesheet" href="/theme.css">
 ${THEME_SCRIPT}
-<style>html{background:var(--bg)}body{background:transparent}*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);text-align:center}div{max-width:320px;padding:2rem}h1{font-size:1.4rem;font-weight:300;color:var(--text);letter-spacing:.03em;margin-bottom:.7rem}p{font-size:.9rem;color:var(--dim);line-height:1.55;margin-bottom:1.4rem}a{display:inline-block;padding:.6rem 1.4rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:.9rem;text-decoration:none;transition:border-color .2s}a:hover{border-color:var(--accent)}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}</style>
+<style>html{background:var(--bg)}body{background:transparent}@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);text-align:center}div{max-width:320px;padding:2rem;animation:fin .55s cubic-bezier(.16,1,.3,1) both}h1{font-size:1.4rem;font-weight:300;color:var(--text);letter-spacing:.03em;margin-bottom:.7rem}p{font-size:.9rem;color:var(--dim);line-height:1.55;margin-bottom:1.4rem}a{display:inline-block;padding:.6rem 1.4rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:.9rem;text-decoration:none;transition:border-color .2s cubic-bezier(.4,0,.2,1),background .2s cubic-bezier(.4,0,.2,1),transform .12s cubic-bezier(.16,1,.3,1)}a:hover{border-color:var(--accent);background:var(--border);transform:translateY(-2px)}a:active{transform:scale(.97)}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}}</style>
 </head>
 <body><div>
 <h1>nothing here</h1>
@@ -972,39 +972,67 @@ html{background:var(--bg)}body{background:transparent}
 @keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text2);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
-.l{background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:380px;text-align:center;animation:fin .5s ease}
+/* the card arrives first, then its contents follow it in — one
+   choreographed entrance, spring only where it's friendly */
+@keyframes card-in{from{opacity:0;transform:translateY(26px) scale(.96)}}
+@keyframes row-in{from{opacity:0;transform:translateY(10px)}}
+@keyframes shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.l{background:color-mix(in srgb,var(--bg2) 85%,transparent);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:380px;text-align:center;animation:card-in .55s cubic-bezier(.16,1,.3,1) both;box-shadow:0 18px 50px color-mix(in srgb,var(--accent) 12%,transparent)}
+.l>*{animation:row-in .45s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0)*80ms + .18s)}
+.l form>*{animation:row-in .45s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0)*70ms + .42s)}
+.l details>*{animation:row-in .45s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0)*70ms + .42s)}
 h1{font-size:1.8rem;font-weight:300;color:var(--text);letter-spacing:.05em;margin-bottom:1.5rem}
 .l label{display:block;text-align:left;font-size:.8rem;color:var(--text2);margin-bottom:.4rem}
-.l input:not([type=hidden]){display:block;width:100%;padding:.7rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:1rem;outline:none;margin-bottom:1rem;transition:border-color .2s,box-shadow .2s}
+.l input:not([type=hidden]){display:block;width:100%;padding:.7rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:1rem;outline:none;margin-bottom:1rem;transition:border-color .2s cubic-bezier(.4,0,.2,1),box-shadow .2s cubic-bezier(.4,0,.2,1)}
 .l input:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
 .l input::placeholder{color:var(--faint)}
-.l button{width:100%;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:1rem;cursor:pointer;transition:background .2s,border-color .2s}
+/* Chrome's autofill paints its own yellow over the theme; keep the theme */
+.l input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px var(--bg) inset;-webkit-text-fill-color:var(--text);caret-color:var(--text)}
+.l button{width:100%;padding:.7rem;border:1px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);font-size:1rem;cursor:pointer;position:relative;transition:background .2s cubic-bezier(.4,0,.2,1),border-color .2s cubic-bezier(.4,0,.2,1),transform .12s cubic-bezier(.16,1,.3,1),filter .2s}
 .l button:hover{background:var(--border);border-color:var(--accent)}
-.l button:focus-visible,.l summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.l button:active{transform:scale(.97)}
+.l button:focus-visible,.l summary:focus-visible,.pw-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.l button.sending{color:transparent;pointer-events:none;filter:brightness(1.05)}
+.l button.sending::after{content:"";position:absolute;inset:0;margin:auto;width:1.05em;height:1.05em;border-radius:50%;border:2.5px solid color-mix(in srgb,var(--text) 25%,transparent);border-top-color:var(--text);animation:spin .7s linear infinite}
+.pw{position:relative}
+.pw input{padding-right:2.9rem}
+.pw-btn{position:absolute;right:.4rem;top:50%;transform:translateY(-50%);width:2.1rem;height:2.1rem;border:none;border-radius:8px;background:none;color:var(--dim);cursor:pointer;display:grid;place-items:center;padding:0;transition:color .15s,background .15s}
+.pw-btn:hover{color:var(--text);background:var(--bg3)}
+.caps{display:none;font-size:.72rem;color:var(--warn);text-align:left;margin:-.7rem 0 .9rem}
+.caps.show{display:block;animation:fin .25s ease both}
 .e{color:var(--danger);font-size:.85rem;margin-bottom:1rem;display:none;line-height:1.5}
+.e.show{display:block;animation:shake .45s cubic-bezier(.36,.07,.19,.97)}
 .l details{margin-top:1.2rem;font-size:.78rem;color:var(--dim)}
-.l summary{cursor:pointer}.l details form{margin-top:1rem}
+.l summary{cursor:pointer;transition:color .2s}
+.l summary:hover{color:var(--text2)}
+.l details form{margin-top:1rem}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}}
 </style>
 </head>
 <body>
 <div class="l">
-<h1>ojjy's game hub</h1>
-<p class="e" id="e" role="alert">wrong username or password</p>
-<form id="account-login" method="POST" action="/login">
+<h1 style="--i:0">ojjy's game hub</h1>
+<p class="e" id="e" style="--i:1" role="alert">wrong username or password</p>
+<form id="account-login" method="POST" action="/login" style="--i:2">
 <input type="hidden" name="mode" value="account">
-<label for="login-username">username</label>
-<input id="login-username" type="text" name="username" placeholder="enter username..." required maxlength="32" autofocus autocomplete="username" autocapitalize="none" spellcheck="false">
-<label for="login-password">password</label>
+<label for="login-username" style="--i:0">username</label>
+<input id="login-username" type="text" name="username" placeholder="enter username..." required maxlength="32" autofocus autocomplete="username" autocapitalize="none" spellcheck="false" style="--i:1">
+<label for="login-password" style="--i:2">password</label>
+<span class="pw" style="--i:3">
 <input id="login-password" type="password" name="password" placeholder="enter password..." required maxlength="128" autocomplete="current-password">
+<button type="button" class="pw-btn" id="pw-toggle" aria-label="show password" aria-pressed="false"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+</span>
+<p class="caps" id="caps" aria-live="polite">caps lock is on</p>
 <input type="hidden" name="device" class="login-device">
-<button type="submit">sign in</button>
+<button type="submit" id="account-submit" style="--i:4">sign in</button>
 </form>
-<details id="legacy-login"><summary>use an existing access code</summary>
+<details id="legacy-login" style="--i:3"><summary>use an existing access code</summary>
 <form method="POST" action="/login">
-<label for="login-code">access code</label>
-<input id="login-code" type="password" name="password" placeholder="enter access code..." required autocomplete="off">
+<label for="login-code" style="--i:0">access code</label>
+<input id="login-code" type="password" name="password" placeholder="enter access code..." required autocomplete="off" style="--i:1">
 <input type="hidden" name="device" class="login-device">
-<button type="submit">enter with code</button>
+<button type="submit" style="--i:2">enter with code</button>
 </form></details>
 </div>
 ${ANTI_INSPECT}
@@ -1023,12 +1051,32 @@ ${ANTI_INSPECT}
   }
   document.querySelectorAll('.login-device').forEach(function(f){f.value=id});
   var q=location.search,e=document.getElementById("e");
+  function show(text){e.textContent=text;e.classList.remove('show');void e.offsetWidth;e.classList.add('show')}
   if(e){
-    if(q.indexOf("limited=1")>=0){e.textContent="too many sign-in attempts — wait a minute and try again";e.style.display="block"}
-    else if(q.indexOf("blocked=1")>=0){e.textContent="this device has been blocked by the owner";e.style.display="block"}
-    else if(q.indexOf("toomany=1")>=0){e.textContent="this code is already in use on its maximum number of devices";e.style.display="block"}
-    else if(q.indexOf("wrong=1")>=0){e.style.display="block"}
+    if(q.indexOf("limited=1")>=0)show("too many sign-in attempts — wait a minute and try again")
+    else if(q.indexOf("blocked=1")>=0)show("this device has been blocked by the owner")
+    else if(q.indexOf("toomany=1")>=0)show("this code is already in use on its maximum number of devices")
+    else if(q.indexOf("wrong=1")>=0)show("wrong username or password")
   }
+  // show-password toggle: the icon stays, only the field's type flips
+  var pw=document.getElementById("login-password"),tog=document.getElementById("pw-toggle");
+  if(pw&&tog){tog.addEventListener("click",function(){
+    var showPw=pw.type==="password";pw.type=showPw?"text":"password";
+    tog.setAttribute("aria-label",showPw?"hide password":"show password");
+    tog.setAttribute("aria-pressed",showPw?"true":"false");
+    tog.style.opacity=showPw?"1":"";pw.focus();
+  });pw.addEventListener("keyup",function(){tog.style.opacity=pw.value?"":"0.55"});tog.style.opacity="0.55"}
+  // caps lock is a silent villain on chromebook keyboards
+  var caps=document.getElementById("caps"),pw2=document.getElementById("login-password");
+  if(caps&&pw2){
+    var cap=function(ev){caps.classList.toggle("show",!!(ev.getModifierState&&ev.getModifierState("CapsLock")))};
+    pw2.addEventListener("keydown",cap);pw2.addEventListener("keyup",cap);pw2.addEventListener("blur",function(){caps.classList.remove("show")});
+  }
+  // the button tells you it heard you before the page goes anywhere
+  var form=document.getElementById("account-login"),btn=document.getElementById("account-submit");
+  if(form&&btn){form.addEventListener("submit",function(){
+    btn.classList.add("sending");btn.disabled=true;btn.textContent="signing in";
+  })}
 })();
 </script>
 </body>
@@ -1292,6 +1340,20 @@ letter-spacing:.04em;padding:0 .7rem .5rem 0;border-bottom:1px solid var(--borde
 .ad .live{display:flex;flex-direction:column;gap:.45rem;min-height:1.4rem}
 .ad .nowrow{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:.55rem .8rem;font-size:.9rem}
 .ad .nowrow .on{margin-right:.35rem}
+
+/* ---- motion: a first-paint wave, a heartbeat for live dots ----
+   hub.css supplies the easing tokens; the .enter class is added by
+   admin.js for exactly one render so re-renders land still. */
+@keyframes row-in{from{opacity:0;transform:translateY(10px)}}
+@keyframes pulse{50%{opacity:.35}}
+@keyframes pop-in{from{opacity:0;transform:scale(.9)}}
+.ad.enter>*{animation:row-in .45s var(--ease-out) both;animation-delay:calc(min(var(--i,9),9)*60ms)}
+.ad .on{animation:pulse 2.2s var(--ease-io) infinite;color:var(--ok)}
+.ad .card{transition:border-color var(--dur-2) var(--ease-standard)}
+.ad table tbody tr{transition:background var(--dur-2) var(--ease-standard)}
+.ad table tbody tr:hover{background:color-mix(in srgb,var(--bg3) 45%,transparent)}
+.ad .new.show{animation:pop-in .5s var(--ease-spring) both}
+
 </style>
 </head>
 <body data-scope="admin" data-token="${token}">
@@ -1310,7 +1372,7 @@ function buildAppsPage(token: string): string {
     const iconHtml = a.icon
       ? renderIcon(`app-${a.id}`, a.name, index)
       : monogram(a.name);
-    return `<a href="/apps/${a.id}/" class="gc" data-n="${a.id}">${iconHtml}<h2>${a.name}</h2><p>${a.desc}</p></a>`;
+    return `<a href="/apps/${a.id}/" class="gc" data-n="${a.id}" style="--i:${index}">${iconHtml}<h2>${a.name}</h2><p>${a.desc}</p></a>`;
   }).join("");
 
   return `<!DOCTYPE html>
@@ -1410,6 +1472,18 @@ border-radius:12px;padding:.7rem .9rem}
 .me .bar{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:.4rem}
 .me .bar i{display:block;height:100%;background:var(--accent)}
 .me .empty{color:var(--faint);font-size:.9rem;padding:1.5rem 0}
+/* motion: tiles rise in a capped wave, bars grow from the left, rows
+   follow; the numbers count up from zero under me.js */
+@keyframes tile-in{from{opacity:0;transform:translateY(14px)}}
+@keyframes row-in{from{opacity:0;transform:translateY(8px)}}
+@keyframes bar-in{from{transform:scaleX(0)}}
+.me h2{animation:row-in .45s cubic-bezier(.16,1,.3,1) both}
+.me .tile{animation:tile-in .5s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(min(var(--i,0),10)*60ms);
+  transition:border-color .2s cubic-bezier(.4,0,.2,1),transform .2s cubic-bezier(.16,1,.3,1),box-shadow .2s cubic-bezier(.4,0,.2,1)}
+.me .tile:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 20px color-mix(in srgb,var(--accent) 14%,transparent)}
+.me .g{animation:row-in .45s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(min(var(--i,0),18)*35ms + .25s)}
+.me .bar i{transform-origin:left;animation:bar-in .7s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(min(var(--i,0),20)*45ms + .4s)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}}
 </style>
 </head>
 <body data-scope="me" data-token="${token}">
@@ -1502,7 +1576,8 @@ function buildHubPage(token: string, admin = false, account = ""): string {
     const iconHtml = g.icon
       ? renderIcon(g.id, g.name, index)
       : monogram(g.name);
-    return `<a href="/${g.id}/" class="gc" data-n="${g.id}"><button type="button" class="sb" data-g="${g.id}" aria-pressed="false" aria-label="add ${g.name} to favourites">&#9734;</button>${iconHtml}<h2>${g.name}</h2><p>${g.desc}</p></a>`;
+    // --i is the stagger index for the entrance animation in hub.css.
+    return `<a href="/${g.id}/" class="gc" data-n="${g.id}" style="--i:${index}"><button type="button" class="sb" data-g="${g.id}" aria-pressed="false" aria-label="add ${g.name} to favourites">&#9734;</button>${iconHtml}<h2>${g.name}</h2><p>${g.desc}</p></a>`;
   }).join("");
 
   return `<!DOCTYPE html>
@@ -2820,13 +2895,13 @@ Deno.serve(async (req: Request) => {
 <link rel="stylesheet" href="/theme.css">
 ${THEME_SCRIPT}
 ${CLOAK_SCRIPT}
-<style>html{background:var(--bg)}body{background:transparent}@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{margin:0;padding:0;box-sizing:border-box}body{color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:1rem}h1{font-weight:300;letter-spacing:.05em;animation:fin .5s ease}button{padding:.8rem 2rem;border:1px solid var(--border);border-radius:12px;background:var(--bg3);color:var(--text);font-size:1.1rem;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-1px)}a{color:var(--accent);font-size:.9rem}</style>
+<style>html{background:var(--bg)}body{background:transparent}@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{margin:0;padding:0;box-sizing:border-box}body{color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:1rem}h1{font-weight:300;letter-spacing:.05em;animation:fin .5s cubic-bezier(.16,1,.3,1) both}.fin2{animation:fin .5s cubic-bezier(.16,1,.3,1) .12s both}.fin3{animation:fin .5s cubic-bezier(.16,1,.3,1) .22s both}button{padding:.8rem 2rem;border:1px solid var(--border);border-radius:12px;background:var(--bg3);color:var(--text);font-size:1.1rem;cursor:pointer;transition:background .2s cubic-bezier(.4,0,.2,1),border-color .2s cubic-bezier(.4,0,.2,1),transform .12s cubic-bezier(.16,1,.3,1),box-shadow .25s cubic-bezier(.4,0,.2,1)}button:hover{background:var(--border);border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 28px color-mix(in srgb,var(--accent) 22%,transparent)}button:active{transform:translateY(0) scale(.97)}button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}a{color:var(--accent);font-size:.9rem;transition:filter .15s}a:hover{filter:brightness(1.2)}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}}</style>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0a1628">
 </head><body data-token="${token}">
 <h1>ojjy's game hub</h1>
-<button onclick="var t=window.__hubToken?window.__hubToken():'${token}';window.__hubCloak?window.__hubCloak.openBlank(t):(window.location.href='/hub?token='+t)">open in about:blank</button>
-<a href="/hub?token=${token}">or open normally</a>
+<button class="fin2" onclick="var t=window.__hubToken?window.__hubToken():'${token}';window.__hubCloak?window.__hubCloak.openBlank(t):(window.location.href='/hub?token='+t)">open in about:blank</button>
+<a class="fin3" href="/hub?token=${token}">or open normally</a>
 ${ANTI_INSPECT}
 <script src="/bg.js"></script>
 <script src="/cloak.js"></script>

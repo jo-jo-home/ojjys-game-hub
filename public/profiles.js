@@ -21,6 +21,22 @@
     root.innerHTML = '<section class="pf-card"><h2>' + (error.status === 404 ? 'profile not found' : 'could not load this page') + '</h2><p class="pf-muted">' + esc(error.message) + '</p>' +
       (error.status === 401 || error.status === 403 ? link('/login', 'sign in with an account') : '<button type="button" id="pf-retry">try again</button>') + '</section>';
     var retry = document.getElementById('pf-retry'); if (retry) retry.onclick = start;
+    stagger();
+  }
+  // Entrance choreography: every card, tile, row and activity bar is
+  // stamped with an index that profiles.css turns into a delay. Purely
+  // decorative — a failure here must never take the page down.
+  function stagger() {
+    try {
+      var groups = root.querySelectorAll('.pf-tiles,.pf-game-list,.pf-people,.pf-activity');
+      groups.forEach(function (g) {
+        for (var i = 0; i < g.children.length; i++) g.children[i].style.setProperty('--i', Math.min(i, 12));
+      });
+      var c = 0;
+      for (var k = 0; k < root.children.length; k++) {
+        if (root.children[k].classList.contains('pf-card')) root.children[k].style.setProperty('--i', Math.min(c++, 8));
+      }
+    } catch (e) { /* decorative only */ }
   }
   function identity(p) {
     return '<div class="pf-identity"><span class="pf-avatar" aria-hidden="true">' + esc(p.avatar) + '</span><div><h2>' + esc(p.label) + '</h2><div class="pf-meta">@' + esc(p.username) + (p.createdAt ? ' · joined ' + esc(date(p.createdAt)) : '') + '</div></div></div>';
@@ -57,6 +73,7 @@
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
       if (window.__hubCloak) { e.preventDefault(); window.__hubCloak.openIframe(a.href, true); }
     }); });
+    stagger();
   }
   function showPeople() {
     root.innerHTML = '<form class="pf-search" id="pf-search"><input type="search" name="q" aria-label="search people" placeholder="search usernames or display names" maxlength="80"><button>search</button></form><p id="pf-search-status" role="status"></p><div class="pf-people" id="pf-people"></div><button type="button" id="pf-more" hidden>load more people</button>';
@@ -73,6 +90,7 @@
         if (append) list.insertAdjacentHTML('beforeend', html); else list.innerHTML = html;
         cursor = data.cursor; more.hidden = !cursor;
         status.textContent = list.children.length ? list.children.length + ' people shown' : cursor ? 'keep loading to search more accounts' : 'no people found';
+        stagger();
       } catch (e) { if (current === generation) status.textContent = e.message; }
       finally { if (current === generation) more.disabled = false; }
     }
@@ -97,6 +115,7 @@
     var edit = document.getElementById('pf-edit');
     function count() { document.getElementById('pf-count').textContent = edit.elements.bio.value.length + ' / 1,000 characters'; }
     edit.elements.bio.oninput = count; count();
+    stagger();
     document.getElementById('pf-game-search').oninput = function (e) {
       var q = e.target.value.toLowerCase().trim(); edit.querySelectorAll('[data-name]').forEach(function (label) { label.hidden = label.dataset.name.indexOf(q) < 0; });
     };

@@ -10,7 +10,7 @@
 // GAMES is in KEEP below and must stay there. Dropping it means every
 // service worker update silently deletes everything the user downloaded.
 
-const SHELL = "hub-shell-v9";   // v9: validated saved-login restoration
+const SHELL = "hub-shell-v10";   // v10: motion system, entrance choreography, overlay transitions
 const GAMES = "hub-games-v1";
 const KEEP = [SHELL, GAMES];
 

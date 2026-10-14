@@ -35,6 +35,18 @@
     } catch (e) { /* full or blocked; the choice just won't stick */ }
   }
 
+  // ---- motion ------------------------------------------------------------
+  // The same two switches the background engine and hub.css honour: the
+  // hub's own "off" setting, and the OS preference. Anything that moves
+  // cards around asks first.
+  var rmq = null;
+  try { rmq = matchMedia("(prefers-reduced-motion: reduce)"); } catch (e) { /* old browser */ }
+  function stillMotion() {
+    var de = document.documentElement;
+    if (de.getAttribute && de.getAttribute("data-motion") === "off") return true;
+    return !!(rmq && rmq.matches);
+  }
+
   function plays() {
     try {
       var p = JSON.parse(localStorage.getItem(PLAYS) || "{}");
@@ -147,9 +159,38 @@
       return originalOrder.indexOf(an) - originalOrder.indexOf(bn);
     });
 
+    // FLIP: remember where the visible cards sit, reorder the DOM, then
+    // animate each one from its old spot to the new one. The first sort —
+    // the one that happens at load — stays still, because the cards are
+    // still arriving with their entrance stagger.
+    var flips = null;
+    if (sortedOnce && grid.classList.contains("settled") && !stillMotion() && Element.prototype.animate) {
+      flips = [];
+      for (var m = 0; m < list.length; m++) {
+        if (list[m].style.display === "none") continue;
+        flips.push({ el: list[m], x: list[m].offsetLeft, y: list[m].offsetTop });
+      }
+    }
+
     for (var i = 0; i < list.length; i++) grid.appendChild(list[i]);
     cards = list;
+    sortedOnce = true;
+
+    if (flips) {
+      for (var f = 0; f < flips.length; f++) {
+        var dx = flips[f].x - flips[f].el.offsetLeft;
+        var dy = flips[f].y - flips[f].el.offsetTop;
+        if (dx || dy) {
+          flips[f].el.animate(
+            [{ transform: "translate(" + dx + "px," + dy + "px)" }, { transform: "none" }],
+            { duration: 280, easing: "cubic-bezier(.16,1,.3,1)" },
+          );
+        }
+      }
+    }
   }
+
+  var sortedOnce = false;
 
   function label(card) {
     var h = card.querySelector("h2");
@@ -166,7 +207,18 @@
     var shown = 0;
     for (var i = 0; i < cards.length; i++) {
       var on = match(cards[i].__hay, q);
-      cards[i].style.display = on ? "" : "none";
+      var wasHidden = cards[i].style.display === "none";
+      if (on && wasHidden) {
+        // coming back from a filtered-out state: a short breath, not a
+        // blink. The class removes itself once the animation has played.
+        cards[i].style.display = "";
+        cards[i].classList.add("hub-in");
+        (function (card) {
+          setTimeout(function () { card.classList.remove("hub-in"); }, 260);
+        })(cards[i]);
+      } else {
+        cards[i].style.display = on ? "" : "none";
+      }
       if (on) shown++;
     }
     if (empty) {
@@ -332,6 +384,7 @@
 
     search = document.getElementById("s");
     if (search) {
+      buildSearchUI();
       empty = document.createElement("div");
       empty.className = "hu-empty";
       empty.style.display = "none";
@@ -340,7 +393,69 @@
       filter();
     }
 
+    polishIcons();
+
+    // The entrance stagger plays once. After the longest possible delay
+    // has passed, the grid is marked settled: CSS drops the entrance so
+    // sorting and filtering never replay it, and FLIP takes over.
+    setTimeout(function () {
+      if (grid) grid.classList.add("settled");
+    }, 1400);
+
     document.addEventListener("keydown", onKey);
+  }
+
+  // Wrap the search field: a magnifier on the left, a clearing button on
+  // the right that only exists while there is something to clear. Done
+  // here rather than in the server's markup so the field alone stays
+  // semantic — a plain input with a label and placeholder.
+  function buildSearchUI() {
+    if (!search || search.parentNode.classList.contains("sr-wrap")) return;
+    var wrap = document.createElement("div");
+    wrap.className = "sr-wrap";
+    search.parentNode.insertBefore(wrap, search);
+    wrap.appendChild(search);
+
+    var ico = document.createElement("span");
+    ico.className = "sr-ico";
+    ico.setAttribute("aria-hidden", "true");
+    ico.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
+      'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+      'stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+    wrap.appendChild(ico);
+
+    var clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "sr-clear";
+    clear.setAttribute("aria-label", "clear search");
+    clear.textContent = "\u00d7";
+    var sync = function () { clear.classList.toggle("show", !!search.value); };
+    clear.addEventListener("click", function () {
+      search.value = "";
+      sync();
+      filter();
+      search.focus();
+    });
+    search.addEventListener("input", sync);
+    wrap.appendChild(clear);
+    sync();
+  }
+
+  // Game icons fade up out of a blur as they finish decoding, instead of
+  // popping in mid-scroll. The starting class is only ever added while an
+  // image is genuinely still loading, so nothing depends on JS running.
+  function polishIcons() {
+    if (!grid) return;
+    var imgs = grid.querySelectorAll(".gc img");
+    for (var i = 0; i < imgs.length; i++) {
+      (function (img) {
+        if (img.complete && img.naturalWidth > 0) return;
+        img.classList.add("hub-blur");
+        var done = function () { img.classList.remove("hub-blur"); };
+        img.addEventListener("load", done, { once: true });
+        img.addEventListener("error", done, { once: true });
+      })(imgs[i]);
+    }
   }
 
   window.__hubUI = {

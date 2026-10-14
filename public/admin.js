@@ -503,11 +503,25 @@
       "to say where anybody is.</div>";
 
     el.innerHTML = h;
+    // One choreographed entrance, the first time the panel draws; every
+    // later re-render (an action, a poll) must land still.
+    if (!drewOnce) {
+      drewOnce = true;
+      try {
+        el.classList.add("enter");
+        for (var i = 0; i < el.children.length; i++) {
+          el.children[i].style.setProperty("--i", Math.min(i, 9));
+        }
+        setTimeout(function () { el.classList.remove("enter"); }, 1500);
+      } catch (e) { /* decorative only */ }
+    }
     wire();
     renderLive(state.now || []);
     renderFeedback();
     if (!feedback.loaded && !feedback.busy) loadFeedback(false);
   }
+
+  var drewOnce = false;
 
   function renderLive(list) {
     var box = document.getElementById("ad-live");

@@ -41,6 +41,8 @@
   function notice(text, error) {
     message.textContent = text;
     message.classList.toggle("error", !!error);
+    // the springy confirmation animation only plays for good news
+    message.classList.toggle("ok", !error && !!text);
   }
 
   form.addEventListener("input", function () {
@@ -61,6 +63,7 @@
     }
     sending = true;
     fields.disabled = true;
+    button.classList.add("sending");
     button.textContent = "sending…";
     login.hidden = true;
     notice("");
@@ -103,6 +106,7 @@
       clearTimeout(timeout);
       sending = false;
       fields.disabled = false;
+      button.classList.remove("sending");
       update();
     }
   });

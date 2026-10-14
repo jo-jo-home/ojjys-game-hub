@@ -21,3 +21,34 @@
 .pf-page textarea{resize:vertical}.pf-page fieldset{border:0;padding:0;margin:0}.pf-page legend{font-weight:500;margin:1rem 0 .5rem}.pf-favorites{max-height:250px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:.7rem;margin-bottom:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.3rem}
 .pf-favorites label{display:flex;align-items:center;gap:.6rem;margin:0;padding:.5rem;border-radius:6px;color:var(--text);cursor:pointer}.pf-favorites label[hidden]{display:none}.pf-favorites input{accent-color:var(--accent);width:18px;height:18px;flex:none}.pf-message{min-height:1.5rem;margin:.8rem 0 0;color:var(--accent);font-size:.85rem}.pf-message.error{color:#ef7777}.pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.pf-grid .pf-card{min-width:0}.pf-count{font-size:.75rem;color:var(--dim);margin-bottom:1rem}
 @media(max-width:600px){.pf-page{padding:0 1rem 3rem}.pf-grid{grid-template-columns:1fr}.pf-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-card,.pf-tile{padding:1rem}.pf-activity{gap:3px}.pf-day small{font-size:.6rem}.pf-search{flex-wrap:wrap}}
+
+/* ---- motion -------------------------------------------------------------
+   profiles.css loads after hub.css, whose :root carries the easing and
+   duration tokens these rules borrow. Cards, tiles, rows and the
+   activity bars rise in capped waves off the --i index that
+   profiles.js stamps on them. */
+@keyframes pf-in{from{opacity:0;transform:translateY(12px)}}
+@keyframes pf-bar{from{transform:scaleY(0)}}
+.pf-card{animation:pf-in .5s var(--ease-out) both;animation-delay:calc(var(--i,0)*70ms);
+  transition:border-color var(--dur-2) var(--ease-standard),box-shadow var(--dur-2) var(--ease-standard)}
+.pf-tile{animation:pf-in .45s var(--ease-out) both;animation-delay:calc(var(--i,0)*55ms + .15s);
+  transition:border-color var(--dur-2) var(--ease-standard),transform var(--dur-2) var(--ease-out)}
+.pf-tile:hover{border-color:var(--accent);transform:translateY(-2px)}
+.pf-game,.pf-person{animation:pf-in .4s var(--ease-out) both;animation-delay:calc(var(--i,0)*40ms + .2s);
+  transition:border-color var(--dur-2) var(--ease-standard),transform var(--dur-2) var(--ease-out),
+  box-shadow var(--dur-2) var(--ease-standard),background var(--dur-2) var(--ease-standard)}
+.pf-day{animation:pf-in .4s var(--ease-out) both;animation-delay:calc(var(--i,0)*30ms + .25s)}
+.pf-day i{transform-origin:bottom;animation:pf-bar .55s var(--ease-out) both;animation-delay:calc(var(--i,0)*30ms + .3s)}
+@media (hover:hover) and (pointer:fine){
+  .pf-person:hover{transform:translateY(-3px);border-color:var(--accent);
+    box-shadow:0 10px 26px color-mix(in srgb,var(--accent) 16%,transparent)}
+  .pf-game:hover{transform:translateY(-2px);border-color:var(--accent);background:var(--bg2)}
+  .pf-identity .pf-avatar:hover{transform:scale(1.06) rotate(-4deg)}
+}
+.pf-identity .pf-avatar{transition:transform var(--dur-3) var(--ease-spring)}
+.pf-page button:active,.pf-button:active{transform:scale(.97)}
+.pf-page button,.pf-button{transition:border-color var(--dur-2) var(--ease-standard),
+  background var(--dur-2) var(--ease-standard),transform var(--dur-1) var(--ease-out),
+  box-shadow var(--dur-2) var(--ease-standard)}
+.pf-page button:hover,.pf-button:hover{box-shadow:0 4px 16px color-mix(in srgb,var(--accent) 14%,transparent)}
+.pf-search button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

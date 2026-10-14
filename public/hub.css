@@ -32,7 +32,8 @@ html{background:var(--bg)}body{background:transparent}@keyframes fin{from{opacit
 /* an explicit off switch, in addition to prefers-reduced-motion */
 [data-motion="off"] *,[data-motion="off"] *::before,[data-motion="off"] *::after{
 animation-duration:.001ms!important;animation-iteration-count:1!important;
-transition-duration:.001ms!important;scroll-behavior:auto!important}
+transition-duration:.001ms!important;scroll-behavior:auto!important;
+animation-delay:0s!important;transition-delay:0s!important}
 
 /* ---- focus, for keyboard use ----
    There was exactly one :focus rule on the whole page before this. */
@@ -144,3 +145,218 @@ border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--
 .ac-hash summary{cursor:pointer}
 .ac-hash code{display:block;overflow-wrap:anywhere;margin:.5rem 0;color:var(--text2)}
 #ad-shown:not(:empty){margin:1rem 0}
+
+/* ============================================================
+   MOTION SYSTEM
+   One set of easing and duration tokens drives every animation
+   on the hub, so the whole site moves with the same physics.
+
+   --ease-out      entrances and reveals: fast start, gentle landing
+   --ease-in       exits: gentle start, prompt departure
+   --ease-standard state changes: the Material curve
+   --ease-spring   playful overshoot only — stars, the welcome card,
+                   never anything destructive or serious
+   --ease-io       things that move within view both ways
+
+   Durations follow UI research: 120ms reads as instant feedback,
+   200ms as a state change, 300ms as a surface arriving, 450ms as
+   something making an entrance. Exits run at roughly 60–75% of the
+   matching entrance. Only transform and opacity are ever animated.
+   ============================================================ */
+:root{
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --ease-in:cubic-bezier(.7,0,.84,0);
+  --ease-io:cubic-bezier(.65,0,.35,1);
+  --ease-standard:cubic-bezier(.4,0,.2,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --dur-1:120ms;--dur-2:200ms;--dur-3:300ms;--dur-4:450ms;
+  color-scheme:dark;
+}
+/* the light presets flip the browser's own controls to match */
+[data-theme="light"],[data-theme="paper"],[data-theme="contrast"]{color-scheme:light}
+
+/* The OS-level preference, alongside the hub's own switch above.
+   Durations collapse to nothing and — important — so do delays, or
+   a fill-mode animation would hold its invisible "from" state for
+   the length of the stagger. State changes stay; movement goes. */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important;
+    animation-delay:0s!important;transition-delay:0s!important}
+}
+
+/* Same-origin navigations cross-fade into each other (Chrome and
+   friends). Someone who turns motion off keeps hard cuts. */
+@view-transition{navigation:auto}
+@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
+
+/* Themed, quietly thinner scrollbars and a themed selection. */
+html{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--dim) 45%,transparent) transparent}
+::selection{background:color-mix(in srgb,var(--accent) 38%,transparent);color:var(--text)}
+
+/* One consistent focus treatment everywhere on hub pages. */
+.stg-btn:focus-visible,.hu-opt:focus-visible,.cm-it-btn:focus-visible,
+.cm-hd button:focus-visible,.wc-btn:focus-visible,.fb-submit:focus-visible,
+.ad-btn:focus-visible,.pf-button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ============================================================
+   THE GRID — choreographed entrance and card micro-interactions
+   ============================================================ */
+
+/* Cards rise in as one orchestrated wave. The server stamps each
+   card with --i (its render index); the delay is capped at 14 so a
+   150-card grid settles in under a second instead of crawling.
+   One-shot: it never re-fires while the page lives. */
+.gg{animation:none}
+.gc{
+  animation:card-in .5s var(--ease-out) both;
+  animation-delay:calc(min(var(--i,0),14)*45ms);
+  content-visibility:auto;
+  contain-intrinsic-size:auto 190px;
+}
+@keyframes card-in{from{opacity:0;transform:translateY(16px) scale(.98)}}
+/* once the wave has played, it is over: sorting, filtering and anything
+   else that moves cards around never replays the entrance. hub-ui.js
+   adds .settled a beat after load. */
+.gg.settled .gc{animation:none}
+
+/* Icons fade up out of a soft blur as they finish decoding. JS adds
+   the starting class only while an image is genuinely still loading,
+   so no-JS browsers keep plain visible images. */
+.gc img{transition:opacity var(--dur-3) var(--ease-out),filter var(--dur-3) var(--ease-out),transform var(--dur-3) var(--ease-out)}
+.gc .mg{transition:transform var(--dur-3) var(--ease-out)}
+.gc img.hub-blur{opacity:0;filter:blur(8px)}
+
+/* Hover is a pointer-only privilege; touch devices keep still cards
+   and no sticky highlights. The card lifts, the shadow deepens with
+   a breath of accent, and the icon inside rises to meet it. */
+@media (hover:hover) and (pointer:fine){
+  .gc:hover{transform:translateY(-4px)}
+  .gc:hover img,.gc:hover .mg{transform:scale(1.08)}
+  .gc:hover{box-shadow:0 2px 6px color-mix(in srgb,var(--bg) 55%,transparent),
+    0 14px 34px color-mix(in srgb,var(--accent) 20%,transparent)}
+}
+/* a press is felt immediately: the card settles instead of lifting */
+.gc:active{transform:translateY(-1px) scale(.985);transition-duration:var(--dur-1)}
+.gc img,.gc .mg{will-change:transform}
+
+/* The favourite star: a bigger invisible hit area, and a small
+   spring the moment it fills — the one deliberate overshoot on
+   the grid, because saving a game is a happy moment. */
+.sb{top:0;right:0;padding:9px;font-size:1.25rem}
+.sb.a{animation:star-in .5s var(--ease-spring)}
+@keyframes star-in{0%{transform:scale(.3)}55%{transform:scale(1.45) rotate(8deg)}100%{transform:scale(1)}}
+
+/* Cards revealed again by the search filter come back with a quick
+   breath rather than blinking into place. Scoped and ordered so it
+   still wins over the settled state's "no entrance" rule. */
+.gg .gc.hub-in{animation:filter-in .22s var(--ease-out)}
+@keyframes filter-in{from{opacity:0;transform:translateY(6px)}}
+
+/* ============================================================
+   HEADER, SEARCH AND TOOLBAR
+   ============================================================ */
+
+/* The title picks up a thread of the theme's accent colour. */
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  header h1{
+    background:linear-gradient(115deg,var(--text) 55%,color-mix(in srgb,var(--accent) 65%,var(--text) 35%)));
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;
+  }
+  [data-theme="contrast"] header h1{-webkit-text-fill-color:var(--text);background:none}
+}
+header p{animation:fin .6s var(--ease-out) .12s both}
+
+/* Search field: a wrapper is added by hub-ui.js so the field can
+   carry an icon and a clearing button without extra markup on the
+   server. Everything animates except the width — the layout never
+   shifts under the person typing. */
+.sr-wrap{position:relative;max-width:400px;margin:0 auto 2rem}
+.sr-wrap .sr{margin:0;padding-left:2.6rem;padding-right:2.6rem}
+.sr-ico{position:absolute;left:.9rem;top:50%;transform:translateY(-50%);color:var(--faint);
+  pointer-events:none;transition:color var(--dur-2) var(--ease-standard)}
+.sr-wrap:focus-within .sr-ico{color:var(--accent)}
+.sr-clear{position:absolute;right:.5rem;top:50%;transform:translateY(-50%) scale(.6);
+  width:28px;height:28px;border:none;border-radius:50%;cursor:pointer;
+  background:var(--bg3);color:var(--dim);font-size:1rem;line-height:1;
+  display:grid;place-items:center;padding:0;
+  opacity:0;pointer-events:none;
+  transition:opacity var(--dur-2) var(--ease-out),transform var(--dur-2) var(--ease-spring),
+    background var(--dur-2) var(--ease-standard),color var(--dur-2)}
+.sr-clear.show{opacity:1;transform:translateY(-50%) scale(1);pointer-events:auto}
+.sr-clear:hover{background:var(--border);color:var(--text)}
+.sr-clear:active{transform:translateY(-50%) scale(.88)}
+.sr-clear:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Sort pills acknowledge clicks the instant they happen. */
+.hu-opt{transition:border-color var(--dur-2) var(--ease-standard),color var(--dur-2) var(--ease-standard),
+  background var(--dur-2) var(--ease-standard),transform var(--dur-1) var(--ease-out),
+  box-shadow var(--dur-2) var(--ease-standard)}
+.hu-opt:active{transform:scale(.94)}
+.hu-opt.on{box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent),
+  0 4px 14px color-mix(in srgb,var(--accent) 14%,transparent)}
+
+/* Buttons across the hub share one press: instant down, soft up. */
+.stg-btn,.wc-btn,.ad-btn,.cm-it-btn,.cm-hd button{transition-property:background,border-color,color,filter,transform,opacity;
+  transition-duration:var(--dur-2);transition-timing-function:var(--ease-standard)}
+.stg-btn:active,.wc-btn:active,.ad-btn:active,.cm-it-btn:active{transform:scale(.96)}
+.stg-btn:hover{transform:translateY(-1px)}
+.cz-opt:active{transform:scale(.96)}
+.cz-opt{transition:background var(--dur-2) var(--ease-standard),border-color var(--dur-2) var(--ease-standard),
+  color var(--dur-2) var(--ease-standard),transform var(--dur-1) var(--ease-out)}
+
+/* ============================================================
+   OVERLAYS — storage manager, customize panel, offline panel
+   All three share .cm-ov/.cm, so they all get the same arrival:
+   the backdrop fades while the panel rises into place, and the
+   reverse on the way out. Built on @starting-style and
+   transition-behavior:allow-discrete, which older browsers simply
+   ignore — they keep today's instant show/hide. The exit runs on
+   the backdrop's opacity (children fade with it) and is shorter
+   than the entrance, as exits should be.
+   ============================================================ */
+.cm-ov{
+  opacity:0;
+  transition-property:opacity,display;
+  transition-duration:var(--dur-3);
+  transition-timing-function:var(--ease-out);
+  transition-behavior:allow-discrete;
+}
+.cm-ov.open{opacity:1}
+.cm{animation:panel-in .35s var(--ease-out) both}
+@starting-style{.cm-ov.open{opacity:0}}
+@keyframes panel-in{from{opacity:0;transform:translateY(18px) scale(.97)}}
+
+/* Storage-manager rows lift slightly under the pointer. */
+.cm-it{transition:border-color var(--dur-2) var(--ease-standard),transform var(--dur-2) var(--ease-out),
+  box-shadow var(--dur-2) var(--ease-standard)}
+.cm-it:hover{transform:translateY(-2px);box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 10%,transparent)}
+
+/* The one-time welcome note: the friendliest spring on the site. */
+.wc-ov{
+  opacity:0;
+  transition-property:opacity,display;
+  transition-duration:var(--dur-3);
+  transition-timing-function:var(--ease-out);
+  transition-behavior:allow-discrete;
+}
+.wc-ov.show{opacity:1;animation:none}
+@starting-style{.wc-ov.show{opacity:0}}
+.wc{animation:wc-in .55s var(--ease-spring) both}
+@keyframes wc-in{from{opacity:0;transform:translateY(28px) scale(.92)}}
+
+/* ============================================================
+   FEEDBACK FORM — a spinner while sending, a check when it lands
+   ============================================================ */
+.fb-submit{position:relative;min-width:11ch}
+.fb-submit.sending{color:transparent}
+.fb-submit.sending::after{
+  content:"";position:absolute;inset:0;margin:auto;width:1.05em;height:1.05em;
+  border-radius:50%;border:2.5px solid color-mix(in srgb,var(--text) 25%,transparent);
+  border-top-color:var(--text);animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fb-message.ok{animation:ok-in .45s var(--ease-spring) both}
+@keyframes ok-in{from{opacity:0;transform:scale(.85)}}
+

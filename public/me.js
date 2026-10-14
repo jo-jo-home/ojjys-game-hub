@@ -42,8 +42,37 @@
     return '<span class="mg" aria-hidden="true" style="--mg:' + (hash % 360) + 'deg">' + esc(t) + "</span>";
   }
 
-  function tile(n, l) {
-    return '<div class="tile"><div class="n">' + n + '</div><div class="l">' + l + "</div></div>";
+  function tile(n, l, i, count) {
+    return '<div class="tile" style="--i:' + i + '"><div class="n"' +
+      (typeof count === "number" ? ' data-count="' + count + '"' : "") +
+      ">" + n + '</div><div class="l">' + l + "</div></div>";
+  }
+
+  // Numbers that arrive counting up feel earned rather than stamped in.
+  // Under reduced motion (the OS switch or the hub's own) the final value
+  // simply appears.
+  var rmq = null;
+  try { rmq = matchMedia("(prefers-reduced-motion: reduce)"); } catch (e) { /* old browser */ }
+  function reduced() {
+    var de = document.documentElement;
+    if (de.getAttribute && de.getAttribute("data-motion") === "off") return true;
+    return !!(rmq && rmq.matches);
+  }
+
+  function countUp(el, target, delay) {
+    if (reduced()) return;
+    var run = function () {
+      var start = null, dur = 850;
+      function frame(t) {
+        if (start === null) start = t;
+        var p = Math.min(1, (t - start) / dur);
+        var eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = String(Math.round(target * eased));
+        if (p < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    };
+    setTimeout(run, delay || 0);
   }
 
   function render(d) {
@@ -59,32 +88,38 @@
       return;
     }
 
+    var i = 0;
     var h = '<h2>the numbers</h2><div class="tiles">';
-    h += tile(esc(dur(d.totalMs)), "total playtime");
-    h += tile(d.tried, d.tried === 1 ? "game played" : "games played");
-    h += tile(d.totalOpens, "times opened");
-    h += tile(esc(dur(d.averageMs)), "average per game");
-    h += tile(d.activeDays || 0, "tracked active days");
-    h += tile(d.currentStreak || 0, "current streak · days");
-    h += tile(d.longestStreak || 0, "longest streak · days");
-    h += tile(esc(dur(d.recentMs)), "last 14 days");
-    if (d.top) h += tile(esc(d.top.name), "most played");
-    if (d.since) h += tile(ago(d.since), "first played");
+    h += tile(esc(dur(d.totalMs)), "total playtime", i++);
+    h += tile(d.tried, d.tried === 1 ? "game played" : "games played", i++, d.tried);
+    h += tile(d.totalOpens, "times opened", i++, d.totalOpens);
+    h += tile(esc(dur(d.averageMs)), "average per game", i++);
+    h += tile(d.activeDays || 0, "tracked active days", i++, d.activeDays || 0);
+    h += tile(d.currentStreak || 0, "current streak · days", i++, d.currentStreak || 0);
+    h += tile(d.longestStreak || 0, "longest streak · days", i++, d.longestStreak || 0);
+    h += tile(esc(dur(d.recentMs)), "last 14 days", i++);
+    if (d.top) h += tile(esc(d.top.name), "most played", i++);
+    if (d.since) h += tile(ago(d.since), "first played", i++);
     h += "</div>";
     h += '<p class="empty">active days and streaks use UTC and track activity from the profile update onward.</p>';
 
     h += "<h2>by game</h2><div class=\"list\">";
     var most = d.games[0].ms || 1;
-    d.games.forEach(function (g) {
-      h += '<div class="g">' + face(g) + '<div class="info">' +
+    d.games.forEach(function (g, n) {
+      h += '<div class="g" style="--i:' + n + '">' + face(g) + '<div class="info">' +
         '<div class="gn">' + esc(g.name) + "</div>" +
         '<div class="gm">' + (g.opens || 0) + (g.opens === 1 ? " open" : " opens") +
         " · last " + ago(g.last) + "</div>" +
-        '<div class="bar"><i style="width:' + Math.round((g.ms / most) * 100) + '%"></i></div>' +
+        '<div class="bar"><i style="width:' + Math.round((g.ms / most) * 100) + "%;--i:" + n + '"></i></div>' +
         '</div><div class="time">' + esc(dur(g.ms)) + "</div></div>";
     });
     h += "</div>";
     el.innerHTML = h;
+
+    var counters = el.querySelectorAll("[data-count]");
+    for (var c = 0; c < counters.length; c++) {
+      countUp(counters[c], Number(counters[c].getAttribute("data-count")) || 0, 350 + c * 70);
+    }
   }
 
   function tokenUrl() {
