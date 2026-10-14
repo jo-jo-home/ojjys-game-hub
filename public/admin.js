@@ -66,7 +66,7 @@
 
   function apiUrl(path) {
     var token = document.body.getAttribute("data-token") || "";
-    return path + (/^[a-f0-9]{64}$/.test(token) ? (path.indexOf("?") < 0 ? "?" : "&") + "token=" + token : "");
+    return path + (/^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/.test(token) ? (path.indexOf("?") < 0 ? "?" : "&") + "token=" + token : "");
   }
 
   async function load() {
@@ -230,6 +230,12 @@
   async function accessAction(e) {
     var button = e.currentTarget, action = button.getAttribute('data-access-action');
     var hash = button.getAttribute('data-access-hash') || '', id = button.getAttribute('data-access-id') || '';
+    // The one action that erases everything deserves more than an armed
+    // second click — make the consequence explicit and wait for a real OK.
+    if (action === 'remove-all' && !window.confirm(
+      "delete EVERY user account, access code and other login session?\n\n" +
+      "accounts and passwords cannot be recovered. this is the most destructive button in the panel."))
+      return;
     if (action !== 'legacy-on' && !arm('access:' + action + ':' + (hash || id))) return;
     button.disabled = true;
     try {
@@ -445,6 +451,19 @@
     if (!el) return;
     var h = accountsSection() + accessSection();
     h += feedbackSection();
+
+    // The database canary: if the reset marker was written in the last two
+    // days, the deployment's KV database was wiped or reset underneath the
+    // hub — which is how accounts "disappear" and everyone gets logged out
+    // at once. Nothing in the hub's code deletes accounts on its own, so
+    // say so plainly when the evidence shows it.
+    if (state.dbBorn && Date.now() - state.dbBorn < 2 * 86400000) {
+      h = '<div class="card" style="border-color:var(--warn)">' +
+        '<span class="who" style="color:var(--warn)">the database was reset recently</span>' +
+        '<div class="dim" style="margin-top:.4rem">accounts or sessions that vanished were lost when ' +
+        "the hub's database was reset — that happens on the Deno Deploy side, not in this site's code. " +
+        "sign-ins created after the reset are unaffected.</div></div>" + h;
+    }
 
     // ---- playing right now ----
     h += "<h2>playing right now</h2>";

@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   if (window.__hubSession) return;
-  var KEY = 'hub_login', VALID = /^[a-f0-9]{64}$/;
+  var KEY = 'hub_login', VALID = /^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/;
   var login = location.pathname === '/login', query = new URLSearchParams(location.search);
   var skipRestore = login && ['signedout', 'reauth', 'switch', 'wrong', 'error', 'limited', 'blocked', 'toomany'].some(function (key) { return query.has(key); });
   var busy = null, current = pageToken(), interacting = false;

@@ -125,7 +125,7 @@
   function tokenUrl() {
     var t = "";
     try { t = document.body.getAttribute("data-token") || ""; } catch (e) { /* none */ }
-    return /^[a-f0-9]{64}$/.test(t) ? "/api/me?token=" + t : "/api/me";
+    return /^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/.test(t) ? "/api/me?token=" + t : "/api/me";
   }
 
   async function start() {

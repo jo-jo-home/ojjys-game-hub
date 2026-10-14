@@ -1,3 +1,5 @@
+import type { RevocationHooks } from "./accounts.ts";
+
 // Legacy credentials and opaque login sessions, managed without exposing the
 // bearer tokens themselves. Permanent-removal markers prevent reactivation.
 type Identity = { code: string; label: string; role: string; account?: string; accountVersion?: string };
@@ -14,7 +16,12 @@ function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 }
 
-export function createAccessStore(getKv: () => Promise<Deno.Kv>, ownerConfigured: boolean, adminCodeConfigured: boolean) {
+export function createAccessStore(
+  getKv: () => Promise<Deno.Kv>,
+  ownerConfigured: boolean,
+  adminCodeConfigured: boolean,
+  hooks: RevocationHooks = {},
+) {
   async function policy() {
     const [legacy, shared] = await (await getKv()).getMany<[LegacyFlags, SharedFlags]>([
       ["hub_settings", "legacy_access"], ["hub_settings", "shared"],
@@ -63,7 +70,14 @@ export function createAccessStore(getKv: () => Promise<Deno.Kv>, ownerConfigured
     let count = 0;
     for await (const entry of kv.list<Session>({ prefix: ["hub_sessions"] })) {
       const token = String(entry.key[1]);
-      if (predicate(entry.value, token)) { await kv.delete(entry.key); invalidate(token); count++; }
+      if (predicate(entry.value, token)) {
+        // The tombstone is what ends a v2 session; the row deletion is for
+        // the admin panel's list.
+        await hooks.revokeToken?.(token);
+        await kv.delete(entry.key);
+        invalidate(token);
+        count++;
+      }
     }
     return count;
   }
@@ -73,6 +87,7 @@ export function createAccessStore(getKv: () => Promise<Deno.Kv>, ownerConfigured
     const code = await kv.get<Code>(["hub_codes", hash]);
     if (!code.value) return false;
     if (!(await kv.atomic().check(code).delete(code.key).commit()).ok) return false;
+    await hooks.revokeCode?.(hash);
     await revoke(s => !s.account && s.code === hash, invalidate);
     for await (const device of kv.list({ prefix: ["hub_devices", hash] })) await kv.delete(device.key);
     await kv.delete(["hub_now", hash]);
@@ -106,6 +121,7 @@ export function createAccessStore(getKv: () => Promise<Deno.Kv>, ownerConfigured
         break;
       case "delete-shared":
         await kv.set(["hub_settings", "shared"], { off: true, deleted: true });
+        await hooks.revokeCode?.("shared");
         await revoke(s => !s.account && (s.code === "shared" || !s.code), invalidate);
         for await (const device of kv.list({ prefix: ["hub_devices", "shared"] })) await kv.delete(device.key);
         break;
@@ -126,6 +142,7 @@ export function createAccessStore(getKv: () => Promise<Deno.Kv>, ownerConfigured
       case "delete-admin-code":
         if (!requireOwner()) return json({ error: "configure ADMIN_PASSWORD and sign in as ojjy first" }, 400);
         if (!(await kv.atomic().check(flagsEntry).set(flagsEntry.key, { ...flags, adminDeleted: true }).commit()).ok) return conflict();
+        await hooks.revokeCode?.("owner");
         await revoke(s => !s.account && s.code === "owner", invalidate);
         break;
       case "legacy-off":
@@ -141,7 +158,11 @@ export function createAccessStore(getKv: () => Promise<Deno.Kv>, ownerConfigured
         if (body.id === await digest(currentToken)) return json({ error: "use sign out to end your current session" }, 400);
         for await (const entry of kv.list<Session>({ prefix: ["hub_sessions"] })) {
           const token = String(entry.key[1]);
-          if (await digest(token) === body.id) { await kv.delete(entry.key); invalidate(token); }
+          if (await digest(token) === body.id) {
+            await hooks.revokeToken?.(token);
+            await kv.delete(entry.key);
+            invalidate(token);
+          }
         }
         break;
       case "revoke-sessions":
@@ -152,8 +173,17 @@ export function createAccessStore(getKv: () => Promise<Deno.Kv>, ownerConfigured
         // Block legacy authentication first, then erase stored credentials.
         await kv.atomic().set(["hub_settings", "legacy_access"], { off: true, adminDeleted: true })
           .set(["hub_settings", "shared"], { off: true, deleted: true }).commit();
-        for await (const account of kv.list({ prefix: ["hub_accounts"] })) await kv.delete(account.key);
-        for await (const code of kv.list({ prefix: ["hub_codes"] })) await kv.delete(code.key);
+        await hooks.revokeCode?.("shared");
+        await hooks.revokeCode?.("owner");
+        for await (const account of kv.list<{ id?: string }>({ prefix: ["hub_accounts"] })) {
+          if (account.value?.id) await hooks.revokeCode?.(account.value.id);
+          await kv.delete(account.key);
+        }
+        for await (const code of kv.list<Code>({ prefix: ["hub_codes"] })) {
+          await hooks.revokeCode?.(String(code.key[1]));
+          await kv.delete(code.key);
+        }
+        await revoke((_s, token) => token !== currentToken, invalidate);
         await revoke((_s, token) => token !== currentToken, invalidate);
         for await (const device of kv.list({ prefix: ["hub_devices"] })) {
           if (device.key[1] !== "owner") await kv.delete(device.key);

@@ -135,7 +135,7 @@
     var local = ["localhost", "127.0.0.1", "[::1]"].indexOf(location.hostname) >= 0;
     var sha = local ? null : await getRev();
     var token = document.body.getAttribute("data-token") || "";
-    var localQuery = /^[a-f0-9]{64}$/.test(token) ? "?token=" + token : "";
+    var localQuery = /^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/.test(token) ? "?token=" + token : "";
     var head = await headFor(id);
     var cache = await caches.open(GAMES_CACHE);
 
@@ -690,11 +690,11 @@
     // explicit token is authoritative and must reach the validation request.
     try {
       var query = new URLSearchParams(location.search).get("token") || "";
-      if (/^[a-f0-9]{64}$/.test(query)) return query;
+      if (/^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/.test(query)) return query;
     } catch (e) { /* fall back to the page's token */ }
     var t = "";
     try { t = document.body.getAttribute("data-token") || ""; } catch (e) { /* no body yet */ }
-    return /^[a-f0-9]{64}$/.test(t) ? t : "";
+    return /^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/.test(t) ? t : "";
   }
   window.__hubToken = window.__hubToken || sessionToken;
 

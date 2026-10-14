@@ -6,6 +6,12 @@ import { createAccountStore, OWNER_USERNAME, PROFILE_AVATARS, usernameKey } from
 import { createAccessStore } from "./access.ts";
 import additionalGames from "./public/additional-games.json" with { type: "json" };
 import { createStatisticsStore, type GameStat } from "./statistics.ts";
+import {
+  createSessionStore,
+  deriveSessionKey,
+  isToken,
+  TOKEN_V2,
+} from "./sessions.ts";
 
 const GITHUB_RAW = "https://raw.githubusercontent.com/jo-jo-home/ojjys-game-hub/master/public";
 const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN") || "";
@@ -121,11 +127,15 @@ const PASSWORD_HASH = "1779c0ce5c9ca5c69110d3853843a70e797bf3264fbeafa6c65de398f
 // freely and runs several at once, so an in-memory Set meant everyone was
 // logged out whenever that happened, and a login on one isolate was not
 // recognised by another.
-// A day was too short: the cookie was never refreshed, so everybody was
-// logged out roughly 24 hours after signing in, which reads as "it logs me
-// out at random". It is three months now, and it slides — every page load pushes
-// it forward, so only real inactivity ends a session.
-const SESSION_TTL_MS = 90 * 86_400_000; // matches the cookie's Max-Age
+// Sessions v2. A session token is a signed statement of who signed in and
+// when — it verifies itself with no database read at all. The database is
+// only consulted to enforce explicit revocations, bans and password
+// changes, and when it cannot answer (a hiccup, or the data was lost), the
+// signature already proved the sign-in, so the person stays signed in.
+// That is what "log in once" means: only signing out, an explicit ban, or
+// roughly a browser-generation of time (the ~400-day cookie cap) ends it.
+const SESSION_TTL_MS = 397 * 86_400_000; // matches the cookie's Max-Age
+const SESSION_ROTATE_MS = 30 * 86_400_000; // mint a fresh token monthly, silently
 
 // Remember decoded session payloads briefly. Session existence and account
 // status are still checked together once per HTTP request so revocations take
@@ -136,7 +146,18 @@ const SESSION_CACHE_MS = 60_000;
 type SessionInfo = { at: number; code: string; label: string; role: string; seen?: number; device?: string; account?: string; accountVersion?: string };
 const SEEN_INTERVAL_MS = 300_000;   // don't write KV more often than this
 const verifiedSessions = new Map<string, { at: number; info: SessionInfo }>();
-const requestSessions = new WeakMap<Request, Promise<{ token: string; info: SessionInfo } | null>>();
+// The identity behind a request, or null when there isn't one.
+//
+// `kind` records which generation the presented token belongs to and
+// `rotate` that it should be replaced — /api/session is the one place that
+// can hand a fresh token back, so every other handler just reads `info`.
+type ResolvedSession = {
+  token: string;
+  info: SessionInfo;
+  kind: "v2" | "legacy";
+  rotate: boolean;
+};
+const requestSessions = new WeakMap<Request, Promise<ResolvedSession | null>>();
 
 // ---- who has access -------------------------------------------------------
 //
@@ -175,9 +196,47 @@ const SHARED_CODE = "shared";
 // accepted for legacy owner sign-in only until the new password is configured.
 const ADMIN_CODE = Deno.env.get("ADMIN_CODE") || "";
 const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") || "";
-const accounts = createAccountStore(getKv, ADMIN_PASSWORD);
+
+// ---- sessions v2 ----------------------------------------------------------
+//
+// A session token is a signed statement of who signed in and when — it
+// verifies itself with no database read at all. The database is only
+// consulted to enforce explicit revocations, bans and password changes,
+// and when it cannot answer (a hiccup, or the data was lost), the
+// signature already proved the sign-in, so the person stays signed in.
+// That is what "log in once" means: only signing out, an explicit ban, or
+// roughly a browser-generation of time (the ~400-day cookie cap) ends it.
+
+const SESSION_SECRET = Deno.env.get("SESSION_SECRET") || "";
+let _sessions: ReturnType<typeof createSessionStore> | null = null;
+async function sessions() {
+  if (!_sessions) {
+    // The signing key comes from the deployment's environment secrets, so
+    // it survives database resets; only a deployment with no env secret at
+    // all falls back to a key stored in the database.
+    const material = [SESSION_SECRET, ADMIN_PASSWORD, ADMIN_CODE].filter(Boolean).join("|");
+    const key = await deriveSessionKey(material, await getKv());
+    _sessions = createSessionStore(getKv, key, () => Date.now(), SESSION_TTL_MS, SESSION_ROTATE_MS);
+  }
+  return _sessions;
+}
+
+// Everything that ends sessions on purpose goes through these hooks, so
+// v2 tokens actually die when an owner bans an account, resets a password,
+// blocks a device or ends a session. Best-effort by design: the action
+// stands even if its tombstone write cannot be recorded.
+const revocation = {
+  async revokeToken(token: string): Promise<void> {
+    try { await (await sessions()).revokeToken(token); } catch { /* stands anyway */ }
+  },
+  async revokeCode(code: string): Promise<void> {
+    try { await (await sessions()).revokeCode(code); } catch { /* stands anyway */ }
+  },
+};
+
+const accounts = createAccountStore(getKv, ADMIN_PASSWORD, undefined, revocation);
 const statistics = createStatisticsStore(getKv);
-const access = createAccessStore(getKv, !!ADMIN_PASSWORD, !!ADMIN_CODE);
+const access = createAccessStore(getKv, !!ADMIN_PASSWORD, !!ADMIN_CODE, revocation);
 
 type CodeRecord = {
   label: string;
@@ -456,8 +515,9 @@ function getSessionFromCookie(req: Request): string | null {
   // Anchored to a whole cookie name. Without the boundary, any other cookie
   // whose name merely ends in "session" (a game on this origin can set one)
   // would match the substring and shadow the real token — which reads as
-  // being logged out for no reason.
-  const match = cookie.match(/(?:^|;\s*)session=([a-f0-9]{64})/);
+  // being logged out for no reason. The value is any token shape; the
+  // resolver decides whether it is a real one.
+  const match = cookie.match(/(?:^|;\s*)session=([^;\s]+)/);
   return match ? match[1] : null;
 }
 
@@ -466,6 +526,10 @@ function sessionCookie(token: string): string {
     `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`;
 }
 
+// The bookkeeping row behind a session: it powers the admin panel's session
+// list and "who is online", nothing more. A v2 token stays valid without
+// it, which is the whole point — losing these rows must never log anyone
+// out.
 async function addSession(token: string, info: SessionInfo): Promise<void> {
   await (await getKv()).set(["hub_sessions", token], info, {
     expireIn: SESSION_TTL_MS,
@@ -543,16 +607,48 @@ async function getSessionToken(req: Request): Promise<string | null> {
   return (await resolveSession(req))?.token || null;
 }
 
-function resolveSession(req: Request): Promise<{ token: string; info: SessionInfo } | null> {
+async function resolveToken(token: string): Promise<ResolvedSession | null> {
+  if (TOKEN_V2.test(token)) {
+    // v2: the token proves itself. The database is only asked for explicit
+    // revocations, and an unreadable or wiped database fails open — the
+    // signature already proved the sign-in.
+    const verified = await (await sessions()).verify(token);
+    if (!verified) return null;
+    // The bootstrap ADMIN_CODE owner retires once ADMIN_PASSWORD exists —
+    // the same rule the old KV path enforced, decided from the env alone.
+    if (!verified.info.account && verified.info.code === "owner" && ADMIN_PASSWORD) return null;
+    return {
+      token,
+      info: {
+        at: verified.issuedAt,
+        code: verified.info.code,
+        label: verified.info.label,
+        role: verified.info.role,
+        account: verified.info.account,
+        accountVersion: verified.info.accountVersion,
+      },
+      kind: "v2",
+      rotate: verified.rotate,
+    };
+  }
+  // Legacy 64-hex token: its only proof of authenticity is the database
+  // row, so this path stays strict — and the /api/session response
+  // upgrades it to a v2 token so this browser never needs the row again.
+  const info = await readSession(token);
+  if (!info) return null;
+  return { token, info, kind: "legacy", rotate: true };
+}
+
+function resolveSession(req: Request): Promise<ResolvedSession | null> {
   const cached = requestSessions.get(req);
   if (cached) return cached;
   const result = (async () => {
     const param = new URL(req.url).searchParams.get("token");
     const cookie = getSessionFromCookie(req);
     for (const token of [param, cookie]) {
-      if (!token || !/^[a-f0-9]{64}$/.test(token)) continue;
-      const info = await readSession(token);
-      if (info) return { token, info };
+      if (!token || !isToken(token)) continue;
+      const resolved = await resolveToken(token);
+      if (resolved) return resolved;
     }
     return null;
   })();
@@ -1783,7 +1879,9 @@ Deno.serve(async (req: Request) => {
     const password = typeof passwordField === "string" ? passwordField : "";
     const username = form.get("username");
     const accountLogin = form.get("mode") === "account" || username !== null;
-    const identity = accountLogin ? await accounts.authenticate(username, password) : null;
+    // A database that cannot answer turns into "try again", not an error
+    // page — the shared password and owner code below stay open regardless.
+    const identity = accountLogin ? await accounts.authenticate(username, password).catch(() => null) : null;
     const info: SessionInfo | null = accountLogin
       ? (identity ? { at: Date.now(), ...identity } : null)
       : await identify(password);
@@ -1793,24 +1891,33 @@ Deno.serve(async (req: Request) => {
       // Two ways in are refused here rather than at the door of every page:
       // a device the owner has blocked, and a brand new device on a code that
       // has already reached its limit. The owner's own code is exempt, so a
-      // limit can never lock them out of their own panel.
-      const known = await getDevice(info.code, device);
-      if (known?.blocked) {
-        return new Response(null, { status: 302, headers: { "Location": "/login?blocked=1" } });
-      }
-      if (!known) {
-        const rec = await getCode(info.code);
-        const limit = rec?.deviceLimit || 0;
-        if (limit > 0 && (await listDevices(info.code)).length >= limit) {
-          return new Response(null, { status: 302, headers: { "Location": "/login?toomany=1" } });
+      // limit can never lock them out of their own panel. A database that
+      // cannot answer must not refuse a sign-in — the same fail-open rule
+      // the session checks follow.
+      try {
+        const known = await getDevice(info.code, device);
+        if (known?.blocked) {
+          return new Response(null, { status: 302, headers: { "Location": "/login?blocked=1" } });
         }
-      }
+        if (!known) {
+          const rec = await getCode(info.code);
+          const limit = rec?.deviceLimit || 0;
+          if (limit > 0 && (await listDevices(info.code)).length >= limit) {
+            return new Response(null, { status: 302, headers: { "Location": "/login?toomany=1" } });
+          }
+        }
+      } catch { /* unreachable database: let the person sign in, not out */ }
     }
     if (info) {
       if (device) info.device = device;
-      const token = generateToken();
-      await addSession(token, info);
-      await touchCode(info.code, false);
+      // A v2 token proves its own sign-in. Even if the database cannot
+      // record anything right now, the login succeeds; the bookkeeping rows
+      // below are for the admin panel, and nothing about staying signed in
+      // depends on them.
+      const minted = await (await sessions()).mint(info);
+      const token = minted.token;
+      try { await addSession(token, info); } catch { /* presence bookkeeping only */ }
+      try { await touchCode(info.code, false); } catch { /* bookkeeping only */ }
       if (device) await recordDevice(info.code, device, req, false);
       // The token goes in the URL as well as the cookie. Games open inside an
       // about:blank wrapper, and a cookie set in that context is a third-party
@@ -2006,7 +2113,12 @@ Deno.serve(async (req: Request) => {
     }
     const token = await getSessionToken(req);
     if (token) {
-      await (await getKv()).delete(["hub_sessions", token]);
+      // A v2 token's proof is its signature, so signing out has to leave a
+      // revocation tombstone behind — deleting the bookkeeping row alone
+      // would not end it. Both are best-effort: the cookie is cleared
+      // either way, which is what the person sees.
+      await revocation.revokeToken(token);
+      try { await (await getKv()).delete(["hub_sessions", token]); } catch { /* bookkeeping */ }
       verifiedSessions.delete(token);
     }
     return new Response('{"ok":true}', {
@@ -2076,6 +2188,21 @@ Deno.serve(async (req: Request) => {
         totalMs += v.ms || 0;
       }
 
+      // The database canary. A row written once, the first time the panel
+      // opens. If it ever comes back missing while the hub has been running
+      // for longer, the database was reset — which is how created accounts
+      // "disappear" without any code deleting them. Surfacing it turns a
+      // mystery into a diagnosis.
+      let dbBorn = 0;
+      try {
+        const born = await kv.get<number>(["hub_meta", "born"]);
+        if (born.value) dbBorn = born.value;
+        else {
+          dbBorn = Date.now();
+          await kv.set(["hub_meta", "born"], dbBorn);
+        }
+      } catch { /* the panel still opens without it */ }
+
       return new Response(JSON.stringify({
         accounts: await accounts.list(), ownerAccount: { username: OWNER_USERNAME, configured: accounts.ownerConfigured },
         accessPolicy, sessions: await access.sessions((await getSessionToken(req)) || ""),
@@ -2087,6 +2214,7 @@ Deno.serve(async (req: Request) => {
         totalMs,
         now: await livePresence(),
         sharedEnabled: accessPolicy.sharedEnabled,
+        dbBorn,
       }), { headers: { ...JSON_CT, "Cache-Control": "no-store" } });
     }
 
@@ -2136,12 +2264,15 @@ Deno.serve(async (req: Request) => {
         }
         // Blocking has to end the sessions that device already holds, or it
         // keeps working until its cookie expires — the same mistake revoking
-        // a code would have made.
+        // a code would have made. Each ended session gets a revocation
+        // tombstone as well, so v2 tokens die with their bookkeeping rows.
         if (action === "block") {
           for await (const e of kv.list<SessionInfo>({ prefix: ["hub_sessions"] })) {
             if (e.value?.code === code && e.value?.device === id) {
+              const blockedToken = String(e.key[1]);
               await kv.delete(e.key);
-              verifiedSessions.delete(String(e.key[1]));
+              await revocation.revokeToken(blockedToken);
+              verifiedSessions.delete(blockedToken);
             }
           }
         }
@@ -2181,24 +2312,40 @@ Deno.serve(async (req: Request) => {
   // and lives under /api/ so the service worker passes it straight to the
   // network — a cached answer would defeat the point.
   if (url.pathname === "/api/session") {
-    const info = await getSession(req);
+    const resolved = await resolveSession(req);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
     };
-    if (info) {
+    let token = resolved?.token || null;
+    let expiresAt = resolved ? Date.now() + SESSION_TTL_MS : 0;
+    if (resolved) {
       await touchSession(req);
-      // Re-issued on every page load so the browser's copy never ages out
-      // while the session is still in use.
-      const token = await getSessionToken(req);
+      // The one place a fresh token is handed out. A legacy token is
+      // upgraded to a v2 token so that browser stops depending on a
+      // database row; a v2 token that has aged past the rotation point is
+      // replaced, which is what makes the ~400-day life slide. The client
+      // adopts whatever this answers, cookie included.
+      if (resolved.rotate) {
+        try {
+          const minted = await (await sessions()).mint(resolved.info);
+          try {
+            const kv = await getKv();
+            await kv.set(["hub_sessions", minted.token], resolved.info, { expireIn: SESSION_TTL_MS });
+            await kv.delete(["hub_sessions", resolved.token]);
+          } catch { /* bookkeeping only */ }
+          verifiedSessions.delete(resolved.token);
+          token = minted.token;
+          expiresAt = minted.expiresAt;
+        } catch { /* keep the token it came with */ }
+      }
       if (token) headers["Set-Cookie"] = sessionCookie(token);
     }
     // `admin` is here so the panel — and whoever is setting ADMIN_PASSWORD up —
     // can tell an unset environment variable apart from a broken panel. It
     // says nothing a session doesn't already know about itself.
-    const token = info ? await getSessionToken(req) : null;
-    return new Response(JSON.stringify({ ok: !!info, admin: info?.role === "admin",
-      ...(token ? { token, expiresAt: Date.now() + SESSION_TTL_MS } : {}) }), {
+    return new Response(JSON.stringify({ ok: !!resolved, admin: resolved?.info.role === "admin",
+      ...(token ? { token, expiresAt } : {}) }), {
       headers,
     });
   }

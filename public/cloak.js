@@ -198,7 +198,7 @@
       var origin = window.location.origin;
       var rel = url.indexOf(origin) === 0 ? url.slice(origin.length) : url;
       var gameId = (rel.split("?")[0].split("/").filter(Boolean)[0]) || "";
-      var tokMatch = url.match(/token=([a-f0-9]{64})/);
+      var tokMatch = url.match(/token=([a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})/);
       var tok = tokMatch ? tokMatch[1] : "";
       var dev = "";
       try {
@@ -278,11 +278,11 @@
   function pageToken() {
     try {
       var query = new URLSearchParams(location.search).get("token") || "";
-      if (/^[a-f0-9]{64}$/.test(query)) return query;
+      if (/^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/.test(query)) return query;
     } catch (e) { /* fall back to the markup */ }
     var t = "";
     try { t = document.body.getAttribute("data-token") || ""; } catch (e) { /* none */ }
-    return /^[a-f0-9]{64}$/.test(t) ? t : "";
+    return /^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/.test(t) ? t : "";
   }
 
   // The script that runs inside the game tab. It reports playtime to the hub

@@ -71,7 +71,7 @@
     try {
       if (!requestId) requestId = crypto.randomUUID();
       var token = document.body.getAttribute("data-token") || "";
-      var url = "/api/feedback" + (/^[a-f0-9]{64}$/.test(token) ? "?token=" + token : "");
+      var url = "/api/feedback" + (/^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/.test(token) ? "?token=" + token : "");
       timeout = setTimeout(function () { controller.abort(); }, 15000);
       var res = await fetch(url, {
         method: "POST",

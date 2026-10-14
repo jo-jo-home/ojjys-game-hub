@@ -60,7 +60,7 @@
     // tab and the request must survive that. A failure changes nothing.
     try {
       var token = window.__hubToken ? window.__hubToken() : document.body.getAttribute("data-token") || "";
-      var playedUrl = "/api/played" + (/^[a-f0-9]{64}$/.test(token) ? "?token=" + token : "");
+      var playedUrl = "/api/played" + (/^(?:[a-f0-9]{64}|[A-Za-z0-9_-]{10,}\.[a-f0-9]{64})$/.test(token) ? "?token=" + token : "");
       fetch(playedUrl, {
         method: "POST",
         headers: Object.assign(

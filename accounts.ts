@@ -69,7 +69,19 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export function createAccountStore(getKv: () => Promise<Deno.Kv>, ownerPassword: string, clock = () => Date.now()) {
+export type RevocationHooks = {
+  /** Kill every v2 session for one identity (account id / code). */
+  revokeCode?: (code: string) => Promise<void>;
+  /** Kill one token by its full string. */
+  revokeToken?: (token: string) => Promise<void>;
+};
+
+export function createAccountStore(
+  getKv: () => Promise<Deno.Kv>,
+  ownerPassword: string,
+  clock: () => number = () => Date.now(),
+  hooks: RevocationHooks = {},
+) {
   // Stable across isolates, so changing ADMIN_PASSWORD also ends old owner
   // sessions. This slow digest, not the environment secret, is the version.
   const ownerCredential = ownerPassword
@@ -215,7 +227,11 @@ export function createAccountStore(getKv: () => Promise<Deno.Kv>, ownerPassword:
       record.favorites = [...favorites];
     } else if (action === "sign-out-others") {
       for await (const session of kv.list<AccountIdentity>({ prefix: ["hub_sessions"] })) {
-        if (session.value.account === identity.account && session.value.code === identity.code && session.key[1] !== currentToken) await kv.delete(session.key);
+        if (session.value.account === identity.account && session.value.code === identity.code && session.key[1] !== currentToken) {
+          const other = String(session.key[1]);
+          await hooks.revokeToken?.(other);
+          await kv.delete(session.key);
+        }
       }
       return json({ ok: true });
     } else if (action === "password" || action === "username") {
@@ -240,6 +256,10 @@ export function createAccountStore(getKv: () => Promise<Deno.Kv>, ownerPassword:
         if (!(await kv.atomic().check(entry).set(entry.key, record).commit()).ok) return json({ error: "account changed — refresh and try again" }, 409);
       }
       invalidate(identity.code);
+      // Changing the password or username ends every session of this
+      // account, including this one — the tombstone makes that true for
+      // v2 tokens as well as for the bookkeeping rows.
+      await hooks.revokeCode?.(identity.code);
       for await (const session of kv.list<AccountIdentity>({ prefix: ["hub_sessions"] })) {
         if (session.value.code === identity.code) await kv.delete(session.key);
       }
@@ -254,13 +274,19 @@ export function createAccountStore(getKv: () => Promise<Deno.Kv>, ownerPassword:
     const ip = (req.headers.get("x-forwarded-for") || "local").split(",")[0].trim();
     const digest = await crypto.subtle.digest("SHA-256", encoder.encode(ip));
     const key = ["hub_login_attempts", hex(new Uint8Array(digest)), Math.floor(Date.now() / 60_000)];
-    const kv = await getKv();
-    for (let tries = 0; tries < 5; tries++) {
-      const entry = await kv.get<number>(key);
-      if ((entry.value || 0) >= 20) return false;
-      if ((await kv.atomic().check(entry).set(key, (entry.value || 0) + 1, { expireIn: 120_000 }).commit()).ok) return true;
+    try {
+      const kv = await getKv();
+      for (let tries = 0; tries < 5; tries++) {
+        const entry = await kv.get<number>(key);
+        if ((entry.value || 0) >= 20) return false;
+        if ((await kv.atomic().check(entry).set(key, (entry.value || 0) + 1, { expireIn: 120_000 }).commit()).ok) return true;
+      }
+      return false;
+    } catch {
+      // An unreachable limiter must not refuse a sign-in. Real brute force
+      // is still rate-limited on every request where the database answers.
+      return true;
     }
-    return false;
   }
 
   async function manage(req: Request, identity: AccountIdentity | null, invalidate: (id: string) => void): Promise<Response> {
@@ -322,8 +348,9 @@ export function createAccountStore(getKv: () => Promise<Deno.Kv>, ownerPassword:
     const endsSessions = action !== "update" || changePassword;
     if (endsSessions && action !== "create") {
       invalidate(record.id);
-      // Version checks already revoke across isolates; remove stored sessions
-      // too so a disabled/deleted account no longer appears online.
+      // The revocation tombstone is what ends v2 sessions; the row cleanup
+      // below is for the admin panel's view.
+      await hooks.revokeCode?.(record.id);
       try {
         for await (const session of kv.list<{ code: string }>({ prefix: ["hub_sessions"] })) {
           if (session.value.code === record.id) await kv.delete(session.key);
