@@ -389,7 +389,22 @@ async function livePresence(): Promise<
 async function identify(input: string): Promise<SessionInfo | null> {
   const typed = input.trim();
   if (!typed) return null;
-  const policy = await access.policy();
+  // The shared password and the owner code are pure computation; a database
+  // that cannot answer must not turn them into an error page at the exact
+  // moment somebody is signing in. If the policy row is unreadable, assume
+  // the documented defaults (legacy access on) rather than failing the
+  // sign-in. Minted codes still need the database and stay behind their own
+  // try/catch below.
+  let policy;
+  try {
+    policy = await access.policy();
+  } catch {
+    policy = {
+      legacyEnabled: true,
+      sharedEnabled: true,
+      adminCodeEnabled: !!ADMIN_CODE && !ADMIN_PASSWORD,
+    };
+  }
   if (!policy.legacyEnabled) return null;
 
   // the bootstrap owner code, straight from the environment
@@ -438,7 +453,11 @@ function generateToken(): string {
 
 function getSessionFromCookie(req: Request): string | null {
   const cookie = req.headers.get("cookie") || "";
-  const match = cookie.match(/session=([a-f0-9]{64})/);
+  // Anchored to a whole cookie name. Without the boundary, any other cookie
+  // whose name merely ends in "session" (a game on this origin can set one)
+  // would match the substring and shadow the real token — which reads as
+  // being logged out for no reason.
+  const match = cookie.match(/(?:^|;\s*)session=([a-f0-9]{64})/);
   return match ? match[1] : null;
 }
 
@@ -1741,8 +1760,12 @@ Deno.serve(async (req: Request) => {
 
   // Serve login page
   if (url.pathname === "/login") {
-    const policy = await access.policy();
-    const loginPage = policy.legacyEnabled ? LOGIN_PAGE : LOGIN_PAGE.replace('id="legacy-login"', 'id="legacy-login" hidden');
+    // Unreadable settings must not take the sign-in page down with them;
+    // the POST re-checks the policy anyway, so default to showing the
+    // legacy box rather than erroring out.
+    let legacyEnabled = true;
+    try { legacyEnabled = (await access.policy()).legacyEnabled; } catch { /* keep the default */ }
+    const loginPage = legacyEnabled ? LOGIN_PAGE : LOGIN_PAGE.replace('id="legacy-login"', 'id="legacy-login" hidden');
     return new Response(loginPage, {
       headers: { "Content-Type": "text/html", "Cache-Control": "no-store", ...HTML_HEADERS },
     });

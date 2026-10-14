@@ -7,6 +7,16 @@
   var login = location.pathname === '/login', query = new URLSearchParams(location.search);
   var skipRestore = login && ['signedout', 'reauth', 'switch', 'wrong', 'error', 'limited', 'blocked', 'toomany'].some(function (key) { return query.has(key); });
   var busy = null, current = pageToken(), interacting = false;
+  // The pages the hub itself owns. Two jobs: they are the only pages whose
+  // links carry ?token=, and — because this script also runs inside every
+  // game frame — they are the only pages a failed check may navigate away
+  // from. A game frame that loses its session keeps running; being thrown
+  // to the sign-in screen mid-level is far worse, and the hub is where a
+  // dead session actually has to be dealt with.
+  var HUB_PAGES = ['/', '/index.html', '/hub', '/apps', '/me', '/admin', '/feedback', '/profile', '/people', '/account'];
+  function hubPage() {
+    try { return HUB_PAGES.indexOf(location.pathname) >= 0; } catch (_) { return false; }
+  }
   function pageToken() {
     var explicit = new URLSearchParams(location.search).get('token') || '';
     if (VALID.test(explicit)) return explicit;
@@ -35,12 +45,15 @@
   function adopt(value, expiresAt) {
     current = value;
     if (document.body) document.body.dataset.token = value;
-    if (typeof window._t === 'string') window._t = value;
-    var pages = ['/', '/index.html', '/hub', '/apps', '/me', '/admin', '/feedback', '/profile', '/people', '/account'];
-    document.querySelectorAll('a[href]').forEach(function (link) {
-      var target = new URL(link.href, location.href);
-      if (target.origin === location.origin && pages.includes(target.pathname)) { target.searchParams.set('token', value); link.href = target.href; }
-    });
+    // Only the hub's own pages get the rest: inside a game frame, `_t` can be
+    // the game's variable, not ours, and its links are never hub links.
+    if (hubPage()) {
+      if (typeof window._t === 'string') window._t = value;
+      document.querySelectorAll('a[href]').forEach(function (link) {
+        var target = new URL(link.href, location.href);
+        if (target.origin === location.origin && HUB_PAGES.includes(target.pathname)) { target.searchParams.set('token', value); link.href = target.href; }
+      });
+    }
     try { localStorage.setItem(KEY, JSON.stringify({token:value, expiresAt:expiresAt})); } catch (_) { /* cookie fallback */ }
   }
   async function check(value) {
@@ -56,21 +69,41 @@
     target.searchParams.set('token', value);
     location.replace(target.href);
   }
+  // The page's own token first, then the saved backup. `fallback` records that
+  // the page's token was the dead one, so the caller can move the page onto
+  // the token that still works.
+  async function probe(selected, backup) {
+    var data = await check(selected);
+    var fallback = false;
+    if (!data.ok && backup && backup.token !== selected) { data = await check(backup.token); fallback = true; }
+    data.fallback = fallback;
+    return data;
+  }
   async function run() {
     if (!navigator.onLine || (login && skipRestore)) return;
     var backup = saved();
     var selected = login ? backup && backup.token || '' : token();
     try {
-      var data = await check(selected);
-      var fallback = false;
-      if (!data.ok && backup && backup.token !== selected) { data = await check(backup.token); fallback = true; }
+      var data = await probe(selected, backup);
+      // One refusal is not a sign-out. This check runs on a timer and every
+      // time a tab is focused, so a single bad answer — a cold isolate, a
+      // blip on the way to the database — used to end the session on the
+      // spot and take a game in mid-play with it. Ask again before
+      // believing it, and only then throw the saved tokens away.
+      if (!data.ok) {
+        await new Promise(function (resolve) { setTimeout(resolve, 2000); });
+        data = await probe(selected, backup);
+      }
       if (data.ok && VALID.test(data.token || '')) {
         adopt(data.token, data.expiresAt);
-        if (login || fallback) continueWith(data.token, login);
+        if (login || data.fallback) continueWith(data.token, login);
       } else {
         forget(selected);
         if (backup) forget(backup.token);
-        if (!login && document.body && document.body.dataset.token) location.replace('/login?reauth=1');
+        // Hub pages only. Game frames never navigate to the sign-in screen:
+        // the game keeps running, and the session is dealt with wherever
+        // the person actually signs in from.
+        if (!login && hubPage()) location.replace('/login?reauth=1');
       }
     } catch (_) { /* network failure is not a sign-out; keep the saved session */ }
   }

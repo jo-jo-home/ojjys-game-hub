@@ -238,12 +238,24 @@
         // Same reason as offline.js: without the token this answers "no" for
         // a live session whose cookie was dropped, and the branch below then
         // closes the game and throws the player back to the login page.
-        fetch(sessionUrl(), { credentials: "same-origin", cache: "no-store" })
-          .then(function (r) { return r.json(); })
-          .then(function (d) {
-            if (d && d.ok) { fill(); return; }
-            try { w.close(); } catch (e) { /* already gone */ }
-            window.location.href = "/login";
+        function okNow() {
+          return fetch(sessionUrl(), { credentials: "same-origin", cache: "no-store" })
+            .then(function (r) { return r.json(); })
+            .then(function (d) { return !!(d && d.ok); });
+        }
+        function denied() {
+          try { w.close(); } catch (e) { /* already gone */ }
+          window.location.href = "/login";
+        }
+        okNow()
+          .then(function (ok) {
+            if (ok) { fill(); return; }
+            // One "no" is not proof. This fires the instant a tile is
+            // clicked, and a single bad answer used to close the new tab
+            // and land the hub on the login screen. Confirm once first.
+            setTimeout(function () {
+              okNow().then(function (second) { second ? fill() : denied(); }).catch(fill);
+            }, 2000);
           })
           .catch(fill);   // offline: the worker serves the game from cache
       } catch (e) { fill(); }
