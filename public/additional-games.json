@@ -70,6 +70,34 @@
     "tier": "partial"
   },
   {
+    "id": "eaglercraftwasm112",
+    "name": "Eaglercraft 1.12 WASM-GC",
+    "desc": "Browser Minecraft 1.12, WASM build",
+    "icon": false,
+    "tier": "partial"
+  },
+  {
+    "id": "eaglercraft262",
+    "name": "Eaglercraft 26.2 (fe8f1237)",
+    "desc": "Browser Minecraft 26.2, build fe8f1237",
+    "icon": false,
+    "tier": "partial"
+  },
+  {
+    "id": "archmc262",
+    "name": "ArchMC Eaglercraft 26.2",
+    "desc": "Browser Minecraft 26.2, ArchMC build",
+    "icon": false,
+    "tier": "partial"
+  },
+  {
+    "id": "archmc263",
+    "name": "ArchMC Eaglercraft 26.3",
+    "desc": "Browser Minecraft 26.3, ArchMC build",
+    "icon": false,
+    "tier": "partial"
+  },
+  {
     "id": "achievementunlocked",
     "name": "Achievement Unlocked",
     "desc": "Meta-platformer via Ruffle",
